@@ -34,7 +34,7 @@ def make_user(username: str, *, age_days: int = 8, active: bool = True):
 
 
 def make_product(owner, suffix: str = "one") -> Product:
-    return Product.objects.create(owner=owner, title=f"product-{suffix}", description="description")
+    return Product.objects.create(owner=owner, title=f"product-{suffix}", description="description", price=10_000)
 
 
 def test_product_threshold_is_exactly_one_reversible_action() -> None:

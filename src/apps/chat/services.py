@@ -139,7 +139,7 @@ def _require_active_user(*, user_id: int, lock: bool) -> Any:
 def _require_room_access(*, room_id: int, user_id: int, lock: bool = False) -> Room:
     rooms = Room.objects.select_related("direct_user_low", "direct_user_high")
     if lock:
-        rooms = rooms.select_for_update()
+        rooms = rooms.select_for_update(of=("self",))
     try:
         room = rooms.get(pk=room_id)
     except Room.DoesNotExist as exc:

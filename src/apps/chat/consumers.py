@@ -46,6 +46,11 @@ def has_exact_origin(scope: dict[str, object]) -> bool:
         or origin.query
         or origin.fragment
         or origin.hostname is None
+        or host.username is not None
+        or host.password is not None
+        or host.path not in ("", "/")
+        or host.query
+        or host.fragment
         or host.hostname is None
     ):
         return False
