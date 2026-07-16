@@ -39,7 +39,7 @@ class RepositoryBoundaryTests(unittest.TestCase):
         workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
         self.assertIn("\n  pull_request_target:\n", workflow)
-        self.assertNotIn("\n  pull_request:\n", workflow)
+        self.assertIn("\n  pull_request:\n", workflow)
         self.assertIn(
             "github.event.pull_request.head.repo.full_name || github.repository",
             workflow,
@@ -49,13 +49,14 @@ class RepositoryBoundaryTests(unittest.TestCase):
             workflow,
         )
         self.assertIn("persist-credentials: false", workflow)
-        self.assertIn("name: governance-trusted", workflow)
+        self.assertIn("'governance-trusted' || 'governance'", workflow)
         self.assertNotIn("python3 scripts/", workflow)
         self.assertNotIn("pip install", workflow)
         self.assertLess(
             workflow.index("Reject secret-scanner bypass configuration"),
-            workflow.index("gitleaks/gitleaks-action@"),
+            workflow.index("ghcr.io/gitleaks/gitleaks@sha256:"),
         )
+        self.assertNotIn("gitleaks/gitleaks-action@", workflow)
 
 
 if __name__ == "__main__":
