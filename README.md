@@ -2,7 +2,7 @@
 
 Django 기반 시큐어 코딩 중고거래 플랫폼과 추적 가능한 Living Report 저장소입니다.
 
-> **현재 상태: G1 BLOCK.** 독립 GitHub 검토자가 없고 `main` 보호가 아직 활성화되지 않았으며, 결정적 PDF renderer receipt가 미완료입니다. 승인된 계약에 따라 제품 구현은 시작하지 않았습니다.
+> **현재 상태: G1 BLOCK.** 독립 검토자 `RatelAI`와 엄격한 `main` 보호·release environment는 확인됐지만, Actions의 실제 check context를 아직 `main` 필수 status check로 고정하지 않았고 결정적 PDF renderer receipt도 미완료입니다. 승인된 계약에 따라 제품 구현은 시작하지 않았습니다.
 
 ## 과제 원문 정정
 

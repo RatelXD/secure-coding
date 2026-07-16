@@ -1,6 +1,6 @@
 # Secure Coding 중고거래 플랫폼 Living Report
 
-> Gate status: **G1 BLOCK**. The public repository has no independent collaborator/approver, `main` protection is not yet active, and the deterministic renderer digest/font/package receipt is incomplete. No product implementation may start.
+> Gate status: **G1 BLOCK**. Independent collaborator `RatelAI`, strict `main` review protection, and the fail-closed release environment are verified. Actions must still run from the governance PR so their exact check contexts can be configured as strict required checks; the deterministic renderer digest/font/package receipt also remains incomplete. No product implementation may start.
 
 ## Source correction
 
