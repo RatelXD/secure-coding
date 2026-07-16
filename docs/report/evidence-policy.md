@@ -1,25 +1,24 @@
-# Evidence policy
+# 보고서 근거 작성 원칙
 
-## Classification and ownership
+## 사실과 상태
 
-| Class | Allowed location | Sole writer | Allowed content | Prohibited content |
-|---|---|---|---|---|
-| PUBLIC | Git, PR, Pages, Release, `dist/` | file owner | IDs, sanitized results, tools, immutable commit/tag/artifact hashes | absolute paths, identity, credentials, sessions, raw private payloads, ngrok/LMS data |
-| SANITIZED | `artifacts/sanitized/` or public docs | L5 produces; L4 reviews redaction | pseudonyms, masked logs, payload category and hash, stripped screenshots | raw actor identifiers or metadata |
-| TEAM-PRIVATE-PROVENANCE | `.evidence-private/source-manifest.md`, `.evidence-private/provenance/`, `.evidence-private/redaction/` | L4 | source paths and metadata, fetch/hash receipts, redaction work manifests | identity PDF/name, LMS receipt originals, credentials/sessions |
-| TEAM-PRIVATE-VERIFICATION | `.evidence-private/verification/` | L5 | raw test/scanner/log/screenshot evidence and RC verification | identity PDF/name, LMS receipt originals, credentials/sessions |
-| USER-PRIVATE | user-owned `private-submission/` | user only | identity copy and LMS originals | all Team access; all Git/CI/Pages/Release ingestion |
+- 실제 코드와 실행 결과가 있는 내용만 구현·검증 사실로 적습니다.
+- 코드가 일부만 있으면 `구현 중`, 기능이 없으면 `구현 예정`, 테스트하지 않았으면 `미검증`으로 표시합니다.
+- 개발 브랜치 결과는 공개 `main` 통합 뒤 다시 확인합니다.
+- 측정하지 않은 성능 수치와 가상의 유지보수 사례를 만들지 않습니다.
 
-No other `.evidence-private/` path is allowed. L4 never writes `.evidence-private/verification/`; L5 never writes provenance/redaction paths. Every other lane is read/review-only for both private classes. The Team must not access `private-submission/`.
+## 공개 자료에서 제외할 정보
 
-## Publication checklist
+- 비밀번호, 토큰, 세션, 비밀키와 실제 환경값
+- 사용자 실명, 전화번호 등 개인정보
+- 로컬 절대 경로와 비공개 작업 파일 위치
+- LMS 로그인·제출 정보
+- 원문 로그와 메타데이터가 남은 화면 캡처
 
-1. Assign an Evidence-ID and classification at creation.
-2. Preserve immutable source/test metadata privately under the sole owner.
-3. Replace people with stable pseudonyms; mask IPs, hosts, sessions, tokens, and payloads.
-4. Strip screenshot/document metadata.
-5. Have L4 and L5 independently review SANITIZED material.
-6. Scan tracked history, workflow artifact globs, Pages output, and the public release package.
-7. Publish only the minimum PUBLIC or SANITIZED representation and link its AC/Policy/Test/PR/release IDs.
+## 테스트 근거
 
-A failed classification, ownership, scan, or redaction check blocks promotion. Schedule pressure does not lower classification.
+테스트 결과에는 대상 코드 상태, 실행 명령, 결과, 확인 범위, 남은 한계를 함께 기록합니다. 실패·수정·재검증이 있었다면 성공 결과만 남기지 않고 변화 과정을 유지합니다.
+
+## 화면 캡처
+
+캡처 전 샘플 계정과 샘플 데이터를 사용하고, 주소 표시줄·터미널·로그에 비밀값이나 로컬 경로가 보이지 않는지 확인합니다. 최종 PDF에는 기능 설명과 연결되는 화면만 넣습니다.

@@ -1,7 +1,143 @@
-# 03 — Secure implementation
+# 03. 구현 내용
 
-Product implementation has not started because G1 is BLOCKED. This document must never imply otherwise.
+## 3.1 작성 기준
 
-Each implementation PR must include one evidence packet with base/head SHA, owner/reviewer, file and migration boundary, rollback and impact, AC/Policy/Threat/Design IDs, independent L5 Test-ID commands/results/failure-retest evidence, L4 trace/redaction/residual-risk evidence, and Critical/High zero signatures. Feature code, tests, and documentation cannot be split into deferred follow-up PRs.
+이 장은 실제 코드 경로가 확인되는 내용과 앞으로 구현할 내용을 구분합니다. 2026-07-16 기준 공개 `main`에는 애플리케이션 코드가 없으며, 아래 코드 골격은 개발 브랜치에서 통합 전 검토 중입니다. 따라서 전체 기능을 `구현 완료`로 표시하지 않습니다.
 
-Security changes reference one canonical entry in the [security log](security-log.md) rather than duplicating Before/After evidence.
+## 3.2 프로젝트 구조
+
+개발 중인 애플리케이션은 다음 구조를 사용합니다.
+
+```text
+src/
+├── manage.py
+├── config/                 # Django 설정, URL, ASGI, 미들웨어, 상태 확인
+└── apps/
+    ├── accounts/           # 사용자와 프로필 경계
+    ├── catalog/            # 상품과 이미지 경계
+    ├── chat/               # 채팅방, 메시지, 전달 계약
+    └── moderation/         # 신고, 제재, 감사, 현재 상태 계산
+```
+
+`transfers`, `administration`, 상품 검색 모듈은 아직 만들지 않았습니다.
+
+## 3.3 환경과 공통 설정
+
+| 항목 | 코드 위치 | 구현 내용 | 상태 |
+|---|---|---|---|
+| Django 설정 | `src/config/settings.py` | 환경별 설정, PostgreSQL, Redis Channels, 쿠키·보안 헤더 기준 | 구현 중 |
+| ASGI | `src/config/asgi.py`, `src/config/routing.py` | HTTP와 WebSocket 프로토콜 라우팅 | 구현 중 |
+| 사용자 상태 미들웨어 | `src/config/middleware.py` | 인증 사용자 요청에서 현재 휴면 상태 확인 | 구현 중 |
+| 상태 확인 | `src/config/health.py`, `src/config/urls.py` | liveness와 PostgreSQL readiness 분리 | 구현 중 |
+| 로컬 환경 | `Dockerfile`, `compose.yaml`, `.env.example` | 앱·PostgreSQL·Redis 구성 | 구현 중, 공개 `main` 통합 전 |
+
+설정 파일이 공개 `main`에 반영된 뒤 `check --deploy`, 프록시 헤더, CSRF 출처, Secure 쿠키, 실제 Compose 실행을 다시 검증해야 합니다.
+
+## 3.4 사용자 기능
+
+### 현재 코드 골격
+
+- `src/apps/accounts/models.py`
+  - Django `AbstractUser`를 확장한 `User` 모델을 사용합니다.
+  - `username`, `bio`, `auth_epoch`를 둡니다.
+  - 아이디는 저장 전에 공백 제거와 소문자 변환을 적용합니다.
+- `src/apps/accounts/validators.py`
+  - 아이디를 영문 소문자, 숫자, 밑줄 4~30자로 제한합니다.
+- `src/apps/accounts/services.py`
+  - 프로필에서 변경 가능한 필드와 변경할 수 없는 권한 필드를 분리합니다.
+  - HTTP 요청에서 제재 상태를 조회하는 경계를 정의합니다.
+
+### 남은 작업
+
+- 회원가입·로그인·로그아웃 URL과 화면
+- Django 비밀번호 검증기를 적용한 가입·변경 서비스
+- 로그인 실패 횟수와 요청 속도 제한
+- 사용자 목록·상세의 공개 필드 제한
+- 본인 프로필 변경 권한 음성 테스트
+
+## 3.5 상품 기능
+
+### 현재 코드 골격
+
+- `src/apps/catalog/models.py`
+  - 상품 소유자는 삭제 시 상품이 고아가 되지 않도록 보호 관계를 사용합니다.
+  - 제목, 설명, 이미지, 버전, 생성·수정 시각을 정의합니다.
+- `src/apps/catalog/services.py`
+  - 소유자가 변경할 수 있는 필드와 변경할 수 없는 필드를 구분합니다.
+  - 허용 이미지 형식과 5MiB·4096×4096 제한 계약을 정의합니다.
+  - 상품 공개 여부를 제재 서비스에서 조회하는 경계를 둡니다.
+
+### 남은 작업
+
+- 과제에 필요한 가격과 판매 상태 모델 반영
+- 상품 등록·수정·목록·상세 URL과 화면
+- 소유자 권한을 적용한 실제 서비스
+- Pillow 기반 이미지 완전 디코딩·재인코딩
+- UUID 파일명과 메타데이터 제거
+- 위장 파일·손상 파일·이미지 폭탄 테스트
+
+현재 확장자 검증만으로 안전한 이미지 업로드가 끝났다고 보지 않습니다.
+
+## 3.6 채팅 기능
+
+### 현재 코드 골격
+
+- `src/apps/chat/models.py`
+  - 전체·1대1 방, 방 참여자, 채팅 메시지 모델을 정의합니다.
+  - `(room, sender, client_message_id)` 고유 제약으로 재전송 중복을 막는 기반을 둡니다.
+- `src/apps/chat/policies.py`
+  - 메시지 길이와 UUID 형식 등 입력 정책을 정의합니다.
+- `src/apps/chat/services.py`
+  - PostgreSQL 저장 성공을 수락 기준으로 삼고, Redis 실패는 전달 저하로 처리하는 서비스 계약을 정의합니다.
+
+### 남은 작업
+
+- WebSocket consumer와 URL 연결
+- 인증·Origin·방 참여자·휴면 상태 확인
+- 사용자·연결 단위 속도 제한
+- 커밋 뒤 Redis 전달과 실패 응답
+- 마지막 메시지 ID 이후 이력 동기화
+- XSS 출력 escape와 재연결·중복 음성 테스트
+
+모델과 Protocol이 있다는 이유만으로 실시간 채팅이 동작한다고 기록하지 않습니다.
+
+## 3.7 신고와 제재
+
+### 현재 코드 골격
+
+- `src/apps/moderation/models.py`
+  - 사용자·상품 신고, 사용자 휴면·상품 비노출 제재, 감사 이벤트를 정의합니다.
+  - 신고자-대상 고유 제약과 대상 종류에 따른 무결성 제약을 둡니다.
+  - 제재는 시작·만료 시각을 갖는 가역 상태입니다.
+- `src/apps/moderation/services.py`
+  - DB 현재 시각을 기준으로 사용자 휴면과 상품 비노출 효력을 계산합니다.
+
+### 남은 작업
+
+- 신고 사유 필드와 생성 서비스
+- 가입 7일, 자기 신고, 활성 계정, 맥락 조건 확인
+- 유효 신고자 수와 사용자 신고 맥락 수 판정
+- 신고 소비·제재 생성·감사 기록의 단일 트랜잭션
+- 동시 신고와 만료 경합 테스트
+- 휴면 전환 시 기존 세션·WebSocket 종료
+
+## 3.8 2차 기능
+
+| 기능 | 구현 계획 | 현재 상태 |
+|---|---|---|
+| 상품 검색 | 공개 상품만 대상으로 검색·정렬·페이지 나누기 | 구현 예정 |
+| 관리자 | 작업별 권한, 재인증, 사유, 버전 확인, 감사 기록 | 구현 예정 |
+| 모의 잔액 이체 | PostgreSQL 행 잠금, 멱등성 키, 이중 분개, 합계 보존 | 구현 예정 |
+
+실제 돈, 은행 계좌, PG 결제는 다루지 않습니다.
+
+## 3.9 보안 구현 기록 방식
+
+보안 기능은 다음 네 가지를 함께 남깁니다.
+
+1. 어떤 오용이나 공격을 막으려는지
+2. 어떤 코드·설정·데이터 제약을 적용했는지
+3. 정상 테스트와 음성 테스트를 어떻게 수행했는지
+4. 아직 남은 한계가 무엇인지
+
+구체적인 위험과 후속 검증은 [보안 약점과 개선 계획](06-security-improvements.md), 실제 명령은 [테스트 근거](appendix/test-evidence.md)에 기록합니다.
