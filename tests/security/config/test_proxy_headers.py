@@ -55,6 +55,33 @@ def test_production_requires_explicit_https_csrf_origin() -> None:
     assert "production requires explicit DJANGO_CSRF_TRUSTED_ORIGINS" in result.stderr
 
 
+def test_production_rejects_each_insecure_required_boundary() -> None:
+    cases = (
+        (
+            {"DJANGO_SECRET_KEY": "too-short"},
+            "DJANGO_SECRET_KEY is not suitable for production",
+        ),
+        (
+            {"DJANGO_ALLOWED_HOSTS": ""},
+            "production requires explicit DJANGO_ALLOWED_HOSTS",
+        ),
+        (
+            {"DJANGO_ALLOWED_HOSTS": "*"},
+            "production requires explicit DJANGO_ALLOWED_HOSTS",
+        ),
+        (
+            {"REDIS_URL": "redis://redis.example:6379/0"},
+            "production REDIS_URL must use TLS",
+        ),
+    )
+
+    for overrides, expected_error in cases:
+        result = _load_production_settings(overrides)
+
+        assert result.returncode != 0
+        assert expected_error in result.stderr
+
+
 def test_production_rejects_postgresql_tls_downgrade() -> None:
     for sslmode in ("disable", "allow", "prefer"):
         result = _load_production_settings({"POSTGRES_SSLMODE": sslmode})

@@ -4,7 +4,11 @@
 
 | 실행일 | 대상 | 명령 또는 절차 | 관찰 결과 | 상태 |
 |---|---|---|---|---|
-| 2026-07-16 | 최종 자동 테스트 | `pytest -q` | 159 tests, 215 subtests PASS | PASS |
+| 2026-07-16 | 최종 자동 테스트 | `pytest -q` | 168 tests, 216 subtests PASS | PASS |
+| 2026-07-16 | 테스트 인프라 재현 | README의 테스트 전용 Compose 준비·전체 테스트·정리 절차 | loopback 전용 DB·Redis에서 168 tests, 216 subtests PASS; 별도 프로젝트·볼륨 정리 확인 | PASS |
+| 2026-07-16 | 상품 이미지 지속성 | 깨끗한 Compose에서 유효 PNG 등록·미디어 GET·앱 재시작·재조회 | 등록 302, 미디어 HTTP 200 `image/png`, 재시작 후 파일·조회 유지 | PASS |
+| 2026-07-16 | DB 중단 준비 상태 | PostgreSQL 중단 뒤 3초 제한 `/readyz/`, 재시작 뒤 재요청 | 0.271초에 JSON 503, 복구 후 HTTP 200 | PASS |
+| 2026-07-16 | 릴리스 표현 | RC1·RC2 본문과 태그 대상 확인 | GitHub Release 객체와 태그/SHA 불변 규칙을 구분하고 기존 태그 대상 유지 | PASS |
 | 2026-07-16 | Django 설정 | `python src/manage.py check` | PASS | PASS |
 | 2026-07-16 | 운영 보안 설정 | `python src/manage.py check --deploy --fail-level WARNING` | PASS | PASS |
 | 2026-07-16 | 마이그레이션 일치 | `python src/manage.py makemigrations --check --dry-run` | 변경 없음 | PASS |
@@ -28,7 +32,11 @@
 |---|---|---|---|
 | 2026-07-16 | 채팅 수락 PostgreSQL 독립 테스트 | nullable join과 행 잠금 조합으로 3 errors | 잠금·Origin·휴면 수신 집중 회귀 PASS |
 | 2026-07-16 | WebSocket 정확 Origin 독립 테스트 | Host userinfo 검증 누락으로 FAIL | 집중 회귀 PASS |
-| 2026-07-16 | 1차 통합 스위트 | 당시 `pytest -q`가 154 tests, 210 subtests PASS | 당시 수정본의 회귀 근거; 최종 159 tests, 215 subtests는 B.1에 기록 |
+| 2026-07-16 | 1차 통합 스위트 | 당시 `pytest -q`가 154 tests, 210 subtests PASS | 당시 수정본의 회귀 근거; 유지보수 수정 후 최종 168 tests, 216 subtests는 B.1에 기록 |
+| 2026-07-16 | 정식 릴리스 `v0.1.0` README 테스트 절차 | 기본 Compose 실행 뒤 문서의 `127.0.0.1:5432` 연결이 거부됨 | [issue #20](https://github.com/RatelXD/secure-coding/issues/20) 기록; 테스트 오버레이와 구성 회귀 테스트 추가 후 전체 테스트 PASS |
+| 2026-07-16 | 정식 릴리스 상품 이미지 등록 | 유효 PNG 제출이 `/app/media` 권한 오류로 HTTP 500 | [issue #21](https://github.com/RatelXD/secure-coding/issues/21) 기록; 앱 소유 디렉터리·영속 볼륨 추가 후 등록·재시작 회귀 PASS |
+| 2026-07-16 | 정식 릴리스 DB 중단 준비 상태 | `/readyz/`가 JSON 503 대신 3초 제한 시간 초과 | [issue #22](https://github.com/RatelXD/secure-coding/issues/22) 기록; 제한된 해석과 다중 주소 단일 쿼리로 수정 후 0.271초 503·복구 200 |
+| 2026-07-16 | 릴리스 불변성 표현 | GitHub API는 `immutable=false`인데 본문은 “불변 후보”로 표기 | [issue #23](https://github.com/RatelXD/secure-coding/issues/23) 기록; 태그/SHA 규칙과 Release 객체 상태를 구분하도록 본문 수정 |
 
 ## B.3 자동화·운영 확인 상태
 

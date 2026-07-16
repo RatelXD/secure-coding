@@ -17,6 +17,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONUNBUFFERED=1
 
 RUN groupadd --system app && useradd --system --gid app --home-dir /app app
+RUN install -d -m 0750 -o app -g app /app/media
 WORKDIR /app
 COPY --from=builder --chown=app:app /app/.venv /app/.venv
 COPY --chown=app:app src /app/src

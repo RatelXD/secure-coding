@@ -1,0 +1,11 @@
+services:
+  db:
+    environment:
+      POSTGRES_DB: marketplace
+      POSTGRES_USER: marketplace
+      POSTGRES_PASSWORD: ${TEST_DB_PASSWORD:-development-only-database-password}
+    ports:
+      - "127.0.0.1:${TEST_DB_PORT:-55432}:5432"
+  redis:
+    ports:
+      - "127.0.0.1:${TEST_REDIS_PORT:-56379}:6379"
