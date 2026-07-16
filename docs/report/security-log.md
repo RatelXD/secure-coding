@@ -124,3 +124,15 @@ Entries are append-only and use IDs `SEC-YYYY-NNN`.
 - After: the prior whole-worktree and root session-path defects are closed. G1 remains BLOCK because the wrapper binds a nonexistent host output path as a file, Python/APK inputs lack complete immutable hash/snapshot enforcement, the inventory omits installed Python/Mermaid tree and explicit font family/revision proof, and no accepted pullable repository digest exists.
 - Verification: independent local image ID/inventory inspection, focused governance tests, two real offline render/inspect runs, and Docker missing-bind behavior were checked without publishing private paths.
 - Residual risk: local tags and image IDs are not registry attestations. Only a trusted-main linux/amd64 repository digest with complete inventory and independent digest-based repeat renders can close this gate.
+
+### SEC-2026-010 — Report rendering removed from release gates
+
+- Stage: G1/G8a scope reconciliation
+- Severity: closed process blocker; optional utility risk only
+- Evidence: `G1-REPORT-SCOPE-20260716`
+- Why: generated PDF processing is a user-manual activity and must not be represented as an automated repository gate.
+- Before: SEC-2026-008 and SEC-2026-009 treated renderer publication, provenance, and repeat-render receipts as release blockers.
+- What changed: the user superseded that gate. The retained offline renderer is explicitly optional and non-gating; its publication workflow was removed, its wrapper correctness was repaired, and focused helper tests passed.
+- After: renderer image publication, repository digest, inventory receipt, generated PDF, and repeat-render evidence do not block G1, G8a, product work, or release. Manual report processing remains outside automated promotion evidence.
+- Verification: optional-helper tests explicitly enforce non-gating status and absence of a publication workflow; see [verification log](verification-log.md).
+- Residual risk: the optional helper still requires ordinary maintenance if used, but failures cannot be promoted back into release blockers without a new explicit scope decision.
