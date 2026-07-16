@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 import re
@@ -13,6 +14,11 @@ import unittest
 ROOT = Path(__file__).parents[2]
 RENDER_SCRIPT = ROOT / "scripts" / "render-report.sh"
 TOOLCHAIN_LOCK = ROOT / "docs" / "report" / "toolchain.lock.md"
+RENDER_DOCKERFILE = ROOT / "report" / "renderer" / "Dockerfile"
+RENDER_INVENTORY = ROOT / "report" / "renderer" / "inventory.py"
+RENDER_REQUIREMENTS = ROOT / "report" / "renderer" / "requirements.txt"
+RENDER_NPM_LOCK = ROOT / "report" / "renderer" / "npm" / "package-lock.json"
+RENDER_WORKFLOW = ROOT / ".github" / "workflows" / "report-renderer-image.yml"
 IMAGE_PATTERN = re.compile(
     r"^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$"
 )
@@ -85,6 +91,106 @@ class RendererContractTests(unittest.TestCase):
         self.assertNotIn("kroki_url", script.lower())
         self.assertRegex(lock.lower(), r"mermaid[^\n]*local")
         self.assertNotRegex(lock.lower(), r"kroki[^\n]*(fallback|enabled)")
+
+    def test_renderer_mounts_only_a_tracked_report_allowlist(self) -> None:
+        script = RENDER_SCRIPT.read_text(encoding="utf-8")
+
+        self.assertNotIn('$PWD:/work', script)
+        self.assertIn('$stage:/work:ro', script)
+        self.assertIn('path.parent == Path("docs/report")', script)
+        self.assertIn(
+            'name in ("report/metadata.yaml", "report/pdf.css")',
+            script,
+        )
+        self.assertIn('".gjc/_session-"', script)
+        self.assertIn('"/.gjc/_session-"', script)
+        for private_name in (".git", ".gjc/state", ".evidence-private", "private-submission"):
+            with self.subTest(private_name=private_name):
+                self.assertNotRegex(
+                    script,
+                    rf'-v\s+"?[^"\n]*{re.escape(private_name)}[^"\n]*:/work',
+                )
+
+    def test_output_bind_source_is_precreated_or_gate_stays_blocked(self) -> None:
+        script = RENDER_SCRIPT.read_text(encoding="utf-8")
+        lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
+        before_first_run = script.split("docker run", 1)[0]
+        output_is_precreated = bool(
+            re.search(
+                r'(?:touch|install\s+-m\s+\d+|:\s*>)\s+"?\$tmp_output"?',
+                before_first_run,
+            )
+        )
+
+        if not output_is_precreated:
+            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
+
+    def test_build_inputs_are_immutable_or_gate_stays_blocked(self) -> None:
+        lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
+        if not RENDER_DOCKERFILE.exists():
+            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
+            return
+
+        dockerfile = RENDER_DOCKERFILE.read_text(encoding="utf-8")
+        requirements = RENDER_REQUIREMENTS.read_text(encoding="utf-8")
+        npm_lock = json.loads(RENDER_NPM_LOCK.read_text(encoding="utf-8"))
+        self.assertRegex(
+            dockerfile.splitlines()[0],
+            r"^FROM [^@\s]+@sha256:[0-9a-f]{64}$",
+        )
+        self.assertIn("npm ci", dockerfile)
+        self.assertIn("QPDF_SHA256=", dockerfile)
+
+        python_inputs_hashed = (
+            "--require-hashes" in dockerfile
+            and all(
+                "--hash=sha256:" in line
+                for line in requirements.splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            )
+        )
+        npm_inputs_hashed = all(
+            "integrity" in package
+            for package in npm_lock.get("packages", {}).values()
+            if package.get("resolved")
+        )
+        apk_inputs_hashed = "apk fetch" in dockerfile and "sha256sum -c" in dockerfile
+        immutable = python_inputs_hashed and npm_inputs_hashed and apk_inputs_hashed
+
+        if not immutable:
+            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
+
+    def test_inventory_provenance_is_complete_or_gate_stays_blocked(self) -> None:
+        lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
+        if not RENDER_INVENTORY.exists():
+            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
+            return
+
+        inventory = RENDER_INVENTORY.read_text(encoding="utf-8")
+        provenance_complete = all(
+            marker in inventory
+            for marker in (
+                "importlib.metadata.distribution",
+                "node_modules",
+                "fontRevision",
+            )
+        )
+        if not provenance_complete:
+            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
+
+    def test_image_publish_workflow_is_trusted_and_commit_scoped(self) -> None:
+        workflow = RENDER_WORKFLOW.read_text(encoding="utf-8")
+
+        self.assertNotIn("\n  pull_request:", workflow)
+        self.assertIn("branches: [main]", workflow)
+        self.assertIn("github.ref == 'refs/heads/main'", workflow)
+        self.assertIn("packages: write", workflow)
+        self.assertIn('persist-credentials: false', workflow)
+        self.assertRegex(
+            workflow,
+            r"actions/checkout@[0-9a-f]{40}",
+        )
+        self.assertIn('"$IMAGE:$GITHUB_SHA"', workflow)
 
     def test_tracked_public_files_exclude_private_artifacts_and_absolute_paths(self) -> None:
         tracked_result = subprocess.run(
