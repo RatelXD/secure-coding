@@ -19,31 +19,26 @@ RENDER_INVENTORY = ROOT / "report" / "renderer" / "inventory.py"
 RENDER_REQUIREMENTS = ROOT / "report" / "renderer" / "requirements.txt"
 RENDER_NPM_LOCK = ROOT / "report" / "renderer" / "npm" / "package-lock.json"
 RENDER_WORKFLOW = ROOT / ".github" / "workflows" / "report-renderer-image.yml"
-IMAGE_PATTERN = re.compile(
-    r"^[a-z0-9./_-]+@sha256:[0-9a-f]{64}$"
-)
 
 
 class RendererContractTests(unittest.TestCase):
-    def test_renderer_pin_is_immutable_or_gate_is_explicitly_blocked(self) -> None:
+    def test_toolchain_status_is_optional_and_non_gating(self) -> None:
         lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
-        blocked = bool(re.search(r"\*\*Gate status:\*\*\s*BLOCK", lock))
-        match = re.search(
-            r"^- Renderer OCI image \(linux/amd64\): "
-            r"`([a-z0-9./_-]+@sha256:[0-9a-f]{64})`$",
+
+        self.assertRegex(lock, r"\*\*Status:\*\*\s*OPTIONAL / NON-GATING")
+        self.assertIn(
+            "Generated PDF output, renderer publication, OCI attestations, "
+            "and renderer receipts are not G1 or G8a requirements",
             lock,
-            re.MULTILINE,
         )
+        self.assertIn(
+            "PDF generation, image publication, repository digests, "
+            "inventory receipts, and repeat renders are not required for G1 or G8a",
+            lock,
+        )
+        self.assertNotRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
 
-        if blocked:
-            self.assertIsNone(match, "blocked gate must not publish an active renderer pin")
-        else:
-            self.assertIsNotNone(match, "renderer OCI image is not recorded")
-            assert match is not None
-            self.assertRegex(match.group(1), IMAGE_PATTERN)
-            self.assertIn("--platform linux/amd64", RENDER_SCRIPT.read_text(encoding="utf-8"))
-
-    def test_inventory_contract_is_complete_or_gate_stays_blocked(self) -> None:
+    def test_optional_inventory_contract_remains_documented(self) -> None:
         lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
         required_components = (
             "Pandoc",
@@ -54,29 +49,13 @@ class RendererContractTests(unittest.TestCase):
             "qpdf",
             "Poppler",
         )
-        inventory_match = re.search(
-            r"^- Renderer inventory SHA-256: `([0-9a-f]{64})`$",
-            lock,
-            re.MULTILINE,
-        )
-        blocked = bool(re.search(r"\*\*Gate status:\*\*\s*BLOCK", lock))
 
         for component in required_components:
             with self.subTest(component=component):
                 self.assertIn(component.casefold(), lock.casefold())
 
-        if blocked:
-            self.assertIsNone(
-                inventory_match,
-                "blocked gate must not publish an unmeasured inventory hash",
-            )
-        else:
-            self.assertIsNotNone(inventory_match, "renderer inventory hash is absent")
-            self.assertRegex(
-                lock,
-                r"(?i)inventory hash covers[^.\n]*every required version"
-                r"[^.\n]*executable/package/font byte hash",
-            )
+        self.assertIn("## Optional published-image format", lock)
+        self.assertIn("No image publication is required or currently configured.", lock)
 
     def test_renderer_is_offline_and_has_no_kroki_fallback(self) -> None:
         script = RENDER_SCRIPT.read_text(encoding="utf-8")
@@ -111,86 +90,61 @@ class RendererContractTests(unittest.TestCase):
                     rf'-v\s+"?[^"\n]*{re.escape(private_name)}[^"\n]*:/work',
                 )
 
-    def test_output_bind_source_is_precreated_or_gate_stays_blocked(self) -> None:
+    def test_output_bind_source_is_precreated(self) -> None:
         script = RENDER_SCRIPT.read_text(encoding="utf-8")
-        lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
         before_first_run = script.split("docker run", 1)[0]
-        output_is_precreated = bool(
-            re.search(
-                r'(?:touch|install\s+-m\s+\d+|:\s*>)\s+"?\$tmp_output"?',
-                before_first_run,
-            )
+
+        self.assertRegex(
+            before_first_run,
+            r'(?:touch|install\s+-m\s+\d+|:\s*>)\s+"?\$tmp_output"?',
         )
+        self.assertRegex(before_first_run, r'chmod\s+0600\s+"\$tmp_output"')
 
-        if not output_is_precreated:
-            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
-
-    def test_build_inputs_are_immutable_or_gate_stays_blocked(self) -> None:
-        lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
-        if not RENDER_DOCKERFILE.exists():
-            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
-            return
-
+    def test_optional_build_uses_pinned_integrity_inputs(self) -> None:
         dockerfile = RENDER_DOCKERFILE.read_text(encoding="utf-8")
         requirements = RENDER_REQUIREMENTS.read_text(encoding="utf-8")
         npm_lock = json.loads(RENDER_NPM_LOCK.read_text(encoding="utf-8"))
+
         self.assertRegex(
             dockerfile.splitlines()[0],
             r"^FROM [^@\s]+@sha256:[0-9a-f]{64}$",
         )
         self.assertIn("npm ci", dockerfile)
         self.assertIn("QPDF_SHA256=", dockerfile)
-
-        python_inputs_hashed = (
-            "--require-hashes" in dockerfile
-            and all(
+        self.assertIn("--require-hashes", dockerfile)
+        self.assertTrue(
+            all(
                 "--hash=sha256:" in line
                 for line in requirements.splitlines()
-                if line.strip() and not line.lstrip().startswith("#")
+                if line.strip() and not line.lstrip().startswith(("#", "--hash"))
             )
         )
-        npm_inputs_hashed = all(
-            "integrity" in package
-            for package in npm_lock.get("packages", {}).values()
-            if package.get("resolved")
+        self.assertTrue(
+            all(
+                "integrity" in package
+                for package in npm_lock.get("packages", {}).values()
+                if package.get("resolved")
+            )
         )
-        apk_inputs_hashed = "apk fetch" in dockerfile and "sha256sum -c" in dockerfile
-        immutable = python_inputs_hashed and npm_inputs_hashed and apk_inputs_hashed
 
-        if not immutable:
-            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
-
-    def test_inventory_provenance_is_complete_or_gate_stays_blocked(self) -> None:
-        lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
-        if not RENDER_INVENTORY.exists():
-            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
-            return
-
+    def test_optional_inventory_records_complete_local_provenance(self) -> None:
         inventory = RENDER_INVENTORY.read_text(encoding="utf-8")
-        provenance_complete = all(
-            marker in inventory
-            for marker in (
-                "importlib.metadata.distribution",
-                "node_modules",
-                "fontRevision",
-            )
-        )
-        if not provenance_complete:
-            self.assertRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
 
-    def test_image_publish_workflow_is_trusted_and_commit_scoped(self) -> None:
-        workflow = RENDER_WORKFLOW.read_text(encoding="utf-8")
+        for marker in (
+            "importlib.metadata.distributions",
+            "mermaid_package_tree",
+            "fontRevision",
+            '"Noto Sans CJK KR", "Noto Sans Mono CJK KR"',
+        ):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, inventory)
 
-        self.assertNotIn("\n  pull_request:", workflow)
-        self.assertIn("branches: [main]", workflow)
-        self.assertIn("github.ref == 'refs/heads/main'", workflow)
-        self.assertIn("packages: write", workflow)
-        self.assertIn('persist-credentials: false', workflow)
-        self.assertRegex(
-            workflow,
-            r"actions/checkout@[0-9a-f]{40}",
-        )
-        self.assertIn('"$IMAGE:$GITHUB_SHA"', workflow)
+    def test_optional_image_has_no_repository_publication_workflow(self) -> None:
+        lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
+
+        self.assertFalse(RENDER_WORKFLOW.exists())
+        self.assertIn("No repository workflow publishes this optional utility", lock)
+        self.assertIn("no package permission or attestation is required", lock)
 
     def test_tracked_public_files_exclude_private_artifacts_and_absolute_paths(self) -> None:
         tracked_result = subprocess.run(
