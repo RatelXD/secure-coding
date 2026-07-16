@@ -2,6 +2,8 @@ name: ci
 
 on:
   pull_request:
+  # Transition only: remove pull_request after governance-trusted is required.
+  pull_request_target:
   push:
     branches: [main]
 
@@ -10,20 +12,38 @@ permissions:
 
 jobs:
   governance:
+    name: ${{ github.event_name == 'pull_request_target' && 'governance-trusted' || 'governance' }}
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
+          repository: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name || github.repository }}
+          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12.10'
+      - name: Reject secret-scanner bypass configuration
+        shell: python
+        run: |
+          from pathlib import Path
+
+          bypass_files = [
+              path for path in (Path('.gitleaks.toml'), Path('.gitleaksignore'))
+              if path.exists()
+          ]
+          if bypass_files:
+              raise SystemExit(
+                  'repository-controlled gitleaks configuration is forbidden: '
+                  + ', '.join(str(path) for path in bypass_files)
+              )
       - name: Scan complete Git history for secrets
         uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
-        with:
-          python-version: '3.12.10'
       - name: Reject GJC runtime state from PR history
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         shell: python
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
