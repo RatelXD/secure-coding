@@ -183,7 +183,11 @@ class RendererContractTests(unittest.TestCase):
                 checkout,
                 ignore=shutil.ignore_patterns(".git", ".gjc", "dist", "__pycache__"),
             )
-            (checkout / ".gitignore").write_text("dist/\n", encoding="utf-8")
+            gitignore = checkout / ".gitignore"
+            gitignore.write_text(
+                gitignore.read_text(encoding="utf-8") + "\ndist/\n",
+                encoding="utf-8",
+            )
             fixture_lock = checkout / "docs" / "report" / "toolchain.lock.md"
             fixture_lock_text = fixture_lock.read_text(encoding="utf-8")
             if not re.search(
