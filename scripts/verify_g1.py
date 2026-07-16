@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Independently verify G1 source provenance and GitHub governance.
+"""Verify G1 provenance and the user-approved documented self-review gate.
 
 The JSON receipt deliberately excludes credentials and the source PDF's local path.
 """
@@ -186,11 +186,16 @@ def check_github(
     actor, actor_error = gh_json(["api", "user"])
     pr: Any | None = None
     pr_error: str | None = "pull request number is required"
+    comments: Any | None = None
+    comments_error: str | None = "pull request number is required"
     if pull_request is not None:
         pr, pr_error = gh_json([
             "pr", "view", str(pull_request), "--repo", repository, "--json",
             "number,state,baseRefName,headRefOid,author,reviewDecision,reviews,"
             "reviewRequests,statusCheckRollup,url",
+        ])
+        comments, comments_error = gh_json([
+            "api", f"repos/{repository}/issues/{pull_request}/comments?per_page=100",
         ])
 
     actor_login = (actor or {}).get("login")
@@ -205,20 +210,17 @@ def check_github(
     independent_reviewer_available = bool(actor_login) and any(
         login != actor_login for login in collaborator_logins
     )
-    environment_independent = (
+    environment_self_review_allowed = (
         bool(actor_login)
         and bool(reviewer_rules)
-        and any(login != actor_login for login in reviewers)
-        and all(rule.get("prevent_self_review") is True for rule in reviewer_rules)
+        and actor_login in reviewers
+        and all(rule.get("prevent_self_review") is False for rule in reviewer_rules)
         and (environment or {}).get("can_admins_bypass") is False
     )
     pull_request_reviews = (protection or {}).get("required_pull_request_reviews") or {}
     status_checks = (protection or {}).get("required_status_checks") or {}
     branch_rules_complete = (
-        pull_request_reviews.get("required_approving_review_count", 0) >= 1
-        and pull_request_reviews.get("dismiss_stale_reviews") is True
-        and pull_request_reviews.get("require_code_owner_reviews") is True
-        and pull_request_reviews.get("require_last_push_approval") is True
+        not pull_request_reviews
         and (protection or {}).get("enforce_admins", {}).get("enabled") is True
         and (protection or {}).get("required_linear_history", {}).get("enabled") is True
         and (protection or {}).get("allow_force_pushes", {}).get("enabled") is False
@@ -237,18 +239,19 @@ def check_github(
         and configured_contexts == expected_contexts
     )
 
-    approved_reviews = [
-        review for review in (pr or {}).get("reviews", [])
-        if review.get("state") == "APPROVED"
-        and review.get("author", {}).get("login") in collaborator_logins
-        and review.get("author", {}).get("login") != actor_login
+    head_sha = (pr or {}).get("headRefOid")
+    self_review_marker = f"G1-SELF-REVIEW: APPROVED head={head_sha}"
+    self_review_comments = [
+        comment for comment in comments or []
+        if comment.get("user", {}).get("login") == actor_login
+        and self_review_marker in comment.get("body", "")
     ]
-    independent_pr_approval = (
+    documented_self_review = (
         bool(pr)
         and pr.get("state") == "OPEN"
         and pr.get("baseRefName") == "main"
-        and pr.get("reviewDecision") == "APPROVED"
-        and bool(approved_reviews)
+        and bool(head_sha)
+        and bool(self_review_comments)
     )
     pr_check_runs = {
         item.get("name"): item.get("conclusion")
@@ -269,19 +272,20 @@ def check_github(
         "branch_protected": protection is not None,
         "branch_rules_complete": branch_rules_complete,
         "required_status_checks_exact": exact_required_checks,
-        "independent_reviewer_available": independent_reviewer_available,
-        "independent_pr_approval": independent_pr_approval,
+        "documented_self_review": documented_self_review,
         "pr_required_checks_passed": pr_required_checks_passed,
         "pages_public_workflow_https": bool(pages) and pages.get("public") is True
         and pages.get("build_type") == "workflow" and pages.get("https_enforced") is True,
-        "release_environment_independent_fail_closed": environment_independent,
+        "release_environment_self_review_allowed": environment_self_review_allowed,
         "actions_enabled": bool(actions) and actions.get("enabled") is True,
     }
     return {
         "passed": all(checks.values()),
         "checks": checks,
+        "review_mode": "documented-self-review",
         "authenticated_actor": actor_login,
         "collaborators": collaborator_logins,
+        "independent_reviewer_available": independent_reviewer_available,
         "release_reviewers": reviewers,
         "release_can_admins_bypass": (environment or {}).get("can_admins_bypass"),
         "required_status_checks": {
@@ -292,11 +296,12 @@ def check_github(
         "pull_request": {
             "number": (pr or {}).get("number"),
             "url": (pr or {}).get("url"),
-            "head_sha": (pr or {}).get("headRefOid"),
+            "head_sha": head_sha,
             "review_decision": (pr or {}).get("reviewDecision"),
-            "independent_approvers": sorted({
-                review.get("author", {}).get("login") for review in approved_reviews
-            }),
+            "self_review_marker": self_review_marker,
+            "self_review_comment_ids": sorted(
+                comment.get("id") for comment in self_review_comments if comment.get("id") is not None
+            ),
             "check_runs": pr_check_runs,
         },
         "errors": {
@@ -309,6 +314,7 @@ def check_github(
                 "release_environment": environment_error,
                 "actions": actions_error,
                 "pull_request": pr_error,
+                "pull_request_comments": comments_error,
             }.items() if value
         },
     }

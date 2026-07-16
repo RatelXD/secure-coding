@@ -2,7 +2,7 @@
 
 Django 기반 시큐어 코딩 중고거래 플랫폼과 추적 가능한 Living Report 저장소입니다.
 
-> **현재 상태: G1 BLOCK.** 독립 검토자 `RatelAI`와 엄격한 `main` 보호·release environment는 확인됐지만, Actions의 실제 check context를 아직 `main` 필수 status check로 고정하지 않았고 결정적 PDF renderer receipt도 미완료입니다. 승인된 계약에 따라 제품 구현은 시작하지 않았습니다.
+> **현재 상태: G1 BLOCK.** 사용자가 `GOV-DEC-001`로 독립 GitHub 승인을 임시 supersede하고 exact-head documented self-review를 승인했습니다. Strict `governance` check와 runtime-state history 정리는 통과했지만, 현재 PR SHA에 결속된 self-review receipt, 노출 가능 SDK credential의 폐기/교체 확인, 결정적 PDF renderer receipt가 남아 있어 제품 구현은 아직 시작하지 않습니다.
 
 ## 과제 원문 정정
 

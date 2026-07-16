@@ -11,3 +11,13 @@ Decisions are append-only. Each ADR records status, context/Why, drivers, altern
 | ADR-5 | scoped permissions + reauth/reason/version + append-only admin audit | analysis prohibited before G5 | G6 |
 
 No ADR weakens the physical-page correction, policy oracle, Critical/High zero, real G5 chain, G8a-before-formal order, or user-only G8b boundary.
+
+## GOV-DEC-001 — Temporary documented self-review for G1
+
+- Status: user-approved supersession on 2026-07-16.
+- Context: the separate `RatelAI` GitHub integration could inspect PR #1 but could not submit an official review because GitHub returned `403 Resource not accessible by integration`.
+- Decision: G1 no longer requires an independent GitHub account, GitHub `APPROVED` state, or `prevent_self_review=true`. The authenticated repository owner may complete G1 using a public comment with exact marker `G1-SELF-REVIEW: APPROVED head=<current PR SHA>`.
+- Retained gates: the marker must match the current head; strict exact Actions checks must pass; admins remain subject to branch protection; linear history is required; force-push/delete protection stays enabled; the release environment requires the owner as reviewer and keeps admin bypass disabled.
+- Consequence: GitHub cannot provide reviewer independence for this stage. Confirmation bias is an explicitly accepted residual risk, partially mitigated by automated checks, current-head binding, the normal code-review tool, and the append-only review receipt.
+- Scope: this supersedes only the independent-review clauses of G1 and release-environment self-review. It does not relax provenance, credential handling, Critical/High zero, G5, G8a-before-formal, or user-only G8b.
+- Follow-up: restore an independent reviewer and `prevent_self_review=true` after the GitHub integration receives working Pull requests write permission.

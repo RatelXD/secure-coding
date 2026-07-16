@@ -53,3 +53,14 @@ Entries are append-only and use IDs `SEC-YYYY-NNN`.
 - After: the sanitized branch contains no `.gjc/state/**` path. The exposed credentials remain untrusted until provider-side revocation and replacement are confirmed.
 - Verification: `git log --all -- .gjc/state/sdk` and the PR diff must show no path on the sanitized branch; governance tests and CI must pass after the forced branch update.
 - Residual risk: force-pushing removes the files from the active PR history but cannot guarantee immediate deletion from GitHub caches, forks, clones, logs, or provider telemetry. Credential rotation is mandatory.
+
+### SEC-2026-004 — Independent G1 review temporarily superseded
+
+- Stage: G1 governance recovery
+- Severity: accepted governance risk; all technical security gates remain blocking
+- Evidence: `GOV-DEC-001` and exact-head self-review receipt on PR #1
+- Why: the separate reviewer integration can inspect repository content but cannot submit GitHub reviews or comments with its current app permissions.
+- Before: G1 required a distinct collaborator approval and `prevent_self_review=true`, leaving the project blocked on integration permissions.
+- What changed: the user explicitly authorized documented self-review. Branch-required approvals are removed, while strict exact CI, admin enforcement, linear history, no force-push/delete, credential remediation, and current-head review binding remain mandatory.
+- After: G1 may pass only when the repository owner posts `G1-SELF-REVIEW: APPROVED head=<current PR SHA>` and every required check succeeds.
+- Residual risk: reviewer independence and protection from confirmation bias are absent until the independent integration is repaired. The user accepted this temporary risk.

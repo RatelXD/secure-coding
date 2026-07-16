@@ -68,12 +68,6 @@ class GitHubGovernanceTests(unittest.TestCase):
             return ([{"login": "RatelXD"}, {"login": "RatelAI"}], None)
         if "branches/main/protection" in command:
             return ({
-                "required_pull_request_reviews": {
-                    "required_approving_review_count": 1,
-                    "dismiss_stale_reviews": True,
-                    "require_code_owner_reviews": True,
-                    "require_last_push_approval": True,
-                },
                 "required_status_checks": {
                     "strict": True,
                     "checks": [{"context": "governance", "app_id": 15368}],
@@ -90,8 +84,8 @@ class GitHubGovernanceTests(unittest.TestCase):
                 "can_admins_bypass": False,
                 "protection_rules": [{
                     "type": "required_reviewers",
-                    "prevent_self_review": True,
-                    "reviewers": [{"reviewer": {"login": "RatelAI"}}],
+                    "prevent_self_review": False,
+                    "reviewers": [{"reviewer": {"login": "RatelXD"}}],
                 }],
             }, None)
         if "actions/permissions" in command:
@@ -104,8 +98,8 @@ class GitHubGovernanceTests(unittest.TestCase):
                 "state": "OPEN",
                 "baseRefName": "main",
                 "headRefOid": "abc123",
-                "reviewDecision": "APPROVED",
-                "reviews": [{"state": "APPROVED", "author": {"login": "RatelAI"}}],
+                "reviewDecision": "REVIEW_REQUIRED",
+                "reviews": [],
                 "statusCheckRollup": [{
                     "__typename": "CheckRun",
                     "name": "governance",
@@ -113,10 +107,16 @@ class GitHubGovernanceTests(unittest.TestCase):
                 }],
                 "url": "https://github.com/example/repo/pull/7",
             }, None)
+        if "issues/7/comments?" in command:
+            return ([{
+                "id": 77,
+                "user": {"login": "RatelXD"},
+                "body": "G1-SELF-REVIEW: APPROVED head=abc123",
+            }], None)
         raise AssertionError(f"unexpected gh invocation: {arguments}")
 
     @patch.object(verify_g1, "gh_json", side_effect=response)
-    def test_requires_exact_configured_context_and_independent_approval(self, _gh_json) -> None:
+    def test_requires_exact_context_and_current_head_self_review(self, _gh_json) -> None:
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
@@ -125,7 +125,8 @@ class GitHubGovernanceTests(unittest.TestCase):
 
         self.assertTrue(receipt["passed"])
         self.assertEqual(receipt["required_status_checks"]["configured"], ["governance"])
-        self.assertEqual(receipt["pull_request"]["independent_approvers"], ["RatelAI"])
+        self.assertEqual(receipt["review_mode"], "documented-self-review")
+        self.assertEqual(receipt["pull_request"]["self_review_comment_ids"], [77])
 
     @patch.object(verify_g1, "gh_json", side_effect=response)
     def test_blocks_when_expected_context_does_not_match(self, _gh_json) -> None:
@@ -138,6 +139,28 @@ class GitHubGovernanceTests(unittest.TestCase):
         self.assertFalse(receipt["passed"])
         self.assertFalse(receipt["checks"]["required_status_checks_exact"])
         self.assertFalse(receipt["checks"]["pr_required_checks_passed"])
+
+    @patch.object(verify_g1, "gh_json")
+    def test_blocks_stale_self_review_marker(self, gh_json) -> None:
+        def stale_response(arguments: list[str]):
+            response = self.response(arguments)
+            if "issues/7/comments?" in " ".join(arguments):
+                return ([{
+                    "id": 78,
+                    "user": {"login": "RatelXD"},
+                    "body": "G1-SELF-REVIEW: APPROVED head=old-head",
+                }], None)
+            return response
+
+        gh_json.side_effect = stale_response
+        receipt = verify_g1.check_github(
+            "example/repo",
+            pull_request=7,
+            expected_required_checks=("governance",),
+        )
+
+        self.assertFalse(receipt["passed"])
+        self.assertFalse(receipt["checks"]["documented_self_review"])
 
 
 
