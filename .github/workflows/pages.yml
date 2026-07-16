@@ -27,19 +27,7 @@ jobs:
       - name: Build strict public site
         run: mkdocs build --strict
       - name: Reject private material
-        run: |
-          if test -e site/private-submission || test -e site/.evidence-private; then
-            echo 'private path entered Pages output' >&2
-            exit 1
-          fi
-          python - <<'PY'
-          from pathlib import Path
-          import re
-          forbidden = re.compile(rb'/home/[A-Za-z0-9._-]+/|https://[a-z0-9-]+\.ngrok-free\.app|(?:authorization|cookie):\s*\S+|(?:LMS_(?:ID|PASSWORD)|SESSION_KEY)\s*=', re.I)
-          for path in Path('site').rglob('*'):
-              if path.is_file() and forbidden.search(path.read_bytes()):
-                  raise SystemExit(f'private marker in {path}')
-          PY
+        run: python scripts/check_public_site.py site
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           path: site
