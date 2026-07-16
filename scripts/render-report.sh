@@ -62,36 +62,60 @@ resolved_digest=$(docker image inspect --format '{{index .RepoDigests 0}}' "$ima
 [[ $resolved_digest == "$image" ]] ||
   die "local renderer digest mismatch: expected $image, found $resolved_digest"
 
-python3 - "$release_sha" <<'PY'
+readonly epoch=$(git show -s --format=%ct HEAD)
+mkdir -p .report-build dist
+build_root=$(mktemp -d "$PWD/.report-build/render.XXXXXX")
+stage="$build_root/stage"
+tmp_output="$build_root/report.pdf"
+mkdir -p "$stage"
+trap 'rm -rf "$build_root"' EXIT
+
+python3 - "$release_sha" "$stage" <<'PY'
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 
-release_sha = sys.argv[1]
+release_sha, stage_arg = sys.argv[1:]
+stage = Path(stage_arg)
 tracked = subprocess.run(
     ["git", "ls-files", "-z"], check=True, capture_output=True
 ).stdout.decode().split("\0")
+allowed: list[str] = []
 for name in tracked:
+    if not name:
+        continue
     lowered = name.lower()
-    if name and (
-        name.startswith((".evidence-private/", "private-submission/", ".gjc/state/"))
+    if (
+        name.startswith((".evidence-private/", "private-submission/", ".gjc/state/", ".gjc/_session-"))
         or "/.gjc/_session-" in name
         or "kroki" in lowered
     ):
         raise SystemExit(f"forbidden tracked render input: {name}")
+    path = Path(name)
+    if (
+        path.parent == Path("docs/report") and path.suffix == ".md"
+    ) or name in ("report/metadata.yaml", "report/pdf.css"):
+        allowed.append(name)
 
-metadata = Path("report/metadata.yaml").read_text(encoding="utf-8")
+required = {"report/metadata.yaml", "report/pdf.css"}
+if not required.issubset(allowed) or not any(name.startswith("docs/report/") for name in allowed):
+    raise SystemExit("tracked report allowlist is incomplete")
+for name in sorted(allowed):
+    source = Path(name)
+    if source.is_symlink() or not source.is_file():
+        raise SystemExit(f"render input must be a regular tracked file: {name}")
+    destination = stage / name
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, destination)
+
+metadata = (stage / "report/metadata.yaml").read_text(encoding="utf-8")
 if not re.search(r"^date: 1970-01-01$", metadata, re.MULTILINE):
     raise SystemExit("report metadata date must be normalized")
 if not re.search(r"^release-sha: RELEASE_SHA$", metadata, re.MULTILINE):
     raise SystemExit("report metadata must contain the deterministic release SHA placeholder")
 PY
-
-readonly epoch=$(git show -s --format=%ct HEAD)
-mkdir -p dist
-tmp_output=$(mktemp "$PWD/dist/.secure-coding-report.XXXXXX.pdf")
-trap 'rm -f "$tmp_output"' EXIT
 
 docker run --rm --pull=never --platform linux/amd64 --network none \
   --read-only \
@@ -103,8 +127,9 @@ docker run --rm --pull=never --platform linux/amd64 --network none \
   -e TZ=UTC \
   -e LC_ALL=C.UTF-8 \
   -e SOURCE_DATE_EPOCH="$epoch" \
+  -e PYTHONHASHSEED=0 \
   -e RELEASE_SHA="$release_sha" \
-  -v "$PWD:/work:ro" \
+  -v "$stage:/work:ro" \
   -v "$tmp_output:/out/report.pdf:rw" \
   "$image" \
   /renderer/render \
@@ -131,8 +156,9 @@ docker run --rm --pull=never --platform linux/amd64 --network none \
     --require-font 'Noto Sans CJK KR' \
     --require-font 'Noto Sans Mono CJK KR' \
     --reject-metadata 'CreationDate|ModDate|Producer|Creator|Author' \
-    --reject-uri-scheme 'https?'
+    --reject-uri-scheme 'https?|file'
 
 mv -f "$tmp_output" "$output"
+rm -rf "$build_root"
 trap - EXIT
 sha256sum "$output"

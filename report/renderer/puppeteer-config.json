@@ -1,0 +1,11 @@
+{
+  "executablePath": "/usr/bin/chromium-browser",
+  "args": [
+    "--disable-dev-shm-usage",
+    "--disable-gpu",
+    "--disable-network-service",
+    "--disable-sync",
+    "--font-render-hinting=none",
+    "--no-sandbox"
+  ]
+}
