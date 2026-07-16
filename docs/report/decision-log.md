@@ -10,7 +10,7 @@ Decisions are append-only. Each ADR records status, context/Why, drivers, altern
 | ADR-4 | locked authoritative mock balance + immutable double-entry journal | analysis prohibited before G5 | G6 |
 | ADR-5 | scoped permissions + reauth/reason/version + append-only admin audit | analysis prohibited before G5 | G6 |
 
-No ADR weakens the physical-page correction, policy oracle, Critical/High zero, real G5 chain, G8a-before-formal order, or user-only G8b boundary.
+No ADR weakens the approved local scope, policy oracle, Critical/High zero, real G5 chain, G8a-before-formal order, or user-only G8b boundary.
 
 ## GOV-DEC-001 — Temporary documented self-review for G1
 
@@ -30,3 +30,12 @@ No ADR weakens the physical-page correction, policy oracle, Critical/High zero, 
 - Self-review receipt: the authenticated repository owner must post the exact unedited marker `G1-GOVERNANCE-SELF-REVIEW: APPROVED head=<current PR SHA>` after the unique exact-head trusted check succeeds.
 - Consequence: author-controlled changes cannot redefine the required check during the same PR. Independent human review remains temporarily superseded, so owner confirmation bias remains accepted under GOV-DEC-001.
 - Scope: this closes SEC-2026-005 only after the finalization PR is merged and branch protection still requires `governance-trusted`; deterministic renderer toolchain evidence and all later gates remain independent blockers.
+
+## GOV-DEC-003 — Manual report processing and local-only assignment context
+
+- Status: user-approved supersession on 2026-07-16.
+- Context: generated Markdown/Mermaid-to-PDF output was treated as a deterministic G1/G8a artifact, but the user will process the submission report manually. Assignment-source correction material is operational input for planning, implementation, and verification rather than repository documentation.
+- Decision: PDF generation, renderer publication, OCI inventory, and byte-identical PDF receipts are removed from G1 and G8a. The already implemented renderer remains an optional helper and must not block product work or release. Public G8a validates the exact-RC repository, Pages, and release package without a generated PDF requirement.
+- Local context: assignment-source material belongs only in ignored `.gjc/context/` files read at agent startup. README, public report pages, PR text, Actions artifacts, Pages, releases, and product output must not reproduce it.
+- Consequence: Team does not generate or handle the user's final report/submission artifact. User-manual report processing and LMS submission remain outside Team scope.
+- Retained gates: trusted governance, credential handling, test/security gates, real G5 maintenance, exact-RC G8a, same-SHA formal promotion, and user-only G8b remain mandatory.

@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""Verify G1 provenance and the user-approved documented self-review gate.
-
-The JSON receipt deliberately excludes credentials and the source PDF's local path.
-"""
+"""Verify public G1 supply provenance and documented self-review governance."""
 
 from __future__ import annotations
 
@@ -10,7 +7,6 @@ import argparse
 import base64
 import hashlib
 import json
-import os
 from pathlib import Path
 import subprocess
 import sys
@@ -118,44 +114,6 @@ def check_template() -> dict[str, Any]:
         "lengths": lengths,
         "tree_blob": tree_entry.get("sha") if tree_entry else None,
         "required_sections": {section: section in text for section in TEMPLATE_SECTIONS},
-    }
-
-
-def check_pdf(source_pdf: Path) -> dict[str, Any]:
-    data = source_pdf.read_bytes()
-    info = run(["pdfinfo", os.fspath(source_pdf)])
-    page25 = run(["pdftotext", "-f", "25", "-l", "25", "-layout", os.fspath(source_pdf), "-"])
-    page35 = run(["pdftotext", "-f", "35", "-l", "35", "-layout", os.fspath(source_pdf), "-"])
-    page25_anchors = (
-        "사람들이 플랫폼에 가입할 수 있어야 함",
-        "상품들을 올리고 볼 수 있어야 함",
-        "플랫폼 사용자들끼리 소통이 가능해야함",
-        "악성 유저나 상품을 차단 해야 함",
-    )
-    page35_anchors = (
-        "24page",
-        "유저들 간의 송금이 가능해야함",
-        "상품의 검색할 수 있어야 함",
-        "관리자가 플랫폼의 모든 요소를 관리할 수 있어야 함",
-    )
-    pages_line = next((line for line in info.stdout.splitlines() if line.startswith("Pages:")), "")
-    return {
-        "passed": (
-            info.returncode == 0
-            and page25.returncode == 0
-            and page35.returncode == 0
-            and pages_line.split(":", 1)[-1].strip() == "36"
-            and all(anchor in page25.stdout for anchor in page25_anchors)
-            and all(anchor in page35.stdout for anchor in page35_anchors)
-        ),
-        "source_id": "SRC-PDF-001",
-        "basename": source_pdf.name,
-        "byte_size": len(data),
-        "sha256": sha256(data),
-        "page_count": pages_line.split(":", 1)[-1].strip() or None,
-        "physical_page_25_anchors": {anchor: anchor in page25.stdout for anchor in page25_anchors},
-        "physical_page_35_anchors": {anchor: anchor in page35.stdout for anchor in page35_anchors},
-        "tools": {"pdfinfo_exit": info.returncode, "pdftotext_exit": [page25.returncode, page35.returncode]},
     }
 
 
@@ -383,7 +341,6 @@ def check_github(
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source-pdf", required=True, type=Path)
     parser.add_argument("--repository", default="RatelXD/secure-coding")
     parser.add_argument("--pull-request", type=int)
     parser.add_argument(
@@ -395,9 +352,12 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    receipt: dict[str, Any] = {"schema_version": 1}
+    receipt: dict[str, Any] = {
+        "schema_version": 2,
+        "scope": "public-governance",
+        "local_assignment_context": "required but intentionally untracked",
+    }
     try:
-        receipt["pdf_provenance"] = check_pdf(args.source_pdf)
         receipt["template_provenance"] = check_template()
         receipt["github_governance"] = check_github(
             args.repository,
@@ -407,7 +367,7 @@ def main() -> int:
     except Exception as error:  # fail closed with a serializable receipt
         receipt["verification_error"] = f"{type(error).__name__}: {error}"
     components = [value.get("passed", False) for value in receipt.values() if isinstance(value, dict)]
-    receipt["gate"] = "PASS" if len(components) == 3 and all(components) else "BLOCK"
+    receipt["gate"] = "PASS" if len(components) == 2 and all(components) else "BLOCK"
     rendered = json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

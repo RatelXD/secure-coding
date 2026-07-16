@@ -18,8 +18,9 @@ media/
 staticfiles/
 
 # GJC runtime state (project-local pinned skills remain tracked)
-.gjc/_session-*/
-.gjc/state/
+.gjc/*
+!.gjc/skills/
+!.gjc/skills/**
 
 # Team-private provenance/verification and user-private submission
 .evidence-private/

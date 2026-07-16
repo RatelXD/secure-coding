@@ -2,11 +2,7 @@
 
 Django 기반 시큐어 코딩 중고거래 플랫폼과 추적 가능한 Living Report 저장소입니다.
 
-> **현재 상태: G1 BLOCK.** 사용자가 `GOV-DEC-001`로 독립 GitHub 승인을 임시 supersede하고 exact-head documented self-review를 승인했습니다. Strict `governance` check와 runtime-state history 정리는 통과했지만, 현재 PR SHA에 결속된 self-review receipt, 노출 가능 SDK credential의 폐기/교체 확인, 결정적 PDF renderer receipt가 남아 있어 제품 구현은 아직 시작하지 않습니다.
-
-## 과제 원문 정정
-
-원본 PDF 물리 35쪽의 `24page` 참조는 **물리 25쪽**을 뜻합니다. 근거·인용·해시는 [public source ledger](docs/report/source-ledger.md)에 있고, 절대 workstation 경로는 공개하지 않습니다.
+> **현재 상태: G1 완료.** GitHub 거버넌스와 credential 폐기 검증을 마쳤습니다. 보고서 PDF 처리는 사용자가 수동으로 수행하며 G1/G8a gate가 아닙니다. 저장소의 offline renderer는 선택적 helper일 뿐 제품 작업이나 release를 차단하지 않습니다.
 
 ## Report
 
@@ -18,8 +14,8 @@ Django 기반 시큐어 코딩 중고거래 플랫폼과 추적 가능한 Living
 
 ## 실행 상태
 
-애플리케이션 실행 방법은 G1 통과 후 platform skeleton과 함께 추가합니다. 현재 checkout에는 실행 가능한 제품을 가장하는 stub이나 fallback이 없습니다.
+애플리케이션 실행 방법은 이후 별도 승인된 platform skeleton과 함께 추가합니다. 현재 checkout에는 실행 가능한 제품을 가장하는 stub이나 fallback이 없습니다.
 
 ## Release contract
 
-G1→G2→G3→G4→실제 C1 유지보수 PATCH G5→G6→G7→G7R→G7M→G8a 순서를 지킵니다. G8a가 exact RC SHA에서 generic PDF와 public package를 통과한 뒤에만 같은 SHA를 formal/Latest로 승격합니다. identity filename과 LMS 제출은 사용자 전용 G8b이며 Team은 접근하지 않습니다.
+G1→G2→G3→G4→실제 C1 유지보수 PATCH G5→G6→G7→G7R→G7M→G8a 순서를 지킵니다. 보고서 PDF 처리는 사용자 수동 작업이며 renderer image, digest, generated PDF receipt는 G1/G8a 승격 조건이 아닙니다. identity filename과 LMS 제출은 사용자 전용 G8b이며 Team은 접근하지 않습니다.
