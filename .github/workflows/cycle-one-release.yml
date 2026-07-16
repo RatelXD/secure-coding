@@ -1,0 +1,111 @@
+name: 1차-정식-릴리스
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: 1차 검증을 통과한 정확한 40자리 커밋 SHA
+        required: true
+        type: string
+      rc_tag:
+        description: release_sha를 가리키는 기존 RC 태그 (v0.1.0-rc.N)
+        required: true
+        type: string
+      formal_tag:
+        description: 생성할 정식 태그 (v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  deployments: read
+
+concurrency:
+  group: cycle-one-release
+  cancel-in-progress: false
+
+jobs:
+  validate-input:
+    runs-on: ubuntu-24.04
+    outputs:
+      release_sha: ${{ steps.validate.outputs.release_sha }}
+      rc_tag: ${{ steps.validate.outputs.rc_tag }}
+      formal_tag: ${{ steps.validate.outputs.formal_tag }}
+    steps:
+      - name: Validate promotion inputs
+        id: validate
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RC_TAG: ${{ inputs.rc_tag }}
+          FORMAL_TAG: ${{ inputs.formal_tag }}
+        run: |
+          set -euo pipefail
+          case "$RELEASE_SHA" in (*[!0-9a-f]*|'') exit 1 ;; esac
+          test "${#RELEASE_SHA}" -eq 40
+          if ! [[ "$RC_TAG" =~ ^v0\.1\.0-rc\.[1-9][0-9]*$ ]]; then
+            exit 1
+          fi
+          test "$FORMAL_TAG" = 'v0.1.0'
+          {
+            echo "release_sha=$RELEASE_SHA"
+            echo "rc_tag=$RC_TAG"
+            echo "formal_tag=$FORMAL_TAG"
+          } >> "$GITHUB_OUTPUT"
+
+  promote:
+    needs: validate-input
+    environment: release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.validate-input.outputs.release_sha }}
+          fetch-depth: 0
+      - name: Verify same-SHA promotion prerequisites
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ needs.validate-input.outputs.release_sha }}
+          RC_TAG: ${{ needs.validate-input.outputs.rc_tag }}
+          FORMAL_TAG: ${{ needs.validate-input.outputs.formal_tag }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(git rev-parse --verify "refs/tags/$RC_TAG^{commit}")" = "$RELEASE_SHA"
+          if git show-ref --verify --quiet "refs/tags/$FORMAL_TAG"; then
+            exit 1
+          fi
+          if git ls-remote --exit-code --quiet --refs origin "refs/tags/$FORMAL_TAG"; then
+            exit 1
+          fi
+          test "$(gh release view "$RC_TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq '.isPrerelease')" = true
+          test "$(gh api --paginate -H 'Accept: application/vnd.github+json' "/repos/$GITHUB_REPOSITORY/commits/$RELEASE_SHA/check-runs?per_page=100" --jq '[.check_runs[] | select(.name == "governance-trusted" and .status == "completed" and .conclusion == "success")] | length > 0')" = true
+          deployment_ids="$(gh api --paginate -H 'Accept: application/vnd.github+json' "/repos/$GITHUB_REPOSITORY/deployments?sha=$RELEASE_SHA&environment=github-pages&per_page=100" --jq '.[].id')"
+          test -n "$deployment_ids"
+          pages_deployed=false
+          while IFS= read -r deployment_id; do
+            states="$(gh api --paginate -H 'Accept: application/vnd.github+json' "/repos/$GITHUB_REPOSITORY/deployments/$deployment_id/statuses?per_page=100" --jq '.[].state')"
+            case "$states" in
+              *success*) pages_deployed=true; break ;;
+            esac
+          done <<EOF
+          $deployment_ids
+          EOF
+          test "$pages_deployed" = true
+      - name: Create same-SHA 1차 정식 릴리스
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ needs.validate-input.outputs.release_sha }}
+          RC_TAG: ${{ needs.validate-input.outputs.rc_tag }}
+          FORMAL_TAG: ${{ needs.validate-input.outputs.formal_tag }}
+        run: |
+          set -euo pipefail
+          git tag "$FORMAL_TAG" "$RELEASE_SHA"
+          git push origin "refs/tags/$FORMAL_TAG"
+          gh release create "$FORMAL_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --latest \
+            --title "1차 과제 정식 릴리스 $FORMAL_TAG" \
+            --notes "RC $RC_TAG를 $RELEASE_SHA에서 1차 검증 결과와 함께 승격했습니다."
