@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 import unittest
 
 
@@ -33,6 +34,27 @@ class RepositoryBoundaryTests(unittest.TestCase):
                     check=False,
                 )
                 self.assertEqual(0, result.returncode, f"not ignored: {sample}")
+
+    def test_trusted_workflow_checks_out_pr_bytes_without_executing_them(self) -> None:
+        workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
+
+        self.assertIn("pull_request_target:", workflow)
+        self.assertIn(
+            "github.event.pull_request.head.repo.full_name || github.repository",
+            workflow,
+        )
+        self.assertIn(
+            "github.event.pull_request.head.sha || github.sha",
+            workflow,
+        )
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("'governance-trusted' || 'governance'", workflow)
+        self.assertNotIn("python3 scripts/", workflow)
+        self.assertNotIn("pip install", workflow)
+        self.assertLess(
+            workflow.index("Reject secret-scanner bypass configuration"),
+            workflow.index("gitleaks/gitleaks-action@"),
+        )
 
 
 if __name__ == "__main__":
