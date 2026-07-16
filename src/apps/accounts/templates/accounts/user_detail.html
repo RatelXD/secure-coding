@@ -5,4 +5,7 @@
 <section aria-label="사용자 소개">
   {% if profile_user.bio %}<p>{{ profile_user.bio }}</p>{% else %}<p>등록된 소개글이 없습니다.</p>{% endif %}
 </section>
+{% if user.is_authenticated and user.pk != profile_user.pk %}
+  <p><a href="{% url 'moderation:report-user' profile_user.pk %}">사용자 신고</a></p>
+{% endif %}
 {% endblock %}

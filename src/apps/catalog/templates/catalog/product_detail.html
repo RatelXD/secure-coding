@@ -14,5 +14,8 @@
     <p><a href="{% url 'catalog:update' product.pk %}">수정</a></p>
     <p><a href="{% url 'catalog:delete' product.pk %}">삭제</a></p>
   {% endif %}
+  {% if user.is_authenticated and user.pk != product.owner_id %}
+    <p><a href="{% url 'moderation:report-product' product.pk %}">상품 신고</a></p>
+  {% endif %}
 </article>
 {% endblock %}
