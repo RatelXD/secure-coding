@@ -8,7 +8,8 @@ strict: true
 use_directory_urls: true
 nav:
   - 과제 보고서:
-      - 보고서 개요: report/index.md
+      - 보고서 첫 화면: index.md
+      - 전체 보고서 목차: report/index.md
       - 01. 요구사항 분석: report/01-requirements.md
       - 02. 시스템 설계: report/02-system-design.md
       - 03. 구현 내용: report/03-implementation.md
