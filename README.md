@@ -1,6 +1,6 @@
-# Tiny Second-hand Shopping Platform
+# Tiny Second-hand Shopping Platform (중고 거래 플랫폼)
 
-Django 기반 중고거래 플랫폼을 대상으로 요구사항 분석부터 보안 설계, 구현, 테스트, 유지보수까지 수행하는 시큐어 코딩 과제 저장소입니다.
+Django 기반 중고거래 플랫폼을 대상으로 요구사항 분석부터 보안 설계, 구현, 테스트, 유지보수까지 수행하는 시큐어 코딩 과제 Repository입니다.
 
 ## 현재 상태
 
