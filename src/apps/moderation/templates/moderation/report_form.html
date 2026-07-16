@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>신고하기</title>
+</head>
+<body>
+  <main>
+    <h1>신고하기</h1>
+    <p>대상: {{ target_label }}</p>
+    <form method="post">
+      {% csrf_token %}
+      {{ form.non_field_errors }}
+      {{ form.as_p }}
+      <button type="submit">신고 접수</button>
+    </form>
+  </main>
+</body>
+</html>

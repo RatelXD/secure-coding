@@ -52,9 +52,9 @@ class ModerationPolicyTests(unittest.TestCase):
         product_reports[ReportContext.PRODUCT].add(5)
         self.assertTrue(qualifies_for_action(target_type=TargetType.PRODUCT, independent_reporters_by_context=product_reports))
 
-        user_reports = {ReportContext.PROFILE: {1}}
+        user_reports = {ReportContext.PROFILE: {1, 2, 3, 4}}
         self.assertFalse(qualifies_for_action(target_type=TargetType.USER, independent_reporters_by_context=user_reports))
-        user_reports[ReportContext.DIRECT_CHAT] = {2}
+        user_reports[ReportContext.DIRECT_CHAT] = {5}
         self.assertTrue(qualifies_for_action(target_type=TargetType.USER, independent_reporters_by_context=user_reports))
         with self.assertRaises(ModerationPolicyError):
             qualifies_for_action(

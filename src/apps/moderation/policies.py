@@ -8,6 +8,7 @@ MIN_REPORTER_AGE = timedelta(days=7)
 ACTION_DURATION = timedelta(days=7)
 PRODUCT_REPORTER_THRESHOLD = 5
 USER_CONTEXT_THRESHOLD = 2
+INDEPENDENT_REPORTER_THRESHOLD = 5
 
 
 class TargetType(StrEnum):
@@ -75,7 +76,7 @@ def qualifies_for_action(
     if target_type is TargetType.PRODUCT:
         return (
             len(independent_reporters_by_context.get(ReportContext.PRODUCT, set()))
-            >= PRODUCT_REPORTER_THRESHOLD
+            >= INDEPENDENT_REPORTER_THRESHOLD
         )
 
     distinct_contexts = {
@@ -83,7 +84,10 @@ def qualifies_for_action(
         for context, reporter_ids in independent_reporters_by_context.items()
         if context in USER_CONTEXTS and reporter_ids
     }
-    return len(distinct_contexts) >= USER_CONTEXT_THRESHOLD
+    return (
+        len(seen_reporters) >= INDEPENDENT_REPORTER_THRESHOLD
+        and len(distinct_contexts) >= USER_CONTEXT_THRESHOLD
+    )
 
 
 def action_expiry(*, database_now: datetime) -> datetime:

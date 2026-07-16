@@ -76,6 +76,7 @@ class AbuseReport(models.Model):
         related_name="abuse_reports",
     )
     context = models.CharField(max_length=24, choices=Context.choices)
+    reason = models.TextField(max_length=1_000)
     created_at = models.DateTimeField(db_default=Now(), editable=False)
     consumed_by = models.ForeignKey(
         ModerationAction,
@@ -102,6 +103,10 @@ class AbuseReport(models.Model):
                 name="moderation_report_context_matches_target",
             ),
             models.CheckConstraint(
+                condition=~Q(reason=""),
+                name="moderation_report_reason_required",
+            ),
+            models.CheckConstraint(
                 condition=Q(target_user__isnull=True) | ~Q(target_user=models.F("reporter")),
                 name="moderation_report_no_self_target",
             ),
@@ -116,6 +121,16 @@ class AbuseReport(models.Model):
                 name="moderation_unique_reporter_product",
             ),
         ]
+        indexes = [
+            models.Index(
+                fields=("target_type", "target_user", "consumed_by", "-created_at"),
+                name="mod_report_user_recent_idx",
+            ),
+            models.Index(
+                fields=("target_type", "target_product", "consumed_by", "-created_at"),
+                name="mod_report_product_recent_idx",
+            ),
+        ]
 
 
 class AuditEvent(models.Model):
@@ -124,3 +139,12 @@ class AuditEvent(models.Model):
     action = models.ForeignKey(ModerationAction, null=True, on_delete=models.PROTECT, related_name="audit_events")
     details = models.JSONField(default=dict)
     created_at = models.DateTimeField(db_default=Now(), editable=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("action",),
+                condition=Q(action__isnull=False),
+                name="moderation_one_audit_per_action",
+            )
+        ]
