@@ -296,6 +296,21 @@ def check_github(
             for context in expected_contexts
         )
     )
+    check_run_evidence = {
+        context: [
+            {
+                "id": run.get("id"),
+                "name": run.get("name"),
+                "head_sha": run.get("head_sha"),
+                "status": run.get("status"),
+                "conclusion": run.get("conclusion"),
+                "app_id": run.get("app", {}).get("id"),
+                "details_url": run.get("details_url"),
+            }
+            for run in runs
+        ]
+        for context, runs in check_runs_by_context.items()
+    }
 
     checks = {
         "public": bool(repo) and repo.get("isPrivate") is False,
@@ -331,7 +346,10 @@ def check_github(
             ],
             "configured": [
                 {"context": context, "app_id": app_id}
-                for context, app_id in sorted(configured_check_pairs)
+                for context, app_id in sorted(
+                    configured_check_pairs,
+                    key=lambda pair: (pair[0], str(pair[1])),
+                )
             ],
             "strict": status_checks.get("strict"),
         },
@@ -344,7 +362,7 @@ def check_github(
             "self_review_comment_ids": sorted(
                 comment.get("id") for comment in self_review_comments if comment.get("id") is not None
             ),
-            "check_runs": check_runs_by_context,
+            "check_runs": check_run_evidence,
         },
         "errors": {
             key: value for key, value in {
