@@ -76,3 +76,15 @@ Entries are append-only and use IDs `SEC-YYYY-NNN`.
 - After: PR #1 can establish the governance baseline under explicit owner bootstrap review, but overall G1 remains BLOCK until a follow-up installs a default-branch-trusted `pull_request_target` governance check that never executes PR-controlled code and branch protection requires its distinct context.
 - Verification: the bootstrap merge and the trusted-workflow follow-up must use separate PRs and receipts; product implementation remains prohibited between them.
 - Residual risk: the bootstrap check is not an independent attestation. The exact-head owner review is the temporary compensating control.
+
+### SEC-2026-006 — Exposed SDK credentials revoked
+
+- Stage: G1 governance recovery
+- Severity: closed Critical credential exposure; historical disclosure remains recorded
+- Evidence: repository owner confirmation on 2026-07-16; no credential value, identifier, or provider response is stored
+- Why: history sanitation prevents new access through active refs but does not invalidate credentials copied before sanitation.
+- Before: SEC-2026-003 remained Critical because five exposed credentials were not yet confirmed invalid.
+- What changed: the repository owner confirmed that all five exposed credentials were revoked at their providers. No replacement credentials have been generated.
+- After: the exposed values are no longer valid credentials. Replacement is not required to neutralize the exposure; any future credential must remain outside Git, GJC runtime records, public evidence, Actions artifacts, Pages, and releases.
+- Verification: non-secret owner/provider-side revocation confirmation plus the exact-head full-history gitleaks and runtime-path CI checks.
+- Residual risk: historical bytes may persist in caches, clones, or provider telemetry, but they no longer grant access. Provider telemetry should be retained for incident follow-up without copying secrets into this repository.
