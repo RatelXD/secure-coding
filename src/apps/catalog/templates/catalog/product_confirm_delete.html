@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}상품 삭제{% endblock %}
+{% block content %}
+<h1>상품 삭제</h1>
+<p>{{ product.title }} 상품을 삭제하시겠습니까?</p>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="version" value="{{ product.version }}">
+  <button type="submit">삭제</button>
+</form>
+<p><a href="{% url 'catalog:detail' product.pk %}">취소</a></p>
+{% endblock %}

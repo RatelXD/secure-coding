@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ product.title }}{% endblock %}
+{% block content %}
+<article>
+  <h1>{{ product.title }}</h1>
+  {% if product.image %}<img src="{{ product.image.url }}" alt="{{ product.title }} 상품 이미지">{% endif %}
+  <p>{{ product.description|linebreaksbr }}</p>
+  <dl>
+    <dt>가격</dt><dd>{{ product.price }}원</dd>
+    <dt>판매 상태</dt><dd>{{ product.get_sale_state_display }}</dd>
+    <dt>판매자</dt><dd>{{ product.owner.username }}</dd>
+  </dl>
+  {% if user.is_authenticated and user.pk == product.owner_id %}
+    <p><a href="{% url 'catalog:update' product.pk %}">수정</a></p>
+    <p><a href="{% url 'catalog:delete' product.pk %}">삭제</a></p>
+  {% endif %}
+</article>
+{% endblock %}
