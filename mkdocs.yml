@@ -1,0 +1,30 @@
+site_name: Secure Coding Living Report
+site_url: https://ratelxd.github.io/secure-coding/
+repo_url: https://github.com/RatelXD/secure-coding
+repo_name: RatelXD/secure-coding
+docs_dir: docs
+site_dir: site
+strict: true
+use_directory_urls: true
+nav:
+  - Report:
+      - Overview: report/index.md
+      - Requirements: report/01-requirements.md
+      - System design: report/02-system-design.md
+      - Implementation: report/03-implementation.md
+      - Checklist and testing: report/04-checklist-and-testing.md
+      - Maintenance: report/05-maintenance.md
+  - Logs:
+      - Security: report/security-log.md
+      - Decisions: report/decision-log.md
+      - Verification: report/verification-log.md
+  - Governance:
+      - Source ledger: report/source-ledger.md
+      - Evidence policy: report/evidence-policy.md
+      - Toolchain lock: report/toolchain.lock.md
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc:
+      permalink: true

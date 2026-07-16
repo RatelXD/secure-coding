@@ -1,0 +1,38 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+
+# Python caches and local state
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.sqlite3
+media/
+staticfiles/
+
+# GJC runtime state (project-local pinned skills remain tracked)
+.gjc/_session-*/
+.gjc/state/
+
+# Team-private provenance/verification and user-private submission
+.evidence-private/
+private-submission/
+**/[[]WHS[]][[]secure-coding[]][[]*반[]]*.pdf
+
+# Deterministic report renderer intermediates (generic release PDF remains tracked)
+.report-build/
+report/.build/
+dist/.render/
+dist/*.tmp
+
+# Editors and operating systems
+.idea/
+.vscode/
+.DS_Store
