@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{% if mode == "create" %}상품 등록{% else %}상품 수정{% endif %}{% endblock %}
+{% block content %}
+<h1>{% if mode == "create" %}상품 등록{% else %}상품 수정{% endif %}</h1>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">저장</button>
+</form>
+{% if product %}<p><a href="{% url 'catalog:detail' product.pk %}">취소</a></p>{% endif %}
+{% endblock %}

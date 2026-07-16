@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}상품 목록{% endblock %}
+{% block content %}
+<h1>상품 목록</h1>
+{% if user.is_authenticated %}<p><a href="{% url 'catalog:create' %}">상품 등록</a></p>{% endif %}
+<ul>
+  {% for product in products %}
+    <li>
+      <a href="{% url 'catalog:detail' product.pk %}">{{ product.title }}</a>
+      <span>{{ product.price }}원</span>
+      <span>{{ product.get_sale_state_display }}</span>
+      <span>판매자: {{ product.owner.username }}</span>
+    </li>
+  {% empty %}
+    <li>등록된 상품이 없습니다.</li>
+  {% endfor %}
+</ul>
+{% endblock %}
