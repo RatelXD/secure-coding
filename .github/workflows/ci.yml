@@ -31,6 +31,15 @@ jobs:
           missing = [p for p in required if not Path(p).is_file()]
           if missing:
               raise SystemExit(f'missing governance files: {missing}')
+          unexpected_runtime_files = [
+              path for path in Path('.gjc').rglob('*')
+              if path.is_file() and not path.is_relative_to('.gjc/skills')
+          ]
+          if unexpected_runtime_files:
+              raise SystemExit(
+                  'GJC runtime state must never be tracked: '
+                  + ', '.join(str(path) for path in unexpected_runtime_files)
+              )
 
           manifest = Path('.gjc/skills/manifest.md').read_text()
           skill = None

@@ -41,3 +41,15 @@ Entries are append-only and use IDs `SEC-YYYY-NNN`.
 - After: the independent-review path is fail-closed. GitHub governance remains BLOCK because no required status check is configured until the governance workflows are pushed and run.
 - Verification: `scripts/verify_g1.py` confirmed every GitHub governance predicate except `required_status_checks`; see [verification log](verification-log.md).
 - Residual risk: a PR must produce the exact check contexts, those contexts must be configured with strict mode, and `RatelAI` must independently approve before merge. The repository owner must not self-approve or bypass the gate.
+
+### SEC-2026-003 — SDK credential material entered PR history
+
+- Stage: G1 independent PR review
+- Severity: Critical until every exposed SDK credential is revoked and replaced
+- Evidence: independent `RatelAI` review finding on PR #1; no credential value or runtime-state filename is copied into public evidence.
+- Why: project-local GJC runtime state is private operational data and must never enter Git, PRs, Actions artifacts, Pages, or releases.
+- Before: Team auto-checkpoint commits added five `.gjc/state/sdk/*.json` runtime records before the ignore rule existed.
+- What changed: approval polling and workers were stopped; the governance branch was rebuilt from `origin/main` using only intentional commits; CI and regression tests now reject every tracked `.gjc/**` file outside `.gjc/skills/**`.
+- After: the sanitized branch contains no `.gjc/state/**` path. The exposed credentials remain untrusted until provider-side revocation and replacement are confirmed.
+- Verification: `git log --all -- .gjc/state/sdk` and the PR diff must show no path on the sanitized branch; governance tests and CI must pass after the forced branch update.
+- Residual risk: force-pushing removes the files from the active PR history but cannot guarantee immediate deletion from GitHub caches, forks, clones, logs, or provider telemetry. Credential rotation is mandatory.
