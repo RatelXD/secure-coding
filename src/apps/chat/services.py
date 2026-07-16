@@ -254,6 +254,7 @@ class DefaultChatService:
                 client_message_id=client_message_id,
                 body=normalized_body,
                 payload_sha256=payload_hash,
+                delivery=ChatMessage.Delivery.DEGRADED,
             )
 
         event = {
@@ -264,13 +265,14 @@ class DefaultChatService:
             "body": message.body,
             "accepted_at": message.accepted_at.isoformat(),
         }
-        delivery = DeliveryState.LIVE
+        delivery = DeliveryState.DEGRADED
         try:
             self._publisher(room.pk, event)
         except Exception:
-            delivery = DeliveryState.DEGRADED
-            ChatMessage.objects.filter(pk=message.pk).update(delivery=ChatMessage.Delivery.DEGRADED)
             logger.warning("Chat live delivery degraded for message_id=%s", message.pk)
+        else:
+            ChatMessage.objects.filter(pk=message.pk).update(delivery=ChatMessage.Delivery.LIVE)
+            delivery = DeliveryState.LIVE
 
         return AcceptedMessage(
             server_message_id=message.pk,

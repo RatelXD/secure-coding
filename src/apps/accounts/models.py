@@ -60,5 +60,9 @@ class LoginThrottle(models.Model):
             models.Index(
                 fields=("scope", "blocked_until"),
                 name="accounts_login_block_idx",
-            )
+            ),
+            models.Index(
+                fields=("updated_at",),
+                name="accounts_login_updated_idx",
+            ),
         ]

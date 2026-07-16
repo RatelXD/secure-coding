@@ -40,19 +40,26 @@ def create_product(owner: User, **changes: object) -> Product:
     return Product.objects.create(owner=owner, **values)
 
 
+def force_login_with_epoch(client: Client, user: User) -> None:
+    client.force_login(user)
+    session = client.session
+    session["account_auth_epoch"] = user.auth_epoch
+    session.save()
+
+
 def test_create_requires_authentication_and_csrf() -> None:
     assert Client().post(reverse("catalog:create")).status_code == 302
 
     user = User.objects.create_user(username="owner_01", password="long-password-123")
     csrf_client = Client(enforce_csrf_checks=True)
-    csrf_client.force_login(user)
+    force_login_with_epoch(csrf_client, user)
     assert csrf_client.post(reverse("catalog:create"), {}).status_code == 403
 
 
 def test_owner_creates_product_with_sanitized_image(tmp_path: Path) -> None:
     user = User.objects.create_user(username="owner_01", password="long-password-123")
     client = Client()
-    client.force_login(user)
+    force_login_with_epoch(client, user)
 
     with override_settings(MEDIA_ROOT=tmp_path):
         response = client.post(
@@ -96,7 +103,7 @@ def test_non_owner_cannot_update_or_delete_product() -> None:
     attacker = User.objects.create_user(username="other_01", password="long-password-123")
     product = create_product(owner)
     client = Client()
-    client.force_login(attacker)
+    force_login_with_epoch(client, attacker)
 
     update = client.post(
         reverse("catalog:update", args=(product.pk,)),
@@ -123,7 +130,7 @@ def test_owner_update_increments_optimistic_version() -> None:
     owner = User.objects.create_user(username="owner_01", password="long-password-123")
     product = create_product(owner)
     client = Client()
-    client.force_login(owner)
+    force_login_with_epoch(client, owner)
 
     response = client.post(
         reverse("catalog:update", args=(product.pk,)),
@@ -149,7 +156,7 @@ def test_stale_owner_update_is_rejected(
     owner = User.objects.create_user(username="owner_01", password="long-password-123")
     product = create_product(owner, version=2)
     client = Client()
-    client.force_login(owner)
+    force_login_with_epoch(client, owner)
     monkeypatch.setattr(
         "apps.catalog.views.render",
         lambda request, template, context, status=200: HttpResponse(status=status),

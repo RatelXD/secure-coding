@@ -35,6 +35,13 @@ def png_bytes(*, metadata_value: str | None = None) -> bytes:
     return output.getvalue()
 
 
+def force_login_with_epoch(client: Client, user) -> None:
+    client.force_login(user)
+    session = client.session
+    session["account_auth_epoch"] = user.auth_epoch
+    session.save()
+
+
 class AccountHttpSecurityTests(TestCase):
     strong_password = "Correct-Horse-Battery-47!"
 
@@ -97,7 +104,7 @@ class AccountHttpSecurityTests(TestCase):
             password=self.strong_password,
         )
         csrf_client = Client(enforce_csrf_checks=True)
-        csrf_client.force_login(user)
+        force_login_with_epoch(csrf_client, user)
 
         requests = (
             ("accounts:bio_edit", {"bio": "changed"}),
@@ -137,6 +144,22 @@ class AccountHttpSecurityTests(TestCase):
         self.assertEqual(known.status_code, 200)
         self.assertContains(unknown, expected_message)
         self.assertContains(known, expected_message)
+
+    def test_sql_like_login_input_is_rejected_as_data(self) -> None:
+        user = User.objects.create_user(
+            username="query_user",
+            password=self.strong_password,
+        )
+
+        response = self.client.post(
+            reverse("accounts:login"),
+            {"username": "' OR 1=1 --", "password": self.strong_password},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+        self.assertEqual(User.objects.count(), 1)
+        self.assertTrue(User.objects.filter(pk=user.pk, username="query_user").exists())
 
     def test_login_does_not_write_raw_password_to_logs(self) -> None:
         raw_password = "Logging-Marker-Password-47!"
@@ -182,7 +205,7 @@ class CatalogHttpSecurityTests(TestCase):
         self.assertEqual(anonymous.status_code, 302)
         self.assertIn(reverse("accounts:login"), anonymous.headers["Location"])
 
-        self.client.force_login(self.other)
+        force_login_with_epoch(self.client, self.other)
         for route_name in ("catalog:update", "catalog:delete"):
             with self.subTest(route_name=route_name):
                 response = self.client.post(
@@ -196,7 +219,7 @@ class CatalogHttpSecurityTests(TestCase):
 
     def test_product_mutations_require_csrf(self) -> None:
         csrf_client = Client(enforce_csrf_checks=True)
-        csrf_client.force_login(self.owner)
+        force_login_with_epoch(csrf_client, self.owner)
 
         create = csrf_client.post(
             reverse("catalog:create"),
@@ -338,7 +361,7 @@ class ModerationHttpSecurityTests(TestCase):
         self.assertIn(reverse("accounts:login"), anonymous.headers["Location"])
 
         csrf_client = Client(enforce_csrf_checks=True)
-        csrf_client.force_login(self.reporter)
+        force_login_with_epoch(csrf_client, self.reporter)
         product_route = reverse(
             "moderation:report-product",
             kwargs={"target_id": self.product.pk},
@@ -348,7 +371,7 @@ class ModerationHttpSecurityTests(TestCase):
         self.assertFalse(AbuseReport.objects.exists())
 
     def test_reason_is_required_and_self_report_uses_generic_error(self) -> None:
-        self.client.force_login(self.reporter)
+        force_login_with_epoch(self.client, self.reporter)
         product_route = reverse(
             "moderation:report-product",
             kwargs={"target_id": self.product.pk},

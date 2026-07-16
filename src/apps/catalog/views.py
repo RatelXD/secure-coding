@@ -8,14 +8,17 @@ from django.db.models.deletion import ProtectedError
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from apps.moderation.services import visible_products
 from .forms import ProductCreateForm, ProductUpdateForm
 from .models import Product
 from .services import is_product_public
 
 
 def product_list(request: HttpRequest) -> HttpResponse:
-    candidates = Product.objects.select_related("owner").all()
-    products = [product for product in candidates if is_product_public(product_id=product.pk)]
+    products = visible_products(Product.objects.select_related("owner")).order_by(
+        "-created_at",
+        "-pk",
+    )
     return render(request, "catalog/product_list.html", {"products": products})
 
 

@@ -43,6 +43,7 @@ _ACCOUNT_THRESHOLD = 5
 _IP_THRESHOLD = 20
 _ACCOUNT_COOLDOWN = timedelta(minutes=15)
 _IP_COOLDOWN = timedelta(minutes=30)
+_THROTTLE_RETENTION = timedelta(hours=24)
 
 
 def _opaque_identifier(scope: LoginThrottle.Scope, value: str) -> str:
@@ -87,6 +88,10 @@ def _locked_throttle(
                 identifier_digest=identifier_digest,
             )
 
+def _prune_expired_throttles(now: datetime) -> None:
+    LoginThrottle.objects.filter(updated_at__lt=now - _THROTTLE_RETENTION).delete()
+
+
 
 def _is_blocked(throttle: LoginThrottle, now: datetime) -> bool:
     return throttle.blocked_until is not None and throttle.blocked_until > now
@@ -129,18 +134,21 @@ def authenticate_login(
     account_digest = account_login_identifier(username)
     ip_digest = client_ip_identifier(request)
 
+    _prune_expired_throttles(now)
     with transaction.atomic():
-        account_throttle = _locked_throttle(
-            scope=LoginThrottle.Scope.ACCOUNT,
-            identifier_digest=account_digest,
-            now=now,
-        )
         ip_throttle = _locked_throttle(
             scope=LoginThrottle.Scope.IP,
             identifier_digest=ip_digest,
             now=now,
         )
-        if _is_blocked(account_throttle, now) or _is_blocked(ip_throttle, now):
+        if _is_blocked(ip_throttle, now):
+            return None
+        account_throttle = _locked_throttle(
+            scope=LoginThrottle.Scope.ACCOUNT,
+            identifier_digest=account_digest,
+            now=now,
+        )
+        if _is_blocked(account_throttle, now):
             return None
 
         try:
@@ -199,9 +207,11 @@ def enforce_http_user_status(request: HttpRequest) -> HttpResponse | None:
         return None
 
     session_epoch = request.session.get(SESSION_AUTH_EPOCH_KEY)
-    if session_epoch is None:
-        request.session[SESSION_AUTH_EPOCH_KEY] = user.auth_epoch
-    elif session_epoch != user.auth_epoch:
+    if (
+        isinstance(session_epoch, bool)
+        or not isinstance(session_epoch, int)
+        or session_epoch != user.auth_epoch
+    ):
         logout(request)
         return HttpResponse("Account unavailable.", status=403, content_type="text/plain")
 

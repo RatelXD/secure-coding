@@ -202,6 +202,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 user_id=self.scope["user"].pk,
                 cursor=cursor,
             )
+        except ChatAuthorizationError:
+            await self.send_json({"type": "account_status", "status": "dormant"})
+            await self.close(code=DORMANT_CLOSE_CODE)
+            return
         except (TypeError, ValueError):
             await self._send_error("invalid_cursor")
             return
@@ -222,6 +226,13 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         )
 
     async def chat_message(self, event: dict[str, object]) -> None:
+        user = self.scope["user"]
+        try:
+            await _authorize(self.room_id, user.pk)
+        except ChatAuthorizationError:
+            await self.send_json({"type": "account_status", "status": "dormant"})
+            await self.close(code=DORMANT_CLOSE_CODE)
+            return
         await self.send_json(
             {
                 "type": "message",

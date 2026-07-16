@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, patch
 from uuid import uuid4
 
 import pytest
+from asgiref.sync import async_to_sync
 from django.contrib.auth import get_user_model
 
-from apps.chat.consumers import has_exact_origin
+from apps.chat.consumers import ChatConsumer, DORMANT_CLOSE_CODE, has_exact_origin
 from apps.chat.models import ChatMessage, RoomParticipant
 from apps.chat.services import (
     ChatAuthorizationError,
@@ -194,3 +197,27 @@ def test_database_authoritative_burst_limit_rejects_eleventh_without_storage(use
         )
     assert rejected.value.retry_after >= 1
     assert ChatMessage.objects.filter(room=room, sender=alpha).count() == 10
+
+def test_live_fanout_rechecks_user_status_before_delivery() -> None:
+    consumer = ChatConsumer()
+    consumer.scope = {"user": SimpleNamespace(pk=1)}
+    consumer.room_id = 42
+    consumer.send_json = AsyncMock()
+    consumer.close = AsyncMock()
+
+    authorization = AsyncMock(side_effect=ChatAuthorizationError("Chat is unavailable."))
+    with patch("apps.chat.consumers._authorize", new=authorization):
+        async_to_sync(consumer.chat_message)(
+            {
+                "server_message_id": 1,
+                "sender_id": 2,
+                "sender_username": "sender",
+                "body": "message",
+                "accepted_at": "2026-07-16T00:00:00+00:00",
+            }
+        )
+
+    consumer.send_json.assert_awaited_once_with(
+        {"type": "account_status", "status": "dormant"}
+    )
+    consumer.close.assert_awaited_once_with(code=DORMANT_CLOSE_CODE)

@@ -15,6 +15,13 @@ def create_user(username: str = "test_user", password: str = "Correct-Horse-987!
     return User.objects.create_user(username=username, password=password)
 
 
+def force_login_with_epoch(client: Client, user: User) -> None:
+    client.force_login(user)
+    session = client.session
+    session["account_auth_epoch"] = user.auth_epoch
+    session.save()
+
+
 def test_signup_canonicalizes_username_and_uses_password_hash() -> None:
     client = Client()
     raw_password = "Correct-Horse-987!"
@@ -114,6 +121,14 @@ def test_twentieth_ip_failure_sets_thirty_minute_cooldown(
     assert throttle.blocked_until is not None
     remaining = throttle.blocked_until - timezone.now()
     assert timedelta(minutes=29) < remaining <= timedelta(minutes=30)
+    row_count_at_block = LoginThrottle.objects.count()
+    for number in range(20, 30):
+        response = client.post(
+            reverse("accounts:login"),
+            {"username": f"unknown_{number}", "password": "wrong-password-value"},
+        )
+        assert response.status_code == 200
+    assert LoginThrottle.objects.count() == row_count_at_block
 
 
 @pytest.mark.parametrize("username,password", [("bad\x00name", "wrong-password-value"), ("test_user", "bad\x00password")])
@@ -211,7 +226,7 @@ def test_bio_edit_updates_only_authenticated_actor() -> None:
     actor = create_user("actor_user")
     other = create_user("other_user")
     client = Client()
-    client.force_login(actor)
+    force_login_with_epoch(client, actor)
 
     response = client.post(
         reverse("accounts:bio_edit"),
@@ -229,7 +244,7 @@ def test_bio_edit_updates_only_authenticated_actor() -> None:
 def test_password_change_rotates_password_without_ending_session() -> None:
     actor = create_user()
     client = Client()
-    client.force_login(actor)
+    force_login_with_epoch(client, actor)
     new_password = "Another-Horse-654!"
 
     response = client.post(
@@ -250,11 +265,28 @@ def test_password_change_rotates_password_without_ending_session() -> None:
 def test_auth_epoch_change_flushes_existing_session() -> None:
     actor = create_user()
     client = Client()
-    client.force_login(actor)
+    force_login_with_epoch(client, actor)
     session = client.session
     session["account_auth_epoch"] = actor.auth_epoch
     session.save()
     User.objects.filter(pk=actor.pk).update(auth_epoch=actor.auth_epoch + 1)
+
+    response = client.get(reverse("accounts:profile"))
+
+    assert response.status_code == 403
+    assert response.content == b"Account unavailable."
+    assert "_auth_user_id" not in client.session
+
+
+@pytest.mark.parametrize("session_epoch", [None, "0", True])
+def test_missing_or_malformed_auth_epoch_flushes_session(session_epoch: object) -> None:
+    actor = create_user()
+    client = Client()
+    client.force_login(actor)
+    if session_epoch is not None:
+        session = client.session
+        session["account_auth_epoch"] = session_epoch
+        session.save()
 
     response = client.get(reverse("accounts:profile"))
 

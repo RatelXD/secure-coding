@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
@@ -11,6 +12,8 @@ from .models import ChatMessage, Room
 from .services import (
     ChatAuthorizationError,
     DefaultChatService,
+    _require_active_user,
+    _require_room_access,
     get_or_create_direct_room,
     get_or_create_global_room,
 )
@@ -61,16 +64,20 @@ def room_list(request: HttpRequest) -> HttpResponse:
 @require_GET
 def room_detail(request: HttpRequest, room_id: int) -> HttpResponse:
     try:
-        room = Room.objects.select_related("direct_user_low", "direct_user_high").get(pk=room_id)
-    except Room.DoesNotExist as exc:
+        with transaction.atomic():
+            _require_active_user(user_id=request.user.pk, lock=True)
+            room = _require_room_access(
+                room_id=room_id,
+                user_id=request.user.pk,
+                lock=True,
+            )
+            messages = list(
+                ChatMessage.objects.filter(room=room)
+                .select_related("sender")
+                .order_by("-pk")[:100]
+            )
+    except ChatAuthorizationError as exc:
         raise Http404 from exc
-    if not room.contains_user(request.user.pk):
-        raise Http404
-    messages = list(
-        ChatMessage.objects.filter(room=room)
-        .select_related("sender")
-        .order_by("-pk")[:100]
-    )
     messages.reverse()
     return render(
         request,
