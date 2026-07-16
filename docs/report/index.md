@@ -1,10 +1,7 @@
 # Secure Coding 중고거래 플랫폼 Living Report
 
-> Gate status: **G1 BLOCK**. Independent collaborator `RatelAI`, strict `main` review protection, and the fail-closed release environment are verified. Actions must still run from the governance PR so their exact check contexts can be configured as strict required checks; the deterministic renderer digest/font/package receipt also remains incomplete. No product implementation may start.
+> Gate status: **G1 closure in progress.** Trusted GitHub governance and credential revocation are verified. Generated PDF rendering is an optional retained helper, not a G1 or release gate; assignment-source context is intentionally untracked. Product implementation starts only after the current scope receipt and public-governance verifier pass.
 
-## Source correction
-
-[`AC-SRC-001`](source-ledger.md) fixes the assignment's physical-page 35 `24page` reference to **physical page 25**. Cycle 1 implements the page-25 membership, product, chat, report, reversible hide, and reversible dormancy scope. Cycle 2, only after the mandatory Cycle 1 maintenance PATCH, implements mock transfer, search, and administration.
 
 ## Lifecycle
 

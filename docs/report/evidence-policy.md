@@ -19,7 +19,7 @@ No other `.evidence-private/` path is allowed. L4 never writes `.evidence-privat
 3. Replace people with stable pseudonyms; mask IPs, hosts, sessions, tokens, and payloads.
 4. Strip screenshot/document metadata.
 5. Have L4 and L5 independently review SANITIZED material.
-6. Scan tracked history, workflow artifact globs, Pages output, and the generic PDF.
+6. Scan tracked history, workflow artifact globs, Pages output, and the public release package.
 7. Publish only the minimum PUBLIC or SANITIZED representation and link its AC/Policy/Test/PR/release IDs.
 
 A failed classification, ownership, scan, or redaction check blocks promotion. Schedule pressure does not lower classification.
