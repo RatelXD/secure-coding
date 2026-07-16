@@ -72,6 +72,45 @@ class OptionalDotEnvRegressionTests(unittest.TestCase):
         self.assertEqual(database_environment["POSTGRES_DB"], "marketplace")
         self.assertTrue(database_environment["POSTGRES_PASSWORD"])
 
+    def test_development_routes_static_assets_without_dotenv(self) -> None:
+        environment = {
+            key: value
+            for key, value in os.environ.items()
+            if key not in EXPLICIT_ENV_KEYS
+        }
+        environment.update(
+            {
+                "APP_ENV": "development",
+                "DJANGO_DEBUG": "true",
+                "PYTHONPATH": str(REPOSITORY_ROOT / "src"),
+                "POSTGRES_DB": "marketplace",
+                "POSTGRES_USER": "marketplace",
+                "POSTGRES_PASSWORD": "development-only-database-password",
+                "POSTGRES_HOST": "db",
+                "POSTGRES_PORT": "5432",
+                "POSTGRES_SSLMODE": "disable",
+                "REDIS_URL": "redis://redis:6379/0",
+            }
+        )
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import django; django.setup(); "
+                    "from django.urls import resolve; "
+                    "print(resolve('/static/chat/chat.js').url_name)"
+                ),
+            ],
+            cwd=REPOSITORY_ROOT,
+            env=environment,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_production_settings_still_reject_missing_explicit_values(self) -> None:
         environment = {
             key: value
