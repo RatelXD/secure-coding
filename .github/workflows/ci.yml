@@ -1,8 +1,6 @@
 name: ci
 
 on:
-  pull_request:
-  # Transition only: remove pull_request after the compatible trusted scan is on main.
   pull_request_target:
   push:
     branches: [main]
@@ -12,7 +10,7 @@ permissions:
 
 jobs:
   governance:
-    name: ${{ github.event_name == 'pull_request_target' && 'governance-trusted' || 'governance' }}
+    name: governance-trusted
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -47,7 +45,7 @@ jobs:
           ghcr.io/gitleaks/gitleaks@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854
           git --redact --no-banner /repo
       - name: Reject GJC runtime state from PR history
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request_target'
         shell: python
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
