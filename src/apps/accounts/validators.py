@@ -47,4 +47,4 @@ class PasswordBoundsValidator:
             )
 
     def get_help_text(self) -> str:
-        return "Your password must contain 12 to 128 characters and no NUL character."
+        return "비밀번호는 12~128자이며 NUL 문자를 포함할 수 없습니다."
