@@ -8,11 +8,11 @@ on:
         required: true
         type: string
       rc_tag:
-        description: release_sha를 가리키는 기존 RC 태그 (v0.1.0-rc.N)
+        description: release_sha를 가리키는 기존 RC 태그 (v0.1.x-rc.N)
         required: true
         type: string
       formal_tag:
-        description: 생성할 정식 태그 (v0.1.0)
+        description: 생성할 정식 태그 (v0.1.x)
         required: true
         type: string
 
@@ -44,10 +44,13 @@ jobs:
           set -euo pipefail
           case "$RELEASE_SHA" in (*[!0-9a-f]*|'') exit 1 ;; esac
           test "${#RELEASE_SHA}" -eq 40
-          if ! [[ "$RC_TAG" =~ ^v0\.1\.0-rc\.[1-9][0-9]*$ ]]; then
+          if ! [[ "$RC_TAG" =~ ^v0\.1\.(0|[1-9][0-9]*)-rc\.[1-9][0-9]*$ ]]; then
             exit 1
           fi
-          test "$FORMAL_TAG" = 'v0.1.0'
+          if ! [[ "$FORMAL_TAG" =~ ^v0\.1\.(0|[1-9][0-9]*)$ ]]; then
+            exit 1
+          fi
+          test "${RC_TAG%-rc.*}" = "$FORMAL_TAG"
           {
             echo "release_sha=$RELEASE_SHA"
             echo "rc_tag=$RC_TAG"

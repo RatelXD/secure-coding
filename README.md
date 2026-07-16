@@ -89,22 +89,30 @@ docker compose down
 python3 -m unittest discover -s tests/governance -v
 ```
 
-전체 자동 테스트는 잠금 파일의 테스트 의존성을 설치하고, 테스트 전용 PostgreSQL에 연결한 상태에서 실행합니다.
+전체 자동 테스트는 잠금 파일의 테스트 의존성을 설치한 뒤, 테스트 전용 Compose 오버레이로 PostgreSQL과 Redis를 loopback에만 열어 실행합니다. 이 절차도 `.env` 파일이 필요하지 않으며 기본 애플리케이션 데이터와 별도 프로젝트·볼륨을 사용합니다.
 
 ```bash
 uv sync --frozen --group test
+docker compose -p secure-coding-test \
+  -f compose.yaml -f compose.test.yaml \
+  up -d --wait db redis
+
 APP_ENV=test \
 POSTGRES_DB=marketplace \
 POSTGRES_USER=marketplace \
-POSTGRES_PASSWORD="${TEST_DB_PASSWORD:?set TEST_DB_PASSWORD}" \
-POSTGRES_HOST="${TEST_DB_HOST:-127.0.0.1}" \
-POSTGRES_PORT=5432 \
+POSTGRES_PASSWORD="${TEST_DB_PASSWORD:-development-only-database-password}" \
+POSTGRES_HOST=127.0.0.1 \
+POSTGRES_PORT="${TEST_DB_PORT:-55432}" \
 POSTGRES_SSLMODE=disable \
-REDIS_URL=redis://127.0.0.1:6379/0 \
+REDIS_URL="redis://127.0.0.1:${TEST_REDIS_PORT:-56379}/0" \
 uv run pytest -q
+
+docker compose -p secure-coding-test \
+  -f compose.yaml -f compose.test.yaml \
+  down -v
 ```
 
-2026-07-16 기준 전체 자동 테스트 159개와 하위 사례 215개가 통과했습니다. 이 결과에는 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·권한·재전송, Redis 장애 이력 수렴, 동시 신고·제재와 마이그레이션 검증이 포함됩니다. `.env` 파일 없이 Compose 설정 해석, 이미지 빌드, 마이그레이션, 서비스 기동과 healthy 상태도 확인했습니다.
+2026-07-16 기준 전체 자동 테스트 168개와 하위 사례 216개가 통과했습니다. 이 결과에는 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·권한·재전송, Redis 장애 이력 수렴, 동시 신고·제재, 테스트 인프라의 loopback 격리, 미디어 지속성, 준비 상태 전체 제한 시간·다중 주소 대체와 마이그레이션 검증이 포함됩니다. `.env` 파일 없이 Compose 설정 해석, 이미지 빌드, 마이그레이션, 서비스 기동과 healthy 상태도 확인했습니다.
 
 ## 보안 설계 요약
 

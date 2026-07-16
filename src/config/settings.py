@@ -144,7 +144,11 @@ DATABASES = {
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
-        "OPTIONS": {"sslmode": POSTGRES_SSLMODE},
+        "OPTIONS": {
+            "sslmode": POSTGRES_SSLMODE,
+            "connect_timeout": 2,
+            "tcp_user_timeout": 2_000,
+        },
     }
 }
 

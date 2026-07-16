@@ -27,6 +27,8 @@ EXPLICIT_ENV_KEYS = {
     "POSTGRES_SSLMODE",
     "REDIS_URL",
 }
+TEST_OVERLAY_ENV_KEYS = {"TEST_DB_PASSWORD", "TEST_DB_PORT", "TEST_REDIS_PORT"}
+
 
 
 class OptionalDotEnvRegressionTests(unittest.TestCase):
@@ -65,12 +67,121 @@ class OptionalDotEnvRegressionTests(unittest.TestCase):
 
         config = json.loads(result.stdout)
         app_environment = config["services"]["app"]["environment"]
+        app_volumes = config["services"]["app"]["volumes"]
         database_environment = config["services"]["db"]["environment"]
         self.assertEqual(app_environment["APP_ENV"], "development")
         self.assertEqual(app_environment["POSTGRES_HOST"], "db")
         self.assertEqual(app_environment["REDIS_URL"], "redis://redis:6379/0")
         self.assertEqual(database_environment["POSTGRES_DB"], "marketplace")
         self.assertTrue(database_environment["POSTGRES_PASSWORD"])
+        self.assertTrue(
+            any(
+                volume["source"] == "media-data"
+                and volume["target"] == "/app/media"
+                and volume["type"] == "volume"
+                for volume in app_volumes
+            )
+        )
+
+    def test_runtime_image_prepares_writable_media_directory(self) -> None:
+        dockerfile = (REPOSITORY_ROOT / "Dockerfile").read_text(encoding="utf-8")
+
+        self.assertIn("install -d -m 0750 -o app -g app /app/media", dockerfile)
+
+    def test_test_overlay_exposes_dependencies_on_loopback_without_dotenv(self) -> None:
+        docker = shutil.which("docker")
+        if docker is None:
+            self.skipTest("Docker Compose is unavailable")
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary_root = Path(temporary_directory)
+            compose_copy = temporary_root / "compose.yaml"
+            overlay_copy = temporary_root / "compose.test.yaml"
+            compose_copy.write_bytes((REPOSITORY_ROOT / "compose.yaml").read_bytes())
+            overlay_copy.write_bytes((REPOSITORY_ROOT / "compose.test.yaml").read_bytes())
+            environment = {
+                key: value
+                for key, value in os.environ.items()
+                if key not in EXPLICIT_ENV_KEYS
+                and key not in TEST_OVERLAY_ENV_KEYS
+                and key != "COMPOSE_FILE"
+            }
+            compose_command = [
+                docker,
+                "compose",
+                "--project-directory",
+                temporary_directory,
+                "-p",
+                "secure-coding-test",
+                "-f",
+                str(compose_copy),
+                "-f",
+                str(overlay_copy),
+                "config",
+                "--format",
+                "json",
+            ]
+            result = subprocess.run(
+                compose_command,
+                cwd=temporary_directory,
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            custom_environment = environment | {
+                "TEST_DB_PASSWORD": "custom-local-test-password",
+                "TEST_DB_PORT": "55433",
+                "TEST_REDIS_PORT": "56380",
+            }
+            custom_result = subprocess.run(
+                compose_command,
+                cwd=temporary_directory,
+                env=custom_environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+
+        config = json.loads(result.stdout)
+        database = config["services"]["db"]
+        redis = config["services"]["redis"]
+        self.assertEqual(database["environment"]["POSTGRES_DB"], "marketplace")
+        self.assertEqual(database["environment"]["POSTGRES_USER"], "marketplace")
+        self.assertEqual(database["ports"], [
+            {
+                "mode": "ingress",
+                "host_ip": "127.0.0.1",
+                "target": 5432,
+                "published": "55432",
+                "protocol": "tcp",
+            }
+        ])
+        self.assertEqual(redis["ports"], [
+            {
+                "mode": "ingress",
+                "host_ip": "127.0.0.1",
+                "target": 6379,
+                "published": "56379",
+                "protocol": "tcp",
+            }
+        ])
+        self.assertEqual(config["volumes"]["postgres-data"]["name"], "secure-coding-test_postgres-data")
+        custom_config = json.loads(custom_result.stdout)
+        custom_database = custom_config["services"]["db"]
+        custom_redis = custom_config["services"]["redis"]
+        self.assertEqual(
+            custom_database["environment"]["POSTGRES_PASSWORD"],
+            "custom-local-test-password",
+        )
+        self.assertEqual(custom_database["ports"][0]["host_ip"], "127.0.0.1")
+        self.assertEqual(custom_database["ports"][0]["published"], "55433")
+        self.assertEqual(custom_redis["ports"][0]["host_ip"], "127.0.0.1")
+        self.assertEqual(custom_redis["ports"][0]["published"], "56380")
+        self.assertEqual(
+            custom_config["volumes"]["postgres-data"]["name"],
+            "secure-coding-test_postgres-data",
+        )
 
     def test_development_routes_static_assets_without_dotenv(self) -> None:
         environment = {
