@@ -2,7 +2,7 @@
 
 Django 기반 시큐어 코딩 중고거래 플랫폼과 추적 가능한 Living Report 저장소입니다.
 
-> **현재 상태: G1 BLOCK.** 사용자가 `GOV-DEC-001`로 독립 GitHub 승인을 임시 supersede하고 exact-head documented self-review를 승인했습니다. Strict `governance` check와 runtime-state history 정리는 통과했지만, 현재 PR SHA에 결속된 self-review receipt, 노출 가능 SDK credential의 폐기/교체 확인, 결정적 PDF renderer receipt가 남아 있어 제품 구현은 아직 시작하지 않습니다.
+> **현재 상태: G1 BLOCK.** GitHub 거버넌스 bootstrap·trusted check 전환과 노출 가능 SDK credential 5건의 provider-side 폐기는 완료했습니다. 남은 차단 항목은 요구 버전 전체를 포함한 pullable linux/amd64 renderer OCI artifact(또는 재현 가능한 build/publish 경로), 측정된 inventory hash, 실제 컨테이너의 offline 2회 동일-byte PDF receipt입니다. G1 전체 PASS가 기록되기 전에는 제품 구현을 시작하지 않습니다.
 
 ## 과제 원문 정정
 

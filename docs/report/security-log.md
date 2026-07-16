@@ -88,3 +88,27 @@ Entries are append-only and use IDs `SEC-YYYY-NNN`.
 - After: the exposed values are no longer valid credentials. Replacement is not required to neutralize the exposure; any future credential must remain outside Git, GJC runtime records, public evidence, Actions artifacts, Pages, and releases.
 - Verification: non-secret owner/provider-side revocation confirmation plus the exact-head full-history gitleaks and runtime-path CI checks.
 - Residual risk: historical bytes may persist in caches, clones, or provider telemetry, but they no longer grant access. Provider telemetry should be retained for incident follow-up without copying secrets into this repository.
+
+### SEC-2026-007 — Trusted governance transition completed
+
+- Stage: G1 governance recovery
+- Severity: closed release blocker; historical self-review risk remains recorded
+- Evidence: `G1-GH-20260716-R3`; merged PRs #1–#4
+- Why: the bootstrap exception could not remain the permanent required-check trust model.
+- Before: SEC-2026-004 and SEC-2026-005 recorded a documented owner self-review exception and a PR-controlled workflow trust gap.
+- What changed: the repository established strict `governance-trusted` from GitHub Actions app `15368`; its default-branch `pull_request_target` workflow checks out exact PR bytes with persisted credentials disabled, runs no PR-controlled scripts or dependencies, and uses a digest-pinned scanner. The untrusted trigger was removed.
+- After: the GitHub governance component of G1 passes. The historical bootstrap exception remains recorded, but it is not the current check path.
+- Verification: merged PR history and current branch-protection configuration were reviewed; see [verification log](verification-log.md).
+- Residual risk: exact-head documented owner self-review remains the approved human-review model until independent integration permissions are available. It does not weaken the trusted technical check.
+
+### SEC-2026-008 — Deterministic renderer artifact unavailable
+
+- Stage: G1 report toolchain
+- Severity: release blocker (not a product vulnerability)
+- Evidence: `G1-TOOL-20260716-R2`
+- Why: an immutable digest is meaningful only when it identifies a pullable platform artifact whose measured contents satisfy the full renderer and font inventory.
+- Before: the toolchain ledger named required versions but had no accepted renderer image, canonical inventory hash, or repeat-render receipt.
+- What changed: candidate platform digests were audited and rejected when incomplete or broken. The renderer draft enforces immutable-image, offline, read-only, and metadata controls; no placeholder digest, mutable tag, local-only image, or network fallback was accepted.
+- After: G1 remains BLOCK. A pullable linux/amd64 image or checked-in reproducible build/publish path must supply the complete measured inventory before independent real-container repeat rendering can establish PASS. The renderer must also stage or mount only explicit public inputs: its current whole-worktree mount exposes ignored private directories and `.git` to the container, and its root `.gjc/_session-*` guard is incomplete.
+- Verification: public candidate audit, lock semantics, renderer invocation controls, mount scope, and forbidden-path predicates were inspected; see [toolchain lock](toolchain.lock.md) and [verification log](verification-log.md).
+- Residual risk: accepting an arbitrary public image, invented inventory hash, mocked render receipt, or a container-visible private workspace would create a false supply-chain/privacy attestation. Product and G2 work remain prohibited.
