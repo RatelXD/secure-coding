@@ -112,3 +112,15 @@ Entries are append-only and use IDs `SEC-YYYY-NNN`.
 - After: G1 remains BLOCK. A pullable linux/amd64 image or checked-in reproducible build/publish path must supply the complete measured inventory before independent real-container repeat rendering can establish PASS. The renderer must also stage or mount only explicit public inputs: its current whole-worktree mount exposes ignored private directories and `.git` to the container, and its root `.gjc/_session-*` guard is incomplete.
 - Verification: public candidate audit, lock semantics, renderer invocation controls, mount scope, and forbidden-path predicates were inspected; see [toolchain lock](toolchain.lock.md) and [verification log](verification-log.md).
 - Residual risk: accepting an arbitrary public image, invented inventory hash, mocked render receipt, or a container-visible private workspace would create a false supply-chain/privacy attestation. Product and G2 work remain prohibited.
+
+### SEC-2026-009 — Local renderer proven; publication and provenance remain blocked
+
+- Stage: G1 report toolchain
+- Severity: release blocker (not a product vulnerability)
+- Evidence: `G1-TOOL-LOCAL-20260716`, `G1-TOOL-LOCAL-20260716-R2`
+- Why: a deterministic local image is necessary but cannot substitute for an accepted pullable platform digest and complete measured supply-chain inventory.
+- Before: SEC-2026-008 recorded no combined build path, unsafe whole-worktree exposure, and no real-container repeat receipt.
+- What changed: commit `5084386…` adds a trusted-main publication workflow, an allowlisted staging tree that excludes `.git` and private/runtime paths, a local-only combined renderer, and canonical metadata/PDF handling. Delivery and independent direct-container checks each produced byte-identical 13-page PDFs for their lane-local subjects.
+- After: the prior whole-worktree and root session-path defects are closed. G1 remains BLOCK because the wrapper binds a nonexistent host output path as a file, Python/APK inputs lack complete immutable hash/snapshot enforcement, the inventory omits installed Python/Mermaid tree and explicit font family/revision proof, and no accepted pullable repository digest exists.
+- Verification: independent local image ID/inventory inspection, focused governance tests, two real offline render/inspect runs, and Docker missing-bind behavior were checked without publishing private paths.
+- Residual risk: local tags and image IDs are not registry attestations. Only a trusted-main linux/amd64 repository digest with complete inventory and independent digest-based repeat renders can close this gate.
