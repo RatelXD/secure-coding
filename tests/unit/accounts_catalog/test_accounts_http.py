@@ -51,6 +51,16 @@ def test_signup_rejects_password_policy_boundaries(password: str) -> None:
 
     assert response.status_code == 200
     assert not User.objects.filter(username="new_user").exists()
+def test_signup_page_uses_korean_field_guidance() -> None:
+    response = Client().get(reverse("accounts:signup"))
+
+    assert response.status_code == 200
+    content = response.content.decode()
+    assert "아이디" in content
+    assert "4~30자의 영문 소문자, 숫자 또는 밑줄만 사용할 수 있습니다." in content
+    assert "비밀번호는 12~128자이며 NUL 문자를 포함할 수 없습니다." in content
+    assert "Username:" not in content
+    assert "Your password must contain 12 to 128 characters" not in content
 
 
 def test_login_failure_is_generic_for_known_and_unknown_accounts() -> None:

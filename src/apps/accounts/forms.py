@@ -9,9 +9,17 @@ class SignupForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
         model = User
         fields = ("username",)
+        labels = {"username": "아이디"}
+        help_texts = {"username": "4~30자의 영문 소문자, 숫자 또는 밑줄만 사용할 수 있습니다."}
 
     def clean_username(self) -> str:
-        username = canonicalize_username(self.cleaned_data["username"])
+        try:
+            username = canonicalize_username(self.cleaned_data["username"])
+        except forms.ValidationError as exc:
+            raise forms.ValidationError(
+                "아이디는 4~30자의 영문 소문자, 숫자 또는 밑줄만 사용할 수 있습니다.",
+                code="invalid_username",
+            ) from exc
         if User.objects.filter(username=username).exists():
             raise forms.ValidationError("사용할 수 없는 아이디입니다.", code="duplicate_username")
         return username
