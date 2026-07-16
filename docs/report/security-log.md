@@ -136,3 +136,88 @@ Entries are append-only and use IDs `SEC-YYYY-NNN`.
 - After: renderer image publication, repository digest, inventory receipt, generated PDF, and repeat-render evidence do not block G1, G8a, product work, or release. Manual report processing remains outside automated promotion evidence.
 - Verification: optional-helper tests explicitly enforce non-gating status and absence of a publication workflow; see [verification log](verification-log.md).
 - Residual risk: the optional helper still requires ordinary maintenance if used, but failures cannot be promoted back into release blockers without a new explicit scope decision.
+## Cycle 1 G2 threat model
+
+| Threat ID | Asset / boundary | Threat and exploit path | Required control | Verification contract | Residual risk |
+|---|---|---|---|---|---|
+| `THR-C1-001` | Session and B1 | Stolen/fixed session or missing CSRF performs unsafe HTTP actions | Django session rotation, Secure/HttpOnly/SameSite cookies, CSRF, generic auth responses, `auth_epoch` | `T-AUTH-*`, `T-STATUS-002/004`, CSRF negative tests | Browser or endpoint compromise is outside application control |
+| `THR-C1-002` | HTTP/WS B1 | Spoofed Host/Origin or untrusted forwarded headers bypass same-origin policy | Exact Host/origin allowlists, WS validation before accept, proxy trust configured fail-closed | handshake Host/Origin/forwarded-header matrix | A compromised trusted ingress can still spoof its asserted metadata |
+| `THR-C1-003` | Objects and B2 | IDOR/mass assignment changes another profile/product or enters a direct room | Server-derived actor/owner/participants and concealed 404 decisions | ownership/participant negative tests on every entrypoint | Authorization defects in new entrypoints require continued review |
+| `THR-C1-004` | Availability and B1/B3 | Concurrent brute force or request bursts exceed an in-memory limiter | PostgreSQL-authoritative exact account/IP/message boundaries; keyed-HMAC IP identifier; generic 429 | `T-AUTH-001..004`, `T-CHAT-003..005` concurrency cases | Distributed low-rate/Sybil abuse is reduced, not eliminated |
+| `THR-C1-005` | Chat history B3/B4 | Publish-before-commit creates ghost message; publish failure followed by retry duplicates history | Commit-only acceptance, unique client UUID key, payload conflict, publish-once new row | `T-CHAT-006..009` commit/publish/ACK fault injection | No automatic live replay during Redis outage; history converges |
+| `THR-C1-006` | Direct chat B2 | Guessed room/server cursor discloses private history | Participant check on handshake, each frame, and history query; opaque identifiers are not authority | room-ID and cursor IDOR tests | Participant endpoint compromise remains out of scope |
+| `THR-C1-007` | Chat content B1 | Oversize/control/XSS payload consumes resources or executes in another browser | UTF-8 byte limit, control rejection, text storage, template/DOM escaping, frame limits | `T-CHAT-001/002`, WS oversize and stored-XSS tests | Unicode confusables may enable social engineering |
+| `THR-C1-008` | Reports/actions B3 | Duplicate or concurrent threshold requests create overlapping sanctions | Lifetime uniqueness, locked threshold recheck, consumed-once reports, one active action/audit | `T-MOD-001..006` including concurrent 5/6 and expiry races | Coordinated independent Sybil reporters remain possible |
+| `THR-C1-009` | User/product visibility B2/B3 | Stored flag, host clock, or query bypass disagrees with effective sanction | Canonical DB-time services and exhaustive invocation matrix | `T-STATUS-001..007`, raw-query review rule | Future entrypoints can regress unless matrix tests are maintained |
+| `THR-C1-010` | Dormant sessions/sockets B1/B4 | Redis outage prevents revocation notification and leaves socket active | Atomic epoch increment, HTTP epoch check, every-frame status check, 4403 close | `T-STATUS-002/003`, Redis outage socket test | An idle socket may remain connected until notification or next frame but cannot execute a command |
+| `THR-C1-011` | Moderation history B3 | Permanent deletion or report reuse destroys auditability or extends punishment | Immutable seven-day actions, append-only audit, consumed-report relation, computed expiry | `T-MOD-004..006`, migration/rollback review | Authorized database operators remain privileged and separately audited |
+| `THR-C1-012` | Product media B1/B5 | Polyglot, SVG/script, decompression bomb, metadata/path payload reaches users/server | Allowlisted raster formats, size/dimension cap, full decode and new encode, generated name, isolated serving | image MIME/signature/polyglot/bomb/path/metadata tests | Decoder vulnerabilities require dependency scanning and patching |
+| `THR-C1-013` | Secrets/privacy and all boundaries | Logs or errors expose password, raw IP, username, chat/report body, cookie, or backend detail | Structured allowlisted logging, keyed IP, generic errors, production debug off, secret scanning | capture negative logs/errors and secret/SAST scans | Operators with database access can see application content within their role |
+
+Threat review is limited to Cycle 1. No later-cycle subsystem, route, permission, or data model is analyzed here.
+
+### SEC-2026-011 — Ambiguous chat acceptance could duplicate durable messages
+
+- Stage: G2 architecture review
+- Severity: High design finding, closed in the G2 design packet
+- Related: `AC-C1-CHAT-003..005`, `POL-CHAT-003`, `THR-C1-005`, `T-CHAT-006..009`, ADR-2
+- Asset and trust boundary: authenticated message history across PostgreSQL/Redis boundary B3/B4.
+- Why: treating Redis publish or ACK as the acceptance point makes a committed message appear failed and encourages duplicate client retries.
+- Before: the baseline named PostgreSQL history and Redis fan-out but did not define every commit/publish/ACK interleaving.
+- What changed: ADR-2 makes commit the only acceptance point, adds the unique client UUID/payload rule, prohibits replay republish, and requires degraded ACK plus cursor resynchronization.
+- After: no Critical/High chat-acceptance design ambiguity remains; implementation remains blocked until fault tests pass.
+- Verification: inspect the failure matrix and execute `T-CHAT-006..009` during the feature gate.
+- Residual risk: outage messages are not automatically live-rebroadcast; convergence is explicit through history.
+- Owner / security signer: architecture owner / independent G2 verifier.
+
+### SEC-2026-012 — Status checks could drift across HTTP, WebSocket, and queries
+
+- Stage: G2 architecture review
+- Severity: High design finding, closed in the G2 design packet
+- Related: `AC-C1-CAT-003`, `AC-C1-MOD-004/005`, `POL-STATUS-001/002`, `THR-C1-009/010`, `T-STATUS-*`, ADR-3
+- Asset and trust boundary: account authorization and product visibility at B2/B3.
+- Why: stored flags, application-host clocks, or entrypoint-local logic can expose a hidden product or authorize a dormant account at transition/expiry.
+- Before: canonical status was a baseline principle without an exhaustive invocation/transition matrix.
+- What changed: the matrix now requires DB-time services in middleware, handshake/frame, chat, catalog, report, moderation, owner-view, and reconciliation paths; epoch and Redis-outage fallback semantics are exact.
+- After: no Critical/High status-authority design gap remains; raw query/status bypass is classified as a security defect.
+- Verification: matrix inspection plus `T-STATUS-001..007`, including exact expiry and Redis outage.
+- Residual risk: future entrypoints must extend the matrix and tests.
+- Owner / security signer: architecture owner / independent G2 verifier.
+
+### SEC-2026-013 — WebSocket controls could be weaker than same-origin HTTP
+
+- Stage: G2 architecture review
+- Severity: High design finding, closed in the G2 design packet
+- Related: `AC-C1-CHAT-001`, `THR-C1-002/003/006`, ADR-1
+- Asset and trust boundary: session-authenticated WebSocket at browser boundary B1.
+- Why: cookies are sent during WebSocket handshakes; without explicit Host, Origin, session, room, and per-frame status checks, cross-site or stale-session access is possible.
+- Before: same-origin ASGI was selected but handshake rejection and close behavior were unspecified.
+- What changed: the entrypoint table requires Host/Origin/session/status/participant checks before accept, rechecks commands, and fixes 4400/4401/4403/4408/1011 close semantics.
+- After: no Critical/High HTTP/WS parity ambiguity remains; consumer implementation must use the configured middleware stack.
+- Verification: negative handshake/frame tests for Host, Origin, authentication, participation, epoch, and dormant status.
+- Residual risk: trusted ingress compromise is outside application enforcement.
+- Owner / security signer: architecture owner / independent G2 verifier.
+
+### SEC-2026-014 — Concurrent moderation could duplicate or extend sanctions
+
+- Stage: G2 architecture review
+- Severity: High design finding, closed in the G2 design packet
+- Related: `AC-C1-MOD-001..005`, `POL-MOD-001/002`, `THR-C1-008/011`, `T-MOD-*`, ADR-3
+- Asset and trust boundary: report/action/audit integrity in PostgreSQL boundary B3.
+- Why: count-then-create without locks and consumed-report authority can create two actions, reuse reports, or extend a sanction at the expiry boundary.
+- Before: reversible seven-day moderation lacked a complete transactional state machine.
+- What changed: threshold evaluation locks and rechecks eligibility, consumes contributing reports once, creates one immutable action/audit, never extends an active action, and uses DB-time expiry.
+- After: no Critical/High moderation-race design gap remains; the design does not claim complete Sybil prevention.
+- Verification: `T-MOD-002..006`, especially simultaneous threshold and exact-expiry/new-report barriers.
+- Residual risk: independent coordinated reporters may reach a threshold; account age/rate/pattern alerts, reversibility, and review mitigate but do not eliminate it.
+- Owner / security signer: architecture owner / independent G2 verifier.
+
+## G2 design-review disposition
+
+| Severity | Open | Closed by this packet | Gate rule |
+|---|---:|---:|---|
+| Critical | 0 | 0 | Any open finding blocks G2 |
+| High | 0 | 4 | Each closure requires its linked contract and independent verification |
+| Medium/Low | 0 | 0 | Record when discovered; do not silently accept |
+
+This is a design-review disposition, not a product-security pass. G2 remains blocked if independent verification finds a missing invocation, failure branch, threat control, or executable Test-ID. Feature gates remain responsible for proving implementation and keeping Critical/High findings at zero.

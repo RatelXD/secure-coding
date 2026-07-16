@@ -4,9 +4,9 @@ Decisions are append-only. Each ADR records status, context/Why, drivers, altern
 
 | ADR | Decision | Status | Gate |
 |---|---|---|---|
-| ADR-1 | same-origin Django ASGI; PostgreSQL authority; Redis fan-out | approved baseline, detailed design pending | G2 |
-| ADR-2 | client UUID + DB-accepted ACK + degraded/history resync; no outbox | approved baseline, detailed design pending | G2 |
-| ADR-3 | canonical DB-time effective moderation/status policies | approved baseline, detailed design pending | G2 |
+| ADR-1 | same-origin Django ASGI; PostgreSQL authority; Redis fan-out | accepted for G2 | G2 |
+| ADR-2 | client UUID + DB-accepted ACK + degraded/history resync; no outbox | accepted for G2 | G2 |
+| ADR-3 | canonical DB-time effective moderation/status policies | accepted for G2 | G2 |
 | ADR-4 | locked authoritative mock balance + immutable double-entry journal | analysis prohibited before G5 | G6 |
 | ADR-5 | scoped permissions + reauth/reason/version + append-only admin audit | analysis prohibited before G5 | G6 |
 
@@ -39,3 +39,38 @@ No ADR weakens the approved local scope, policy oracle, Critical/High zero, real
 - Local context: assignment-source material belongs only in ignored `.gjc/context/` files read at agent startup. README, public report pages, PR text, Actions artifacts, Pages, releases, and product output must not reproduce it.
 - Consequence: Team does not generate or handle the user's final report/submission artifact. User-manual report processing and LMS submission remain outside Team scope.
 - Retained gates: trusted governance, credential handling, test/security gates, real G5 maintenance, exact-RC G8a, same-SHA formal promotion, and user-only G8b remain mandatory.
+## ADR-1 — Same-origin Django ASGI with one durable authority
+
+- Status: accepted for G2 on 2026-07-16.
+- Context / Why: Cycle 1 needs HTTP, WebSocket, session, CSRF, authorization, chat history, and reversible moderation to share consistent trust and transaction boundaries. Multiple APIs or persistent systems would introduce policy drift and ambiguous authority.
+- Drivers: small auditable surface, same-origin controls, transactional integrity, explicit outage behavior, and deployable local composition.
+- Alternatives: a layered monolith remains an implementation organization option inside the same boundary; a SPA/token API, split services, permissive CORS, or Redis as a ledger are rejected. A synchronous-only deployment is rejected because authenticated live chat is required.
+- Decision: use Django 5.2 LTS Templates/vanilla JavaScript under one ASGI application. PostgreSQL is the only persistent authority and supplies policy time. Redis is disposable fan-out/rate support. Session, Host, CSRF, Origin, ownership, participation, and canonical status checks apply at both HTTP and WebSocket boundaries.
+- What changed: the baseline is now specified by trust boundaries, entrypoint/failure tables, a status invocation matrix, production fail-closed settings, and health/readiness semantics in the system design.
+- Consequences: Redis loss may degrade live delivery but cannot lose accepted history or alter status. PostgreSQL loss makes readiness fail. No independent token/CORS API may be added without a superseding ADR.
+- Follow-ups: feature PRs must prove route-level invocation and transaction tests. Later-cycle architecture is excluded from this decision.
+- Links: `AC-C1-*`, `POL-STATUS-001/002`, `THR-C1-001..004`, `T-STATUS-*`, diagrams `g2-trust-flow` and `g2-cycle1-erd`.
+
+## ADR-2 — Database-accepted chat with cursor resynchronization
+
+- Status: accepted for G2 on 2026-07-16.
+- Context / Why: database commit, Redis publish, and sender ACK cannot be atomic. Reporting publish failure as message failure after commit causes duplicate retries; publishing before commit can expose messages that never become history.
+- Drivers: exactly one durable row per client command, honest acceptance semantics, deterministic retries, bounded Cycle 1 operations, and convergence after fan-out gaps.
+- Alternatives: a transactional outbox offers eventual rebroadcast but adds a worker, duplicate consumption, cleanup, and recovery surface; it is not selected. Publish-first and rollback-on-publish-failure are invalid because they contradict PostgreSQL authority.
+- Decision: require UUIDv4 and unique `(room, sender, client_message_id)`. Recheck permission, canonical status, and database-authoritative rate budget in the insert transaction. Commit is acceptance. Publish a new row once after commit. Identical retry returns the stable server result without republishing; mismatched retry conflicts. Redis failure returns accepted/degraded and triggers history fetch after the last stable server cursor.
+- What changed: HTTP/WS failure semantics now distinguish rejected, not-accepted, accepted/live, accepted/degraded, and ambiguous client transport outcomes.
+- Consequences: clients must deduplicate by server ID and resynchronize on reconnect, visibility return, degraded ACK, or gap. Redis outage messages are not automatically replayed live. Metrics distinguish accepted, degraded, rejected, and cursor convergence.
+- Follow-ups: `T-CHAT-006..009` must fault commit, publish, and ACK independently; any stronger delivery requirement needs a superseding ADR and migration/recovery review.
+- Links: `AC-C1-CHAT-001..005`, `POL-CHAT-001..003`, `THR-C1-005..007`, diagram `g2-chat-acceptance`.
+
+## ADR-3 — Database-time reversible moderation authority
+
+- Status: accepted for G2 on 2026-07-16.
+- Context / Why: stored flags, host clocks, scheduled reversal, and per-entrypoint checks can disagree at sanction and expiry boundaries. Such drift could expose hidden products or leave dormant users active.
+- Drivers: one status answer at one instant, reversible seven-day actions, race-safe report consumption, immediate expiry semantics, and enforcement during Redis outage.
+- Alternatives: cron-reversed flags are not selected because scheduler delay becomes authorization drift. Permanent deletion and Redis-cached authority are rejected. Reconciliation is retained only as audit/hint repair.
+- Decision: immutable action start/expiry plus PostgreSQL `db_now` feed canonical `effective_user_status` and `effective_product_visibility` services. Middleware, query managers, consumers, chat/product/report/moderation services, and owner status views invoke them. Action creation, report consumption, audit creation, and user `auth_epoch` increment are atomic. An existing session invalidated by epoch change never revives after expiry.
+- What changed: the system design includes the exhaustive invocation matrix, exact-expiry behavior, socket 4403 fallback, and moderation state machine.
+- Consequences: stored state alone is never authoritative; raw queryset bypasses are security defects. Expiry requires no scheduler. Historical actions/reports remain auditable and are never physically deleted by policy.
+- Follow-ups: concurrency tests must prove one action/audit at threshold and no consumed-report reuse. Static/review checks must reject status bypasses.
+- Links: `AC-C1-MOD-001..005`, `POL-MOD-001/002`, `POL-STATUS-001/002`, `THR-C1-008..011`, diagrams `g2-moderation-state` and `g2-cycle1-erd`.
