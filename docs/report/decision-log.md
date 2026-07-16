@@ -21,3 +21,12 @@ No ADR weakens the physical-page correction, policy oracle, Critical/High zero, 
 - Consequence: GitHub cannot provide reviewer independence for this stage. Confirmation bias is an explicitly accepted residual risk, partially mitigated by automated checks, current-head binding, the normal code-review tool, and rejection of edited or inexact review comments.
 - Scope: this supersedes only the independent-review clauses of G1 and release-environment self-review. The bootstrap marker approves PR #1 governance bytes only; it does not declare G1 complete or relax trusted-workflow, provenance, credential handling, Critical/High zero, G5, G8a-before-formal, or user-only G8b gates.
 - Follow-up: restore an independent reviewer and `prevent_self_review=true` after the GitHub integration receives working Pull requests write permission.
+
+## GOV-DEC-002 — Default-branch-trusted G1 governance
+
+- Status: user-approved self-review implementation, pending final trusted-context PR receipt on 2026-07-16.
+- Context: PR #1 could only bootstrap a PR-controlled workflow. PR #2 added a `pull_request_target` transition so the default branch, rather than proposed PR bytes, defines the enforcement program.
+- Decision: remove the temporary `pull_request` trigger and require the distinct `governance-trusted` context from GitHub Actions app 15368. The trusted workflow may check out exact PR bytes with credentials disabled, but it must execute only pinned actions and inline logic loaded from the default branch; repository-controlled scripts, dependencies, gitleaks configuration, and ignore files are not executed or trusted.
+- Self-review receipt: the authenticated repository owner must post the exact unedited marker `G1-GOVERNANCE-SELF-REVIEW: APPROVED head=<current PR SHA>` after the unique exact-head trusted check succeeds.
+- Consequence: author-controlled changes cannot redefine the required check during the same PR. Independent human review remains temporarily superseded, so owner confirmation bias remains accepted under GOV-DEC-001.
+- Scope: this closes SEC-2026-005 only after the finalization PR is merged and branch protection still requires `governance-trusted`; deterministic renderer toolchain evidence and all later gates remain independent blockers.

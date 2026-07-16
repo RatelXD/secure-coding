@@ -38,7 +38,8 @@ class RepositoryBoundaryTests(unittest.TestCase):
     def test_trusted_workflow_checks_out_pr_bytes_without_executing_them(self) -> None:
         workflow = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
 
-        self.assertIn("pull_request_target:", workflow)
+        self.assertIn("\n  pull_request_target:\n", workflow)
+        self.assertIn("\n  pull_request:\n", workflow)
         self.assertIn(
             "github.event.pull_request.head.repo.full_name || github.repository",
             workflow,
@@ -53,8 +54,9 @@ class RepositoryBoundaryTests(unittest.TestCase):
         self.assertNotIn("pip install", workflow)
         self.assertLess(
             workflow.index("Reject secret-scanner bypass configuration"),
-            workflow.index("gitleaks/gitleaks-action@"),
+            workflow.index("ghcr.io/gitleaks/gitleaks@sha256:"),
         )
+        self.assertNotIn("gitleaks/gitleaks-action@", workflow)
 
 
 if __name__ == "__main__":

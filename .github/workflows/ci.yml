@@ -2,7 +2,7 @@ name: ci
 
 on:
   pull_request:
-  # Transition only: remove pull_request after governance-trusted is required.
+  # Transition only: remove pull_request after the compatible trusted scan is on main.
   pull_request_target:
   push:
     branches: [main]
@@ -39,9 +39,13 @@ jobs:
                   + ', '.join(str(path) for path in bypass_files)
               )
       - name: Scan complete Git history for secrets
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: >-
+          docker run --rm
+          -v "$GITHUB_WORKSPACE:/repo:ro"
+          -w /repo
+          ghcr.io/gitleaks/gitleaks@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854
+          git --redact --no-banner /repo
       - name: Reject GJC runtime state from PR history
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         shell: python

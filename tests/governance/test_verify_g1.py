@@ -71,7 +71,7 @@ class GitHubGovernanceTests(unittest.TestCase):
             return ({
                 "required_status_checks": {
                     "strict": True,
-                    "checks": [{"context": "governance", "app_id": 15368}],
+                    "checks": [{"context": "governance-trusted", "app_id": 15368}],
                 },
                 "enforce_admins": {"enabled": True},
                 "required_linear_history": {"enabled": True},
@@ -103,7 +103,7 @@ class GitHubGovernanceTests(unittest.TestCase):
                 "reviews": [],
                 "statusCheckRollup": [{
                     "__typename": "CheckRun",
-                    "name": "governance",
+                    "name": "governance-trusted",
                     "conclusion": "SUCCESS",
                     "head_sha": "abc123",
                     "status": "completed",
@@ -115,7 +115,7 @@ class GitHubGovernanceTests(unittest.TestCase):
             return ([{
                 "id": 77,
                 "user": {"login": "RatelXD"},
-                "body": "G1-GOVERNANCE-BOOTSTRAP-SELF-REVIEW: APPROVED head=abc123",
+                "body": "G1-GOVERNANCE-SELF-REVIEW: APPROVED head=abc123",
                 "created_at": "2026-07-16T00:00:00Z",
                 "updated_at": "2026-07-16T00:00:00Z",
             }], None)
@@ -123,7 +123,7 @@ class GitHubGovernanceTests(unittest.TestCase):
             return ({
                 "total_count": 1,
                 "check_runs": [{
-                    "name": "governance",
+                    "name": "governance-trusted",
                     "head_sha": "abc123",
                     "status": "completed",
                     "conclusion": "success",
@@ -137,13 +137,13 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance",),
+            expected_required_checks=("governance-trusted",),
         )
 
         self.assertTrue(receipt["passed"])
         self.assertEqual(
             receipt["required_status_checks"]["configured"],
-            [{"context": "governance", "app_id": 15368}],
+            [{"context": "governance-trusted", "app_id": 15368}],
         )
         self.assertEqual(receipt["review_mode"], "documented-self-review")
         self.assertEqual(receipt["pull_request"]["self_review_comment_ids"], [77])
@@ -153,7 +153,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance", "security"),
+            expected_required_checks=("governance-trusted", "security"),
         )
 
         self.assertFalse(receipt["passed"])
@@ -168,7 +168,7 @@ class GitHubGovernanceTests(unittest.TestCase):
                 return ([{
                     "id": 78,
                     "user": {"login": "RatelXD"},
-                    "body": "G1-GOVERNANCE-BOOTSTRAP-SELF-REVIEW: APPROVED head=old-head",
+                    "body": "G1-GOVERNANCE-SELF-REVIEW: APPROVED head=old-head",
                 }], None)
             return response
 
@@ -176,7 +176,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance",),
+            expected_required_checks=("governance-trusted",),
         )
 
         self.assertFalse(receipt["passed"])
@@ -193,7 +193,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance",),
+            expected_required_checks=("governance-trusted",),
         )
 
         self.assertFalse(receipt["passed"])
@@ -214,7 +214,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance",),
+            expected_required_checks=("governance-trusted",),
         )
 
         self.assertFalse(receipt["passed"])
@@ -234,7 +234,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance",),
+            expected_required_checks=("governance-trusted",),
         )
 
         self.assertFalse(receipt["passed"])
@@ -252,7 +252,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance",),
+            expected_required_checks=("governance-trusted",),
         )
 
         self.assertFalse(receipt["passed"])
@@ -264,7 +264,7 @@ class GitHubGovernanceTests(unittest.TestCase):
             response, error = self.response(arguments)
             if "issues/7/comments?" in " ".join(arguments):
                 response[0]["body"] = (
-                    "Reviewed\nG1-GOVERNANCE-BOOTSTRAP-SELF-REVIEW: APPROVED head=abc123"
+                    "Reviewed\nG1-GOVERNANCE-SELF-REVIEW: APPROVED head=abc123"
                 )
                 response[0]["updated_at"] = "2026-07-16T00:01:00Z"
             return response, error
@@ -273,7 +273,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance",),
+            expected_required_checks=("governance-trusted",),
         )
 
         self.assertFalse(receipt["passed"])
