@@ -62,7 +62,7 @@
 
 | 대상 | 명령 | 결과 | 판단 범위 |
 |---|---|---|---|
-| 전체 자동 테스트 | `pytest -q` | 159 tests, 213 subtests PASS | 사용자·상품·채팅·신고 정상·음성·경계·경합과 보안 설정 |
+| 전체 자동 테스트 | `pytest -q` | 159 tests, 214 subtests PASS | 사용자·상품·채팅·신고 정상·음성·경계·경합과 보안 설정 |
 | Django 설정 | `python src/manage.py check` | PASS | 현재 테스트 설정 |
 | 운영 보안 설정 | `python src/manage.py check --deploy --fail-level WARNING` | PASS | 명시적 운영 환경 변수 사용 |
 | 마이그레이션 | `python src/manage.py makemigrations --check --dry-run` | 변경 없음 | 모델과 마이그레이션 일치 |
@@ -73,4 +73,4 @@
 | 서비스 상태와 정적 자산 | Compose 실행 후 `/readyz/`, `/static/chat/chat.js` 요청 | 모두 HTTP 200, 채팅 자산은 `text/javascript` | 앱·PostgreSQL 연결과 DEBUG 정적 자산 제공 |
 | 재시작과 복구 | 앱·DB·Redis 재시작, PostgreSQL 백업·복원 | 재시작 복구 PASS; 복원 뒤 사용자 1명, 상품 1개, 마이그레이션 24개 일치 | 컨테이너와 데이터 복구 |
 
-전체 159개와 하위 사례 213개를 실제 PostgreSQL·Redis 컨테이너에 연결해 실행했습니다. 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·참여자·재전송·휴면 수신 차단, Redis 장애 이력 수렴, 동시 제재·만료와 마이그레이션 일치를 확인했습니다. `.env` 파일 없이 Compose 설정 해석, 이미지 빌드, 마이그레이션, 서비스 healthy 상태, 재시작 복구와 백업·복원을 확인했습니다. 외부 터널 서비스는 실행하지 않았으므로 이 보고서의 검증 근거에 포함하지 않습니다.
+전체 159개와 하위 사례 214개를 실제 PostgreSQL·Redis 컨테이너에 연결해 실행했습니다. 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·참여자·재전송·휴면 수신 차단, Redis 장애 이력 수렴, 동시 제재·만료와 마이그레이션 일치를 확인했습니다. `.env` 파일 없이 Compose 설정 해석, 이미지 빌드, 마이그레이션, 서비스 healthy 상태, 재시작 복구와 백업·복원을 확인했습니다. 외부 터널 서비스는 실행하지 않았으므로 이 보고서의 검증 근거에 포함하지 않습니다.
