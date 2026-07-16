@@ -31,7 +31,7 @@ RUN apk add --no-cache \
       python3=3.12.12-r0 \
       zlib-dev=1.3.2-r0 \
   && python3 -m venv /opt/renderer-venv \
-  && /opt/renderer-venv/bin/pip install --no-cache-dir \
+  && /opt/renderer-venv/bin/pip install --no-cache-dir --require-hashes \
       --requirement /tmp/renderer-requirements.txt \
   && npm ci --prefix /opt/mermaid --omit=dev --ignore-scripts \
   && ln -s /opt/mermaid/node_modules/.bin/mmdc /usr/local/bin/mmdc \

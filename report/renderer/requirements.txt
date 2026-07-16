@@ -1,14 +1,14 @@
-Brotli==1.2.0
-Pillow==12.3.0
-Pyphen==0.17.2
-cffi==2.1.0
-cssselect2==0.9.0
-fonttools==4.63.0
-pycparser==3.0
-pydyf==0.12.1
-pypdf==5.9.0
-tinycss2==1.5.1
-tinyhtml5==2.1.0
-weasyprint==66.0
-webencodings==0.5.1
-zopfli==0.4.3
+Brotli==1.2.0 --hash=sha256:af43b8711a8264bb4e7d6d9a6d004c3a2019c04c01127a868709ec29962b6036
+Pillow==12.3.0 --hash=sha256:0dd2064cbc55aaec028ef5fbb60fa47bb6c3e7918e07ff17935284b227a9d2df
+Pyphen==0.17.2 --hash=sha256:3a07fb017cb2341e1d9ff31b8634efb1ae4dc4b130468c7c39dd3d32e7c3affd
+cffi==2.1.0 --hash=sha256:379de10ce1ba048b1448599d1b37b24caee16309d1ac98d3982fc997f768700b
+cssselect2==0.9.0 --hash=sha256:6a99e5f91f9a016a304dd929b0966ca464bcfda15177b6fb4a118fc0fb5d9563
+fonttools==4.63.0 --hash=sha256:27fdc65af8da6f88b9c6121c47a464cbe359fcfff7ff6fc2d37a1f395d755b78
+pycparser==3.0 --hash=sha256:b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992
+pydyf==0.12.1 --hash=sha256:ea25b4e1fe7911195cb57067560daaa266639184e8335365cc3ee5214e7eaadc
+pypdf==5.9.0 --hash=sha256:be10a4c54202f46d9daceaa8788be07aa8cd5ea8c25c529c50dd509206382c35
+tinycss2==1.5.1 --hash=sha256:3415ba0f5839c062696996998176c4a3751d18b7edaaeeb658c9ce21ec150661
+tinyhtml5==2.1.0 --hash=sha256:6e11cfff38515834268daf89d5f85bbde0b6dd02e8d9e212d1385c2289b89f0a
+weasyprint==66.0 --hash=sha256:82b0783b726fcd318e2c977dcdddca76515b30044bc7a830cc4fbe717582a6d0
+webencodings==0.5.1 --hash=sha256:a0af1213f3c2226497a97e2b3aa01a7e4bee4f403f95be16fc9acd2947514a78
+zopfli==0.4.3 --hash=sha256:47604eee5c6704bdf0e94d8391fe3b74ddb2abd84128fbcfdc3ee0fc265feaef

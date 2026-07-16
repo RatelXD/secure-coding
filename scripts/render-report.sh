@@ -68,6 +68,8 @@ build_root=$(mktemp -d "$PWD/.report-build/render.XXXXXX")
 stage="$build_root/stage"
 tmp_output="$build_root/report.pdf"
 mkdir -p "$stage"
+: > "$tmp_output"
+chmod 0600 "$tmp_output"
 trap 'rm -rf "$build_root"' EXIT
 
 python3 - "$release_sha" "$stage" <<'PY'

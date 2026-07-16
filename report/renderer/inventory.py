@@ -7,6 +7,8 @@ import os
 from pathlib import Path
 import subprocess
 
+from fontTools.ttLib import TTCollection
+
 
 def sha256(path: Path) -> str:
     digest = hashlib.sha256()
@@ -14,6 +16,78 @@ def sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def canonical_hash(records: list[dict[str, str]]) -> str:
+    payload = json.dumps(
+        records, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def tree_inventory(root: Path) -> dict[str, object]:
+    records: list[dict[str, str]] = []
+    for path in sorted(root.rglob("*"), key=lambda item: item.relative_to(root).as_posix()):
+        relative = path.relative_to(root).as_posix()
+        if path.is_symlink():
+            records.append({"path": relative, "symlink": os.readlink(path)})
+        elif path.is_file():
+            records.append({"path": relative, "sha256": sha256(path)})
+    return {"files": len(records), "sha256": canonical_hash(records)}
+
+
+def python_distributions() -> dict[str, object]:
+    result: dict[str, object] = {}
+    for distribution in sorted(
+        importlib.metadata.distributions(),
+        key=lambda item: (item.metadata["Name"].lower(), item.version),
+    ):
+        records: list[dict[str, str]] = []
+        for entry in sorted(distribution.files or [], key=str):
+            path = Path(distribution.locate_file(entry))
+            if path.is_file():
+                records.append({"path": str(entry), "sha256": sha256(path)})
+        name = distribution.metadata["Name"].lower().replace("_", "-")
+        result[name] = {
+            "version": distribution.version,
+            "files": len(records),
+            "tree_sha256": canonical_hash(records),
+        }
+    return result
+
+
+def font_inventory(paths: list[Path]) -> dict[str, object]:
+    result: dict[str, object] = {}
+    found_families: set[str] = set()
+    for path in paths:
+        collection = TTCollection(path)
+        families = sorted(
+            {
+                record.toUnicode()
+                for font in collection.fonts
+                for record in font["name"].names
+                if record.nameID == 1 and record.toUnicode().endswith(" CJK KR")
+            }
+        )
+        revisions = sorted({f"{font['head'].fontRevision:.3f}" for font in collection.fonts})
+        found_families.update(families)
+        result[str(path)] = {
+            "families": families,
+            "revisions": revisions,
+            "sha256": sha256(path),
+        }
+
+    required = {"Noto Sans CJK KR", "Noto Sans Mono CJK KR"}
+    if not required.issubset(found_families):
+        raise SystemExit("both required Noto CJK KR font families must be present")
+    relevant_revisions = {
+        revision
+        for item in result.values()
+        for revision in item["revisions"]
+    }
+    if relevant_revisions != {"2.004"}:
+        raise SystemExit(f"Noto Sans CJK revision mismatch: {sorted(relevant_revisions)}")
+    return result
 
 
 def command(*args: str) -> str:
@@ -35,15 +109,15 @@ def main() -> None:
         {
             Path(line.split(":", 1)[0]).resolve()
             for line in command("fc-list").splitlines()
-            if "NotoSansCJK" in line or "NotoSansMonoCJK" in line
+            if "NotoSansCJK" in line
         },
         key=str,
     )
     if not font_paths:
-        raise SystemExit("Noto CJK fonts are absent")
+        raise SystemExit("Noto Sans CJK fonts are absent")
 
     inventory = {
-        "schema": 1,
+        "schema": 2,
         "platform": "linux/amd64",
         "versions": {
             "pandoc": command("pandoc", "--version").splitlines()[0],
@@ -55,23 +129,40 @@ def main() -> None:
         },
         "executables": {
             name: executable(name)
-            for name in ("pandoc", "mmdc", "chromium-browser", "qpdf", "pdfinfo", "pdffonts", "pdftotext")
+            for name in (
+                "pandoc",
+                "mmdc",
+                "chromium-browser",
+                "qpdf",
+                "pdfinfo",
+                "pdffonts",
+                "pdftotext",
+            )
         },
-        "python": {
-            name: importlib.metadata.version(name)
-            for name in ("weasyprint", "pypdf")
-        },
-        "fonts": {str(path): sha256(path) for path in font_paths},
+        "python_distributions": python_distributions(),
+        "mermaid_package_tree": tree_inventory(Path("/opt/mermaid/node_modules")),
+        "fonts": font_inventory(font_paths),
         "locks": {
             path: sha256(Path(path))
-            for path in ("/tmp/renderer-requirements.txt", "/opt/mermaid/package-lock.json")
+            for path in (
+                "/tmp/renderer-requirements.txt",
+                "/opt/mermaid/package-lock.json",
+            )
         },
         "renderer": {
             name: sha256(Path("/renderer") / name)
-            for name in ("render.py", "pdf_inspect.py", "inventory.py", "puppeteer-config.json")
+            for name in (
+                "render.py",
+                "pdf_inspect.py",
+                "inventory.py",
+                "puppeteer-config.json",
+            )
         },
     }
-    payload = (json.dumps(inventory, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
+    payload = (
+        json.dumps(inventory, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        + "\n"
+    ).encode()
     digest = hashlib.sha256(payload).hexdigest()
 
     if args.write:
