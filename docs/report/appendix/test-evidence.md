@@ -4,7 +4,7 @@
 
 | 실행일 | 대상 | 명령 또는 절차 | 관찰 결과 | 상태 |
 |---|---|---|---|---|
-| 2026-07-16 | 최종 자동 테스트 | `pytest -q` | 159 tests, 214 subtests PASS | PASS |
+| 2026-07-16 | 최종 자동 테스트 | `pytest -q` | 159 tests, 215 subtests PASS | PASS |
 | 2026-07-16 | Django 설정 | `python src/manage.py check` | PASS | PASS |
 | 2026-07-16 | 운영 보안 설정 | `python src/manage.py check --deploy --fail-level WARNING` | PASS | PASS |
 | 2026-07-16 | 마이그레이션 일치 | `python src/manage.py makemigrations --check --dry-run` | 변경 없음 | PASS |
@@ -28,7 +28,7 @@
 |---|---|---|---|
 | 2026-07-16 | 채팅 수락 PostgreSQL 독립 테스트 | nullable join과 행 잠금 조합으로 3 errors | 잠금·Origin·휴면 수신 집중 회귀 PASS |
 | 2026-07-16 | WebSocket 정확 Origin 독립 테스트 | Host userinfo 검증 누락으로 FAIL | 집중 회귀 PASS |
-| 2026-07-16 | 1차 통합 스위트 | 당시 `pytest -q`가 154 tests, 210 subtests PASS | 당시 수정본의 회귀 근거; 최종 159 tests, 214 subtests는 B.1에 기록 |
+| 2026-07-16 | 1차 통합 스위트 | 당시 `pytest -q`가 154 tests, 210 subtests PASS | 당시 수정본의 회귀 근거; 최종 159 tests, 215 subtests는 B.1에 기록 |
 
 ## B.3 자동화·운영 확인 상태
 
