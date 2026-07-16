@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}채팅방{% endblock %}
+{% block content %}
+<section id="chat-app" data-room-id="{{ room.id }}" aria-labelledby="room-title">
+  <h1 id="room-title">{% if room.kind == "GLOBAL" %}전체 채팅{% else %}1대1 채팅{% endif %}</h1>
+  <p id="chat-status" role="status" aria-live="polite"></p>
+  <ol id="chat-messages">
+    {% for message in chat_messages %}
+      <li data-message-id="{{ message.id }}">
+        <strong>{{ message.sender.username }}</strong>
+        <span>{{ message.body }}</span>
+      </li>
+    {% endfor %}
+  </ol>
+  <form id="chat-form">
+    <label for="chat-body">메시지</label>
+    <textarea id="chat-body" maxlength="2000" required></textarea>
+    <button type="submit">보내기</button>
+  </form>
+</section>
+<script src="{% static 'chat/chat.js' %}" defer></script>
+{% endblock %}

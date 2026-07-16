@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}채팅{% endblock %}
+{% block content %}
+<section aria-labelledby="chat-title">
+  <h1 id="chat-title">채팅</h1>
+  <p><a href="{% url 'chat:room-detail' global_room.id %}">전체 채팅 입장</a></p>
+</section>
+<section aria-labelledby="direct-title">
+  <h2 id="direct-title">1대1 채팅</h2>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">대화 시작</button>
+  </form>
+  <ul>
+    {% for item in direct_rooms %}
+      <li><a href="{% url 'chat:room-detail' item.room.id %}">{{ item.other_user.username }}</a></li>
+    {% empty %}
+      <li>아직 1대1 대화가 없습니다.</li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
