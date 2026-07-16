@@ -12,7 +12,7 @@
 | 복구·보존 | DB·Redis·앱 재시작 복구 확인; PostgreSQL backup/restore 뒤 `users=1`, `products=1`, migrations=24 일치 | PASS |
 | 공급망·이력 | pytest 9.0.3 업그레이드 뒤 all-groups `pip-audit` clean; 고정 버전 gitleaks 전체 이력 검사에서 누출 없음 | PASS |
 | 공개 문서 | GitHub Pages `https://ratelxd.github.io/secure-coding/` 접근 확인 | PASS |
-| 최종 자동 테스트 건수 | `pytest -q`: 159 tests, 213 subtests PASS | PASS |
+| 최종 자동 테스트 건수 | `pytest -q`: 159 tests, 214 subtests PASS | PASS |
 | ngrok | 사용할 수 없어 외부 터널 검증을 실행하지 않음 | 미검증 |
 
-과거 채팅 수락의 PostgreSQL 행 잠금 및 Origin 검증 실패는 발견 당시의 근거이며, 현재 실패 상태가 아닙니다. 수정 후 집중 회귀와 당시 통합 스위트(154 tests, 210 subtests PASS)를 확인했으며, 최종 통합 스위트에서는 159 tests, 213 subtests가 통과했습니다.
+과거 채팅 수락의 PostgreSQL 행 잠금 및 Origin 검증 실패는 발견 당시의 근거이며, 현재 실패 상태가 아닙니다. 수정 후 집중 회귀와 당시 통합 스위트(154 tests, 210 subtests PASS)를 확인했으며, 최종 통합 스위트에서는 159 tests, 214 subtests가 통과했습니다.
