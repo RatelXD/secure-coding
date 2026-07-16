@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}{{ profile_user.username }} | 사용자{% endblock %}
+{% block content %}
+<h1>{{ profile_user.username }}</h1>
+<section aria-label="사용자 소개">
+  {% if profile_user.bio %}<p>{{ profile_user.bio }}</p>{% else %}<p>등록된 소개글이 없습니다.</p>{% endif %}
+</section>
+{% endblock %}
