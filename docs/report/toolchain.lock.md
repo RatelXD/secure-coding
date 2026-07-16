@@ -18,9 +18,9 @@
 
 <!--
 Machine-readable compatibility contract for the optional helper tests. This comment is not report body text.
-**Status:** OPTIONAL / NON-GATING
-Generated PDF output, renderer publication, OCI attestations, and renderer receipts are not G1 or G8a requirements
-PDF generation, image publication, repository digests, inventory receipts, and repeat renders are not required for G1 or G8a
+**Status:** OPTIONAL
+Generated PDF output, renderer publication, OCI attestations, and renderer receipts are not required for assignment report completion
+PDF generation, image publication, repository digests, inventory receipts, and repeat renders are optional helper outputs
 ## Optional published-image format
 No image publication is required or currently configured.
 No repository workflow publishes this optional utility and no package permission or attestation is required.
