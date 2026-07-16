@@ -1,0 +1,92 @@
+name: formal-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact G8a-passed RC commit SHA
+        required: true
+        type: string
+      rc_tag:
+        description: Existing immutable RC tag at release_sha
+        required: true
+        type: string
+      formal_tag:
+        description: New formal v0.x.y tag
+        required: true
+        type: string
+      g8a_receipt_sha256:
+        description: SHA-256 of the credential-free G8a PASS receipt
+        required: true
+        type: string
+      generic_pdf_sha256:
+        description: Verified generic PDF SHA-256
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: formal-release
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    environment: release
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 0
+      - name: Verify immutable G8a subject
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RC_TAG: ${{ inputs.rc_tag }}
+          FORMAL_TAG: ${{ inputs.formal_tag }}
+          RECEIPT_SHA: ${{ inputs.g8a_receipt_sha256 }}
+          PDF_SHA: ${{ inputs.generic_pdf_sha256 }}
+        run: |
+          set -eu
+          case "$RELEASE_SHA" in (*[!0-9a-f]*|'') exit 1;; esac
+          test "${#RELEASE_SHA}" -eq 40
+          case "$RECEIPT_SHA:$PDF_SHA" in (*[!0-9a-f:]*|'') exit 1;; esac
+          test "${#RECEIPT_SHA}" -eq 64
+          test "${#PDF_SHA}" -eq 64
+          case "$RC_TAG" in (v0.*-rc.*) ;; (*) exit 1;; esac
+          case "$FORMAL_TAG" in (v0.*.*) ;; (*) exit 1;; esac
+          case "$FORMAL_TAG" in (*-rc.*) exit 1;; esac
+          test "$(git rev-parse HEAD)" = "$RELEASE_SHA"
+          test "$(git rev-list -n 1 "$RC_TAG")" = "$RELEASE_SHA"
+          ! git rev-parse -q --verify "refs/tags/$FORMAL_TAG"
+          test -f dist/secure-coding-report-generic.pdf
+          test "$(sha256sum dist/secure-coding-report-generic.pdf | cut -d' ' -f1)" = "$PDF_SHA"
+          test -f artifacts/sanitized/g8a-receipt.json
+          test "$(sha256sum artifacts/sanitized/g8a-receipt.json | cut -d' ' -f1)" = "$RECEIPT_SHA"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          receipt=json.loads(Path('artifacts/sanitized/g8a-receipt.json').read_text())
+          if receipt.get('status') != 'PASS': raise SystemExit('G8a is not PASS')
+          if receipt.get('release_sha') != __import__('os').environ['RELEASE_SHA']:
+              raise SystemExit('G8a SHA mismatch')
+          PY
+      - name: Create same-SHA formal release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          FORMAL_TAG: ${{ inputs.formal_tag }}
+          RC_TAG: ${{ inputs.rc_tag }}
+          RECEIPT_SHA: ${{ inputs.g8a_receipt_sha256 }}
+          PDF_SHA: ${{ inputs.generic_pdf_sha256 }}
+        run: |
+          git tag "$FORMAL_TAG" "$RELEASE_SHA"
+          git push origin "refs/tags/$FORMAL_TAG"
+          gh release create "$FORMAL_TAG" \
+            --verify-tag \
+            --latest \
+            --title "$FORMAL_TAG" \
+            --notes "Promoted from $RC_TAG at $RELEASE_SHA after G8a PASS. Generic PDF SHA-256: $PDF_SHA. G8a receipt SHA-256: $RECEIPT_SHA." \
+            dist/secure-coding-report-generic.pdf \
+            artifacts/sanitized/g8a-receipt.json

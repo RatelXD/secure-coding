@@ -1,0 +1,76 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  governance:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.12.10'
+      - name: Verify public governance and pinned skills
+        shell: python
+        run: |
+          from pathlib import Path
+          import hashlib, re, sys
+
+          required = [
+              'README.md', 'mkdocs.yml', '.github/pull_request_template.md',
+              'docs/report/index.md', 'docs/report/source-ledger.md',
+              'docs/report/evidence-policy.md', 'docs/report/toolchain.lock.md',
+              '.gjc/skills/manifest.md',
+          ]
+          missing = [p for p in required if not Path(p).is_file()]
+          if missing:
+              raise SystemExit(f'missing governance files: {missing}')
+
+          manifest = Path('.gjc/skills/manifest.md').read_text()
+          skill = None
+          verified = 0
+          for line in manifest.splitlines():
+              if line == '## humanize-korean':
+                  skill = 'humanize-korean'
+              elif line == '## mermaid-skill':
+                  skill = 'mermaid-skill'
+              match = re.fullmatch(r'\| `([^`]+)` \| ([0-9,]+) \| `([0-9a-f]{64})` \|', line)
+              if skill and match:
+                  relative, byte_text, wanted = match.groups()
+                  path = Path('.gjc/skills') / skill / relative
+                  body = path.read_bytes()
+                  if len(body) != int(byte_text.replace(',', '')):
+                      raise SystemExit(f'{path}: byte length mismatch')
+                  got = hashlib.sha256(body).hexdigest()
+                  if got != wanted:
+                      raise SystemExit(f'{path}: SHA-256 mismatch: {got}')
+                  verified += 1
+          if verified != 16:
+              raise SystemExit(f'expected 16 pinned skill files, verified {verified}')
+
+          template = Path('.github/pull_request_template.md').read_text()
+          sections = [
+              '## Why', '## What changed', '## Docs consulted', '## Docs updated',
+              '## Tests / validation', '## Migration / rollback',
+              '## Screenshots (UI only)', '## Open questions / follow-ups',
+              '## Security / secure coding', '## Release impact',
+          ]
+          absent = [s for s in sections if s not in template]
+          if absent:
+              raise SystemExit(f'PR template sections missing: {absent}')
+
+          forbidden = re.compile(r'(/home/[A-Za-z0-9._-]+/|https://[a-z0-9-]+\.ngrok-free\.app|(?:authorization|cookie):\s*\S+|(?:LMS_(?:ID|PASSWORD)|SESSION_KEY)\s*=)', re.I)
+          for root in ('README.md', 'docs', 'dist'):
+              p = Path(root)
+              paths = [p] if p.is_file() else list(p.rglob('*')) if p.exists() else []
+              for candidate in paths:
+                  if candidate.is_file() and candidate.suffix.lower() in {'.md', '.txt', '.html'}:
+                      if forbidden.search(candidate.read_text(errors='ignore')):
+                          raise SystemExit(f'public-data policy violation: {candidate}')
+          print('governance checks passed')
