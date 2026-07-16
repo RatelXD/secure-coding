@@ -121,6 +121,19 @@ TEMPLATES = [
     }
 ]
 
+POSTGRES_SSLMODE = os.getenv(
+    "POSTGRES_SSLMODE",
+    "require" if IS_PRODUCTION else "disable",
+).strip().lower()
+_VALID_POSTGRES_SSLMODES = frozenset(
+    {"disable", "allow", "prefer", "require", "verify-ca", "verify-full"}
+)
+if POSTGRES_SSLMODE not in _VALID_POSTGRES_SSLMODES:
+    raise ImproperlyConfigured("POSTGRES_SSLMODE is not a valid libpq TLS mode")
+if IS_PRODUCTION and POSTGRES_SSLMODE not in {"require", "verify-ca", "verify-full"}:
+    raise ImproperlyConfigured("production POSTGRES_SSLMODE must require TLS")
+
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
@@ -131,9 +144,7 @@ DATABASES = {
         "PORT": os.getenv("POSTGRES_PORT", "5432"),
         "CONN_MAX_AGE": 60,
         "CONN_HEALTH_CHECKS": True,
-        "OPTIONS": {
-            "sslmode": os.getenv("POSTGRES_SSLMODE", "require" if IS_PRODUCTION else "disable")
-        },
+        "OPTIONS": {"sslmode": POSTGRES_SSLMODE},
     }
 }
 

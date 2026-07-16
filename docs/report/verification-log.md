@@ -1,24 +1,14 @@
-# Verification log
+# 검증 기록 안내
 
-Public summaries are append-only. Raw verification evidence belongs only to L5 under `.evidence-private/verification/`; raw provenance belongs only to L4 provenance paths.
+실제 실행한 테스트와 앞으로 필요한 검증은 [부록 B. 테스트 근거](appendix/test-evidence.md)에 통합했습니다.
 
-| Evidence-ID | Date (UTC) | Gate | Inspection or command | Result | Immutable subject |
-|---|---|---|---|---|---|
-| G1-SRC-PRT-20260716 | 2026-07-16 | G1-SRC/GOV | commit `?raw=1`, raw URL, Git Database blob API; strict RFC 4648 base64 decode | PASS: all 780 bytes and SHA `0cca…6798`; tree points to blob `8e4f…e18`; original sections present | commit `e1e524b…e5e5` |
-| G1-SUP-HUM-20260716 | 2026-07-16 | G1-SRC | pinned checkout, license and selected-subtree file hash inventory | PASS: exact selected subtree installed; local-only executable audit | commit `14aeb52…9689` |
-| G1-SUP-MMD-20260716 | 2026-07-16 | G1-SRC | pinned checkout, license and selected-subtree file hash inventory | PASS with enforced local-only policy: exact subtree installed; Kroki/network fallback disabled | commit `15d09cf…3f3b` |
-| G1-GH-20260716 | 2026-07-16 | G1 | GitHub REST repository/collaborator/protection/Pages/environment inspection | **BLOCK**: sole collaborator; no independent approval; main unprotected. Pages and protected release environment exist. | `RatelXD/secure-coding` |
-| G1-TOOL-20260716 | 2026-07-16 | G1 | renderer tool/version inventory | **BLOCK**: pinned renderer OCI digest/package/font hashes not established | report toolchain |
-| G1-GH-20260716-R2 | 2026-07-16 | G1 | `python3 scripts/verify_g1.py --repository RatelXD/secure-coding`; GitHub REST inspection | **BLOCK** only within GitHub governance: `RatelAI` is an independent collaborator and required release reviewer; `prevent_self_review=true`; admin bypass disabled; strict review/linear-history/no-force-push/no-delete rules PASS; required status checks absent pending governance workflow run and exact-context configuration | `RatelXD/secure-coding` live configuration |
-| G1-CRED-20260716 | 2026-07-16 | G1-SEC | non-secret repository-owner/provider-side revocation confirmation; full-history gitleaks and runtime-path CI | PASS: all five credentials from SEC-2026-003 revoked; no replacement credential generated or stored | SEC-2026-003/SEC-2026-006 credential set |
-| G1-GH-20260716-R3 | 2026-07-16 | G1-GOV | merged PR history and protected-branch configuration review | PASS: default-branch-trusted `governance-trusted` is strict and bound to GitHub Actions app `15368`; exact PR bytes are inspected without credentials or PR-controlled execution | `main` at `b4a9594…8dbad` |
-| G1-TOOL-20260716-R2 | 2026-07-16 | G1-TOOL | public OCI candidate/platform-digest audit and fail-closed renderer contract review | **BLOCK**: no compliant pullable image/build path or real repeat-render receipt; whole-worktree mounting exposes ignored private inputs and the root session-path guard is incomplete | report toolchain contract at `fe3bfcc…` |
-| G1-TOOL-TEST-20260716 | 2026-07-16 | G1-TOOL | `python3 -m unittest tests.governance.test_report_renderer -v` on temporary Lane A+B union | PASS: 5 focused contract tests in 0.602s; immutable-or-BLOCK, inventory, offline/no-Kroki, tracked privacy boundary, and mocked two-run orchestration covered. No real-container render was claimed. | Lane A `fe3bfcc…`; Lane B `2c66f99…` |
-| G1-TOOL-LOCAL-20260716 | 2026-07-16 | G1-TOOL | combined linux/amd64 local image build; two direct `--network none` render/inspect runs | PASS as local smoke only: inventory `c10e85a9…62b4`; two 13-page outputs were byte-identical at `a9fa7f74…2056`; fonts, metadata, and HTTP/file URI checks passed | delivery commit `5084386…` |
-| G1-TOOL-LOCAL-20260716-R2 | 2026-07-16 | G1-TOOL | independent local-image inventory inspection and two direct offline render/inspect runs | PASS as independent local smoke only: both 47,753,659-byte, 13-page outputs SHA `6e51e206…225`; **BLOCK** remains for wrapper bind, dependency/inventory provenance, publication digest, and accepted-digest repeats | verification commit `506c90b…` |
-| G1-REPORT-SCOPE-20260716 | 2026-07-16 | G1/G8a | user-directed gate-scope review; `python3 -m unittest tests.governance.test_report_renderer -v` on optional-helper union | **NON-GATING**: PDF processing is manual; renderer publication, digest, inventory, generated PDF, and repeat-render receipts are not G1/G8a requirements. Optional-helper suite: 10 PASS in 0.405s. | delivery `fe7fcda…`; verification `cf0bf0d…` |
-| G2-D-20260716 | 2026-07-16 | G2 | focused chat/moderation policy tests; independent architecture governance inspection on the integrated team checkout | PASS: 5 policy boundary tests and 8 architecture tests; DB-accepted chat/degraded delivery, reversible moderation thresholds/expiry, status invocation, same-origin routing, exact dependency pins, and Cycle 2 absence covered; Critical/High design findings: 0 | worker checkpoint `bbaa094…`; integrated union `25426d2…` |
-| G2-D-R2-20260716 | 2026-07-16 | G2 | reconciled policy tests, direct chat/moderation migration-state comparison, and governance tests against the latest integrated checkout | **BLOCK**: 5 focused policy tests PASS and chat/moderation migration drift is zero; integrated governance is 6/8 before Lane D integration, with the expected Lane D seven-day constraint pending integration and one open High runtime gap: `catalog.Product.image` requires Pillow but no exact Pillow runtime pin exists | task `task-4`; latest inspected union `25426d2…` |
+## 현재 확인된 결과
 
-A row marked BLOCK cannot be converted to PASS by a different row. Product implementation remains prohibited until every G1 component passes.
-The 2026-07-16 manual-report scope decision removes the renderer/PDF component from G1 and G8a. Earlier renderer BLOCK rows remain historical findings, not active gate predicates.
+| 실행일 | 명령 | 결과 | 범위 |
+|---|---|---|---|
+| 2026-07-16 | `pytest -q` | 65 tests, 131 subtests PASS | 모델 제약, 정책 함수, 보안 설정, 저장소 경계 |
+| 2026-07-16 | `python src/manage.py check --deploy --fail-level WARNING` | PASS | 명시적 운영 설정 |
+| 2026-07-16 | 마이그레이션 생성 점검·PostgreSQL 적용 | PASS | 현재 모델과 마이그레이션 |
+| 2026-07-16 | 컨테이너 정의·빌드·`/readyz/` | PASS, HTTP 200 | 애플리케이션 골격과 PostgreSQL 연결 |
+
+이 결과는 현재 골격과 정책 계약의 검증입니다. 아직 없는 사용자 화면, 상품 CRUD, WebSocket consumer, 신고 생성 서비스, 검색, 관리자, 모의 이체의 종단 기능 결과로 해석하지 않습니다.

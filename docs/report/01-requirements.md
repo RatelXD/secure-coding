@@ -1,80 +1,99 @@
-# 01 — Requirements analysis
+# 01. 요구사항 분석
 
-## Scope and gate
+## 1.1 프로젝트 목적
 
-Cycle 1 covers username/password membership, profile self-service, one-image products, authenticated global and direct chat, user/product reports, and seven-day reversible moderation. Cycle 2 capabilities are outside this design packet and MUST remain absent until their later gate opens.
+Tiny Second-hand Shopping Platform은 회원이 상품을 등록하고 다른 회원과 대화하며, 문제가 있는 사용자나 상품을 신고할 수 있는 소규모 중고거래 플랫폼입니다. 과제의 핵심은 기능 수를 늘리는 데 있지 않고, 인증·권한·입력값·파일·실시간 통신·상태 변경 과정에서 발생할 수 있는 보안 문제를 설계와 테스트로 확인하는 데 있습니다.
 
-Only username and password are collected. Email, phone, address, payment data, password recovery, token/CORS APIs, permanent moderation deletion, and Redis persistence are out of scope.
+## 1.2 대상 사용자
 
-This document closes requirements ambiguity only. Every Cycle 1 feature remains unimplemented until its feature gate and tests pass.
+| 사용자 | 주요 작업 |
+|---|---|
+| 비회원 | 상품 목록과 상세 정보 조회 |
+| 일반 회원 | 회원가입·로그인, 본인 정보 변경, 상품 관리, 채팅, 신고 |
+| 관리자 | 신고·제재 상태 확인과 허용된 관리 작업 수행 |
 
-## Actors and preconditions
+가입 시 수집하는 필수 정보는 아이디와 비밀번호입니다. 이메일, 전화번호, 주소, 결제정보는 수집하지 않습니다.
 
-| Actor | Preconditions | Permitted boundary |
+## 1.3 범위와 개발 순서
+
+### 1차 핵심 범위
+
+- 회원가입, 로그인, 사용자 조회
+- 본인 소개글과 비밀번호 변경
+- 상품 등록, 본인 상품 관리, 목록·상세 조회
+- 상품당 이미지 1장 업로드
+- 인증 사용자의 전체 채팅과 1대1 채팅
+- 사용자·상품 신고
+- 기간이 정해진 상품 비노출과 사용자 휴면 처리
+
+### 2차 필수 범위
+
+- 상품 검색·정렬·페이지 나누기
+- 권한이 제한된 관리자 기능
+- 실제 결제와 분리된 모의 내부 잔액 이체
+
+2차 기능은 최종 범위에 포함되지만, 1차 기능의 구현·점검·유지보수 뒤에 개발합니다.
+
+### 범위 밖
+
+- 실제 은행·PG 결제, 정산, 환불
+- 이메일 인증과 비밀번호 분실 복구
+- 전화번호·주소·결제정보 등 추가 개인정보 수집
+- 별도 SPA와 토큰 기반 분리 API
+- 영구 삭제 방식의 자동 제재
+- 상시 공개 운영 서비스와 운영급 SRE
+
+## 1.4 기능 요구사항
+
+| ID | 기능 요구사항 | 현재 상태 |
 |---|---|---|
-| Anonymous visitor | Valid Host; no authenticated session | Registration, login, public visible product list/detail, health liveness |
-| Active member | Valid same-origin session and CSRF for unsafe HTTP | Own profile/password, own products, chat rooms in which they participate, reports |
-| Product owner | Active member and product owner | Create/update own product and inspect its moderation status |
-| Moderator service | Database transaction and canonical policy services | Consume qualifying reports and create reversible actions/audit records |
-| Operator | Deployment authority, not application content authority | Read readiness/liveness; operate PostgreSQL/Redis without bypassing policy |
+| `FR-USER-01` | 사용자는 고유 아이디와 비밀번호로 회원가입하고 로그인할 수 있어야 한다. | 구현 중 |
+| `FR-USER-02` | 사용자는 다른 사용자의 공개 정보만 조회할 수 있어야 한다. | 구현 예정 |
+| `FR-USER-03` | 로그인한 사용자는 본인의 소개글과 비밀번호만 변경할 수 있어야 한다. | 구현 중 |
+| `FR-PRODUCT-01` | 로그인한 사용자는 이름, 가격, 설명, 이미지 1장으로 상품을 등록할 수 있어야 한다. | 구현 중, 가격 필드 확인 필요 |
+| `FR-PRODUCT-02` | 상품 소유자만 자신의 상품을 수정하거나 판매 상태를 관리할 수 있어야 한다. | 구현 중 |
+| `FR-PRODUCT-03` | 비회원도 공개 상품 목록과 상세 정보를 조회할 수 있어야 한다. | 구현 예정 |
+| `FR-CHAT-01` | 인증된 사용자는 전체 채팅에 참여할 수 있어야 한다. | 구현 중 |
+| `FR-CHAT-02` | 1대1 채팅은 두 참여자만 입장·열람·전송할 수 있어야 한다. | 구현 중 |
+| `FR-REPORT-01` | 인증된 사용자는 사유와 함께 사용자 또는 상품을 신고할 수 있어야 한다. | 구현 중, 사유 필드 확인 필요 |
+| `FR-REPORT-02` | 유효 신고가 기준에 도달하면 상품 비노출 또는 사용자 휴면을 중복 없이 적용해야 한다. | 구현 중 |
+| `FR-SEARCH-01` | 공개 상품을 검색하고 정렬하며 페이지 단위로 조회할 수 있어야 한다. | 구현 예정 |
+| `FR-ADMIN-01` | 관리자는 부여된 권한 안에서 사용자·상품·신고를 관리하고 변경 기록을 남겨야 한다. | 구현 예정 |
+| `FR-TRANSFER-01` | 사용자는 실제 결제가 아닌 내부 모의 잔액을 다른 사용자에게 원자적으로 이체할 수 있어야 한다. | 구현 예정 |
 
-A dormant user is not an active member. A hidden product is not publicly visible even when its stored product row is otherwise active.
+## 1.5 보안 요구사항
 
-## Acceptance criteria
-
-### Identity and authentication
-
-- **AC-C1-ID-001 — Canonical username.** Given a proposed username, when registration validates it, then trim and lowercase produce one ASCII canonical value matching `^[a-z0-9_]{4,30}$`, and the database rejects canonical duplicates.
-- **AC-C1-ID-002 — Password safety.** Given a proposed password, when registration or password change validates it, then 12–128 Unicode code points, Django similarity/common/numeric/minimum validators, and NUL rejection all apply; plaintext and derived hashes never enter logs.
-- **AC-C1-AUTH-001 — Generic throttled login.** Given known or unknown credentials, when authentication fails, then the response does not disclose account existence; account and keyed-IP limits are enforced atomically at their exact boundaries.
-- **AC-C1-PROFILE-001 — Profile self-service.** Given an active authenticated member, when profile data or password is changed, then only the member's own allowed fields change; password change rotates the session and does not expose credentials.
-
-### Catalog
-
-- **AC-C1-CAT-001 — Product ownership.** Given an active member, when creating or changing a product, then ownership is server-derived and only the owner can mutate the product.
-- **AC-C1-CAT-002 — Safe single image.** Given one JPEG, PNG, or WebP image no larger than 5 MiB or 4096×4096, when uploaded, then full decode succeeds, a new safe representation strips metadata, a generated non-executable name is used, and SVG/polyglot/decompression/path inputs fail closed.
-- **AC-C1-CAT-003 — Effective visibility.** Given a product, when list/detail/link resolution runs, then the canonical database-time visibility service decides exposure; active hiding returns public not-found without deleting content.
-
-### Chat
-
-- **AC-C1-CHAT-001 — Authorized rooms.** Given an authenticated active member, when opening HTTP history or a WebSocket, then global-chat membership or both direct-chat participants are checked server-side; room identifiers never grant access.
-- **AC-C1-CHAT-002 — Valid bounded text.** Given a chat submission, when validated, then trimmed UTF-8 content is 1–2000 bytes, NUL and C0 controls other than newline are rejected, stored text remains text, and output is escaped.
-- **AC-C1-CHAT-003 — Durable acceptance.** Given an authorized rate-compliant message with UUIDv4 client ID, when its PostgreSQL transaction commits, then and only then it is accepted and acknowledged with its stable server ID.
-- **AC-C1-CHAT-004 — Idempotent replay.** Given `(room, sender, client_message_id)`, when an identical payload is retried, then the prior accepted result is returned without another row or fan-out; a different payload receives conflict.
-- **AC-C1-CHAT-005 — Honest degradation.** Given a committed message, when Redis publish fails, then acceptance is retained, the ACK reports `delivery=degraded`, and clients resynchronize history after their last server cursor. Redis failure never rewrites history.
-
-### Reporting and moderation
-
-- **AC-C1-MOD-001 — Valid reports.** Given an active account at least seven days old, when reporting a non-self target with an allowed context, then lifetime reporter-target uniqueness is enforced and inactive/self/under-age/duplicate reports fail.
-- **AC-C1-MOD-002 — Context thresholds.** Given independent unconsumed reports, when a product reaches five reporters or a user reaches reports in two distinct allowed contexts, then exactly one seven-day reversible action and one audit event are created atomically.
-- **AC-C1-MOD-003 — No report reuse.** Given reports consumed by an action, when another threshold is evaluated, then those reports cannot extend, duplicate, or create another action. After expiry, only new unconsumed reports qualify.
-- **AC-C1-MOD-004 — Database-time expiry.** Given an action whose `expires_at` is at or before database time, when any entrypoint checks status, then it is ineffective immediately without a scheduler or destructive update.
-- **AC-C1-MOD-005 — Dormancy transition.** Given a newly effective user action, when committed, then `auth_epoch` increments; the next HTTP request flushes the session and denies access, and each socket is notified and closed with 4403 or closes with 4403 on its next frame even if Redis is unavailable.
-
-## Policy oracle and executable Test-ID contracts
-
-All limits are inclusive at the accepted edge. “DB time” means the time obtained inside the authoritative PostgreSQL operation, not application-host time. Each listed Test-ID is a mandatory Given/When/Then contract; feature implementation may add, but may not weaken, cases.
-
-| Policy ID | Exact policy | Required Given/When/Then Test-IDs |
+| ID | 보안 요구사항 | 확인 기준 |
 |---|---|---|
-| `POL-ID-001` | Trim + lowercase; ASCII `^[a-z0-9_]{4,30}$`; canonical database uniqueness | `T-ID-001`: Given `Ab_c`, when normalized, then `ab_c`; `T-ID-002`: Given case collision, Unicode, whitespace, 3 or 31 chars, when persisted, then reject with no row |
-| `POL-PW-001` | 12–128 code points; Django similarity/common/numeric/minimum checks; NUL rejected; no password/hash logging | `T-PW-001`: Given valid boundary lengths 12/128, then accept; `T-PW-002`: Given 11/129, common, numeric, similar, or NUL input, then reject and sanitized logs contain none of it |
-| `POL-AUTH-001` | Per-account 5 failures/15 min → 15 min cooldown; keyed-HMAC IP 20/15 min → 30 min; generic result; success resets account only | `T-AUTH-001`: Given 4/5/expiry attempts, then only the fifth enters cooldown; `T-AUTH-002`: Given 19/20 and parallel attempts, then twentieth atomically enters IP cooldown; `T-AUTH-003`: Given known/unknown users, then equivalent response shape/timing class; `T-AUTH-004`: Given success, then account counter resets and IP counter does not |
-| `POL-CHAT-001` | Trimmed UTF-8 1–2000 bytes; NUL/C0 except newline rejected; escape on output | `T-CHAT-001`: Given multibyte payloads of 2000/2001 bytes, then accept/reject respectively; `T-CHAT-002`: Given blank/NUL/C0/script text, then invalid controls reject and script is rendered as text |
-| `POL-CHAT-002` | Per-user 10/10 s burst and 60/60 s; per-connection 10/10 s; PostgreSQL-authoritative; reject without storing and include bounded retry-after | `T-CHAT-003`: Given 10/11 and 60/61 sends, then only excess rejects with no row; `T-CHAT-004`: Given multiple sockets, then aggregate user limit still holds; `T-CHAT-005`: Given concurrent boundary sends, then committed accepted count never exceeds the limit |
-| `POL-CHAT-003` | UUIDv4; unique room/sender/client ID; commit-before-ACK; replay same result/no republish; mismatch conflict; degraded cursor sync | `T-CHAT-006`: Given publish fault after commit, then ACK is accepted/degraded and history contains one row; `T-CHAT-007`: Given ACK loss and identical retry, then same server ID, one row, one publish attempt; `T-CHAT-008`: Given mismatched replay, then conflict; `T-CHAT-009`: Given reconnect at cursor N, then ordered history converges with no gaps/duplicates |
-| `POL-MOD-001` | Product context `PRODUCT`; user contexts `PROFILE`, `PRODUCT_INTERACTION`, `GLOBAL_CHAT`, `DIRECT_CHAT`; lifetime reporter-target unique; no self, under-seven-day, or inactive reporter; thresholds product=5 reporters, user=2 distinct contexts | `T-MOD-001`: Given invalid enum/self/young/inactive/duplicate, then reject; `T-MOD-002`: Given 4/5/6 independent product reports, then action count is 0/1/1; `T-MOD-003`: Given one/two distinct user contexts, then action count is 0/1 |
-| `POL-MOD-002` | Action lasts seven days; no overlapping extension/duplicate; reports consumed once; only post-expiry new reports qualify | `T-MOD-004`: Given simultaneous threshold-crossing transactions, then exactly one action/audit and each report consumed at most once; `T-MOD-005`: Given active action and more reports, then no extension; `T-MOD-006`: Given exact expiry and new reports, then old reports remain consumed and one new action may form |
-| `POL-STATUS-001` | `effective_user_status(db_now)` is the sole authority for HTTP, WebSocket, chat, product mutation, report, and moderation paths | `T-STATUS-001`: Given one user/time, then every invocation cell returns the same state; `T-STATUS-002`: Given transition, then auth epoch/session/socket semantics hold; `T-STATUS-003`: Given Redis outage, then the next request/frame still denies; `T-STATUS-004`: Given exact expiry, then old session stays invalid and a new login may succeed |
-| `POL-STATUS-002` | Canonical effective product visibility; hidden public references are 404; owner can inspect status; expiry restores visibility; no physical deletion | `T-STATUS-005`: Given list/detail/chat-link and the same DB time, then all hide; `T-STATUS-006`: Given owner status view, then status is visible without exposing publicly; `T-STATUS-007`: Given exact expiry, then all public query paths restore visibility |
+| `SR-AUTH-01` | 비밀번호를 평문으로 저장하거나 로그에 남기지 않는다. | Django 비밀번호 해시 사용과 저장값 점검 |
+| `SR-AUTH-02` | 로그인 실패 횟수와 요청 속도를 제한하고 계정 존재 여부가 드러나지 않는 응답을 사용한다. | 경계값·병렬 요청·알 수 없는 계정 음성 테스트 |
+| `SR-AUTHZ-01` | 프로필·상품·채팅방·신고·관리 기능은 요청마다 서버에서 권한을 확인한다. | 다른 사용자 객체에 대한 조회·변경 거부 테스트 |
+| `SR-INPUT-01` | 아이디, 소개글, 상품 정보, 채팅, 신고 사유, 검색어의 길이·형식·제어문자를 검증한다. | 정상값, 경계값, 잘못된 값 테스트 |
+| `SR-UPLOAD-01` | 이미지는 JPEG·PNG·WebP만 허용하고 5MiB·4096×4096 이하로 제한한다. | 확장자·MIME 불일치, 손상·과대 파일 거부 테스트 |
+| `SR-UPLOAD-02` | 업로드 이미지를 완전히 디코딩한 뒤 새 파일로 재인코딩하고 메타데이터를 제거한다. | 재인코딩 결과와 저장 경로 점검 |
+| `SR-SESSION-01` | 세션 쿠키, CSRF, 허용 호스트와 HTTPS 설정을 환경에 맞게 적용한다. | 보호 요청·위조 Origin·CSRF 음성 테스트 |
+| `SR-CHAT-01` | WebSocket 연결에서 인증, Origin, 방 참여자, 계정 상태를 확인한다. | 비인증·타인 방·잘못된 Origin 연결 거부 테스트 |
+| `SR-CHAT-02` | 채팅 저장 성공을 기준으로 응답하고 재전송 시 중복 저장하지 않는다. | 동일 UUID 재전송·저장 후 전파 실패 테스트 |
+| `SR-REPORT-01` | 자기 신고, 중복 신고, 기준 미달 계정 신고를 제재 집계에서 제외한다. | 신고 조건과 경계값 테스트 |
+| `SR-REPORT-02` | 신고 저장, 임계값 판정, 제재, 감사 기록을 원자적이고 멱등적으로 처리한다. | 동시 신고·중복 제재·만료 경합 테스트 |
+| `SR-ERROR-01` | 오류 응답과 로그에 비밀번호, 세션, 내부 경로, 상세 예외를 노출하지 않는다. | 오류 메시지와 로그 내용 점검 |
+| `SR-TRANSFER-01` | 모의 이체는 잔액 보존, 양수 금액, 자기 이체 금지, 멱등성, 동시성을 보장한다. | 동시 이체·재시도·실패 롤백 테스트 |
 
-## Trace and G2 exit
+## 1.6 신고·제재 정책
 
-| Acceptance family | Policies | Required test families |
-|---|---|---|
-| Identity/auth/profile | `POL-ID-001`, `POL-PW-001`, `POL-AUTH-001`, `POL-STATUS-001` | `T-ID-*`, `T-PW-*`, `T-AUTH-*`, `T-STATUS-001..004` |
-| Catalog | `POL-STATUS-001`, `POL-STATUS-002` | catalog ownership/image tests plus `T-STATUS-*` |
-| Chat | `POL-CHAT-001..003`, `POL-STATUS-001` | `T-CHAT-*`, `T-STATUS-001..004` |
-| Moderation | `POL-MOD-001..002`, `POL-STATUS-001..002` | `T-MOD-*`, `T-STATUS-*` |
+- 신고자는 인증된 활성 계정이며 가입 후 7일 이상이어야 합니다.
+- 자기 자신 또는 본인 상품 신고는 허용하지 않습니다.
+- 신고자와 대상의 조합당 한 번만 유효합니다.
+- 최근 7일 동안 서로 다른 유효 신고자 5명이 모여야 제재를 검토합니다.
+- 상품 신고와 사용자 신고는 별도로 집계합니다.
+- 상품은 7일 동안 비노출 처리하고, 사용자는 서로 다른 신고 맥락이 2개 이상일 때 7일 휴면 처리합니다.
+- 제재는 영구 삭제하지 않으며 만료 시 현재 시각을 기준으로 효력이 사라져야 합니다.
 
-G2 passes only when every Cycle 1 policy has an approved Given/When/Then Test-ID, trust and failure semantics are unambiguous, and independent review records zero open Critical or High design findings. Skeleton tests demonstrate contract placement, not feature completion.
+이 정책은 설계 기준입니다. 실제 서비스·경합 테스트가 끝나기 전에는 적용 완료로 판단하지 않습니다.
+
+## 1.7 완료 판단 원칙
+
+- 코드 경로만 존재하면 `구현 중`으로 표시합니다.
+- 실제 명령과 결과가 없으면 `PASS`로 표시하지 않습니다.
+- 코드나 환경이 바뀌면 영향받는 테스트를 같은 조건에서 다시 실행합니다.
+- 요구사항과 코드가 다르면 문서가 아니라 코드·테스트 상태를 기준으로 차이를 기록합니다.

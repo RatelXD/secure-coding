@@ -1,23 +1,61 @@
-# Secure Coding 중고거래 플랫폼 Living Report
+# Tiny Second-hand Shopping Platform 개발 전 과정 보고서
 
-> Gate status: **G1 closure in progress.** Trusted GitHub governance and credential revocation are verified. Generated PDF rendering is an optional retained helper, not a G1 or release gate; assignment-source context is intentionally untracked. Product implementation starts only after the current scope receipt and public-governance verifier pass.
+이 문서는 시큐어 코딩 과제로 진행하는 중고거래 플랫폼의 요구사항 분석, 시스템 설계, 구현, 테스트, 유지보수 과정을 한곳에서 확인할 수 있도록 정리한 보고서입니다. 최종 제출본은 이 Markdown 문서들을 바탕으로 사용자가 직접 PDF로 편집합니다.
 
+## 현재 진행 상태
 
-## Lifecycle
+| 단계 | 상태 | 설명 |
+|---|---|---|
+| 요구사항 분석 | 작성 중 | 1차 핵심 기능과 2차 확장 기능을 구분하고 기능·보안 요구사항을 정리했습니다. |
+| 시스템 설계 | 작성 중 | Django 단일 ASGI 구조와 주요 보안 흐름을 설계했습니다. 세부 구현과 대조가 더 필요합니다. |
+| 구현 | 구현 중 | Django 설정과 사용자·상품·채팅·신고의 모델·정책 골격을 구현했습니다. 실제 URL·화면과 종단 서비스는 아직 구현 예정입니다. |
+| 체크리스트와 테스트 | 진행 중 | 골격·모델 제약·정책·보안 설정 자동 테스트를 실행했습니다. 아직 없는 종단 기능은 미검증으로 유지합니다. |
+| 유지보수 | 구현 예정 | 실제 사용 중 발견한 문제와 수정 사례는 아직 없습니다. 가짜 사례를 만들지 않고 절차만 기록했습니다. |
+| 최종 제출 자료 | 작성 중 | 본문과 부록을 한국어 Markdown으로 정리하고 있습니다. 화면과 테스트 캡처는 추후 보강합니다. |
 
-1. [Requirements](01-requirements.md)
-2. [System design](02-system-design.md)
-3. [Implementation](03-implementation.md)
-4. [Checklist and testing](04-checklist-and-testing.md)
-5. [Maintenance](05-maintenance.md)
+상태 표기는 다음 기준을 사용합니다.
 
-## Detailed append-only logs
+- `구현 예정`: 설계만 확정되었고 코드가 아직 없습니다.
+- `구현 중`: 코드 골격 또는 일부 구현이 있으나 종단 기능과 종합 검증이 끝나지 않았습니다.
+- `미검증`: 확인 절차는 정의했지만 아직 실행하지 않았습니다.
+- `확인 필요`: 근거가 불완전하거나 최신 코드에서 다시 확인해야 합니다.
+- `PASS`: 실제 명령이나 수동 점검 결과가 남아 있는 경우에만 사용합니다.
 
-- [Security log](security-log.md)
-- [Decision log](decision-log.md)
-- [Verification log](verification-log.md)
-- [Source ledger](source-ledger.md)
-- [Evidence policy](evidence-policy.md)
-- [Toolchain lock](toolchain.lock.md)
+## 보고서 읽는 순서
 
-The public report contains generic evidence only. Identity and LMS data are outside Team scope.
+1. [요구사항 분석](01-requirements.md)
+2. [시스템 설계](02-system-design.md)
+3. [구현 내용](03-implementation.md)
+4. [체크리스트와 테스트](04-checklist-and-testing.md)
+5. [유지보수](05-maintenance.md)
+6. [보안 약점과 개선 계획](06-security-improvements.md)
+
+## 부록
+
+- [기능 추적표](appendix/feature-traceability.md): 요구사항과 설계·구현·테스트 상태를 연결합니다.
+- [테스트 근거](appendix/test-evidence.md): 실제 실행한 명령과 아직 필요한 검증을 구분합니다.
+- [참고 자료](appendix/references.md): 공식 문서와 구조 참고 자료를 정리합니다.
+
+## 기존 기록 문서
+
+기존 링크가 깨지지 않도록 아래 파일은 유지하되, 과제 보고서에서 필요한 내용만 새 본문과 부록으로 옮겼습니다.
+
+- [보안 기록 안내](security-log.md)
+- [기술 의사결정 요약](decision-log.md)
+- [검증 기록 안내](verification-log.md)
+- [참고 자료 안내](source-ledger.md)
+- [보고서 근거 작성 원칙](evidence-policy.md)
+- [선택적 PDF 보조 도구](toolchain.lock.md)
+
+## 최종 PDF 편집 시 보강할 자료
+
+- 회원가입·로그인·마이페이지 화면
+- 상품 등록·목록·상세·수정 화면
+- 전체 채팅과 1대1 채팅 화면
+- 신고 접수와 제재 전후 화면
+- 검색·관리자·모의 잔액 이체 화면
+- 자동화 테스트 실행 결과 캡처
+- 권한 거부, CSRF, XSS, 파일 업로드 우회 점검 결과
+- Docker Compose 실행과 서비스 상태 확인 화면
+
+화면과 결과가 실제로 준비되기 전에는 보고서에 완료된 것처럼 넣지 않습니다.

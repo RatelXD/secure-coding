@@ -55,6 +55,15 @@ def test_production_requires_explicit_https_csrf_origin() -> None:
     assert "production requires explicit DJANGO_CSRF_TRUSTED_ORIGINS" in result.stderr
 
 
+def test_production_rejects_postgresql_tls_downgrade() -> None:
+    for sslmode in ("disable", "allow", "prefer"):
+        result = _load_production_settings({"POSTGRES_SSLMODE": sslmode})
+
+        assert result.returncode != 0
+        assert "production POSTGRES_SSLMODE must require TLS" in result.stderr
+
+
+
 def test_proxy_trust_requires_explicit_ip_literals() -> None:
     missing = _load_production_settings({"DJANGO_TRUST_PROXY_HEADERS": "true"})
     invalid = _load_production_settings(

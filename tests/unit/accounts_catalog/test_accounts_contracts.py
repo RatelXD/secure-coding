@@ -51,6 +51,17 @@ def test_pol_id_001_persists_only_canonical_unique_username() -> None:
         User.objects.create_user(username=" example_USER ", password="not-a-real-secret-456")
 
 
+def test_password_is_stored_as_a_one_way_hash() -> None:
+    """TEST-ID ACCT-PASSWORD-001: the raw password is never persisted."""
+    raw_password = "not-a-real-secret-789"
+    user = User.objects.create_user(username="password_user", password=raw_password)
+
+    assert user.password != raw_password
+    assert raw_password not in user.password
+    assert user.check_password(raw_password)
+
+
+
 def test_profile_service_boundary_excludes_identity_and_authority_fields() -> None:
     """TEST-ID ACCT-PROFILE-001: self-service profile input cannot mutate authority fields."""
     assert PROFILE_MUTABLE_FIELDS == {"bio"}
