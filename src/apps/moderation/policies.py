@@ -4,9 +4,9 @@ from collections.abc import Mapping, Set
 from datetime import datetime, timedelta
 from enum import StrEnum
 
-REPORT_WINDOW = timedelta(days=7)
+MIN_REPORTER_AGE = timedelta(days=7)
 ACTION_DURATION = timedelta(days=7)
-INDEPENDENT_REPORTER_THRESHOLD = 5
+PRODUCT_REPORTER_THRESHOLD = 5
 USER_CONTEXT_THRESHOLD = 2
 
 
@@ -38,14 +38,24 @@ class ModerationPolicyError(ValueError):
 
 
 def validate_report_context(*, target_type: TargetType, context: ReportContext) -> None:
-    allowed = {ReportContext.PRODUCT} if target_type is TargetType.PRODUCT else USER_CONTEXTS
+    if target_type is TargetType.PRODUCT:
+        allowed = {ReportContext.PRODUCT}
+    elif target_type is TargetType.USER:
+        allowed = USER_CONTEXTS
+    else:
+        raise ModerationPolicyError("unknown report target type")
     if context not in allowed:
         raise ModerationPolicyError("report context is invalid for the target type")
 
 
-def is_report_recent(*, reported_at: datetime, database_now: datetime) -> bool:
-    age = database_now - reported_at
-    return timedelta(0) <= age < REPORT_WINDOW
+def is_reporter_eligible(
+    *,
+    joined_at: datetime,
+    is_active: bool,
+    database_now: datetime,
+) -> bool:
+    account_age = database_now - joined_at
+    return is_active and account_age >= MIN_REPORTER_AGE
 
 
 def qualifies_for_action(
@@ -53,15 +63,27 @@ def qualifies_for_action(
     target_type: TargetType,
     independent_reporters_by_context: Mapping[ReportContext, Set[int]],
 ) -> bool:
-    """Evaluate only unconsumed, active, in-window reports supplied by the caller."""
-    qualifying_contexts = {
+    """Evaluate eligible, independent, unconsumed reports supplied by the caller."""
+    seen_reporters: set[int] = set()
+    for context, reporter_ids in independent_reporters_by_context.items():
+        validate_report_context(target_type=target_type, context=context)
+        duplicate_reporters = seen_reporters.intersection(reporter_ids)
+        if duplicate_reporters:
+            raise ModerationPolicyError("a reporter cannot contribute in multiple contexts")
+        seen_reporters.update(reporter_ids)
+
+    if target_type is TargetType.PRODUCT:
+        return (
+            len(independent_reporters_by_context.get(ReportContext.PRODUCT, set()))
+            >= PRODUCT_REPORTER_THRESHOLD
+        )
+
+    distinct_contexts = {
         context
         for context, reporter_ids in independent_reporters_by_context.items()
-        if len(reporter_ids) >= INDEPENDENT_REPORTER_THRESHOLD
+        if context in USER_CONTEXTS and reporter_ids
     }
-    if target_type is TargetType.PRODUCT:
-        return qualifying_contexts == {ReportContext.PRODUCT}
-    return len(qualifying_contexts & USER_CONTEXTS) >= USER_CONTEXT_THRESHOLD
+    return len(distinct_contexts) >= USER_CONTEXT_THRESHOLD
 
 
 def action_expiry(*, database_now: datetime) -> datetime:

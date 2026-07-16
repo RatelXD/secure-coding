@@ -20,13 +20,12 @@ def normalize_chat_text(value: str) -> str:
     if not isinstance(value, str):
         raise ChatPolicyError("message must be text")
 
+    if any(ord(character) < 0x20 and character != "\n" for character in value):
+        raise ChatPolicyError("message contains a forbidden control character")
+
     normalized = value.strip()
     if not normalized:
         raise ChatPolicyError("message must not be empty")
-    if "\x00" in normalized:
-        raise ChatPolicyError("message contains a forbidden control character")
-    if any(ord(character) < 0x20 and character != "\n" for character in normalized):
-        raise ChatPolicyError("message contains a forbidden control character")
     if len(normalized.encode("utf-8")) > CHAT_MAX_BYTES:
         raise ChatPolicyError("message exceeds the UTF-8 byte limit")
     return normalized

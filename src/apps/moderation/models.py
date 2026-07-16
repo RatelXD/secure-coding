@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import timedelta
 
 from django.conf import settings
 from django.db import models
@@ -40,8 +41,8 @@ class ModerationAction(models.Model):
                 name="moderation_action_target_matches_kind",
             ),
             models.CheckConstraint(
-                condition=Q(expires_at__gt=models.F("starts_at")),
-                name="moderation_action_positive_window",
+                condition=Q(expires_at=models.F("starts_at") + timedelta(days=7)),
+                name="moderation_action_seven_day_window",
             ),
         ]
 

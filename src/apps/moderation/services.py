@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Protocol
 
 from django.db.models.functions import Now
 
 from .models import ModerationAction
+from .policies import TargetType
 
 
 class EffectiveUserStatus(StrEnum):
@@ -15,6 +17,22 @@ class EffectiveUserStatus(StrEnum):
 class EffectiveProductVisibility(StrEnum):
     VISIBLE = "visible"
     HIDDEN = "hidden"
+
+class ModerationActionAuthority(Protocol):
+    """Transactional boundary for POL-MOD-001/002.
+
+    Implementations lock and re-check reporter eligibility, unconsumed reports,
+    canonical target status, and active actions. A qualifying transition creates
+    exactly one seven-day action and audit event, consumes only contributing
+    reports, and increments ``auth_epoch`` for user dormancy in one transaction.
+    """
+
+    def evaluate_threshold(
+        self,
+        *,
+        target_type: TargetType,
+        target_id: int,
+    ) -> ModerationAction | None: ...
 
 
 def effective_user_status(*, user_id: int) -> EffectiveUserStatus:

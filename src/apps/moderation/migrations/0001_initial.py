@@ -1,3 +1,4 @@
+import datetime
 from django.conf import settings
 from django.db import migrations, models
 from django.db.models.functions import Now
@@ -26,8 +27,8 @@ class Migration(migrations.Migration):
             ],
             options={
                 "constraints": [
-                    models.CheckConstraint(condition=models.Q(("kind", "USER_DORMANCY"), ("target_product__isnull", True), ("target_user__isnull", False), _connector="OR") | models.Q(("kind", "PRODUCT_HIDE"), ("target_product__isnull", False), ("target_user__isnull", True)), name="moderation_action_target_matches_kind"),
-                    models.CheckConstraint(condition=models.Q(("expires_at__gt", models.F("starts_at"))), name="moderation_action_positive_window"),
+                    models.CheckConstraint(condition=models.Q(models.Q(("kind", "USER_DORMANCY"), ("target_product__isnull", True), ("target_user__isnull", False)), models.Q(("kind", "PRODUCT_HIDE"), ("target_product__isnull", False), ("target_user__isnull", True)), _connector="OR"), name="moderation_action_target_matches_kind"),
+                    models.CheckConstraint(condition=models.Q(("expires_at", models.F("starts_at") + datetime.timedelta(days=7))), name="moderation_action_seven_day_window"),
                 ],
             },
         ),
@@ -45,8 +46,9 @@ class Migration(migrations.Migration):
             ],
             options={
                 "constraints": [
-                    models.CheckConstraint(condition=models.Q(("target_product__isnull", True), ("target_type", "USER"), ("target_user__isnull", False), _connector="OR") | models.Q(("target_product__isnull", False), ("target_type", "PRODUCT"), ("target_user__isnull", True)), name="moderation_report_exactly_one_target"),
-                    models.CheckConstraint(condition=models.Q(("context", "PRODUCT"), ("target_type", "PRODUCT"), _connector="OR") | (models.Q(("target_type", "USER")) & ~models.Q(("context", "PRODUCT"))), name="moderation_report_context_matches_target"),
+                    models.CheckConstraint(condition=models.Q(models.Q(("target_product__isnull", True), ("target_type", "USER"), ("target_user__isnull", False)), models.Q(("target_product__isnull", False), ("target_type", "PRODUCT"), ("target_user__isnull", True)), _connector="OR"), name="moderation_report_exactly_one_target"),
+                    models.CheckConstraint(condition=models.Q(models.Q(("context", "PRODUCT"), ("target_type", "PRODUCT")), models.Q(("target_type", "USER"), models.Q(("context", "PRODUCT"), _negated=True)), _connector="OR"), name="moderation_report_context_matches_target"),
+                    models.CheckConstraint(condition=models.Q(("target_user__isnull", True)) | ~models.Q(("target_user", models.F("reporter"))), name="moderation_report_no_self_target"),
                     models.UniqueConstraint(condition=models.Q(("target_user__isnull", False)), fields=("reporter", "target_user"), name="moderation_unique_reporter_user"),
                     models.UniqueConstraint(condition=models.Q(("target_product__isnull", False)), fields=("reporter", "target_product"), name="moderation_unique_reporter_product"),
                 ],
