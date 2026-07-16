@@ -21,9 +21,6 @@
 | `FR-CHAT-02` | 1대1 채팅 | 참여자와 제3자의 입장·이력 조회 | 두 참여자만 허용 | 정확히 두 참여자 방, 제3자 거부와 휴면 수신 차단 테스트 통과 | PASS | 채팅 unit·security 테스트 |
 | `FR-REPORT-01` | 사용자·상품 신고 | 정상·자기·중복·기준 미달 신고 | 유효 신고만 집계 | 필수 사유, 대상·맥락·자격·중복 검증 테스트 통과 | PASS | 신고 HTTP·서비스 테스트 |
 | `FR-REPORT-02` | 가역 제재 | 임계값 전후와 만료 시각 확인 | 한 번만 적용되고 만료 후 해제 | 동시 다섯 신고에서 제재·소비·감사 한 건과 DB 시각 만료 확인 | PASS | `tests/integration/test_moderation_concurrency.py` |
-| `FR-SEARCH-01` | 상품 검색 | 검색어·정렬·페이지 경계 확인 | 공개 결과만 안정적으로 반환 | 기능 없음 | 구현 예정 | 2차 개발 범위 |
-| `FR-ADMIN-01` | 관리자 기능 | 일반 사용자와 권한별 관리자 접근 | 허용된 작업만 수행·감사 | 기능 없음 | 구현 예정 | 2차 개발 범위 |
-| `FR-TRANSFER-01` | 모의 잔액 이체 | 정상·잔액 부족·재전송·동시 이체 | 원자성·멱등성·합계 보존 | 기능 없음 | 구현 예정 | 2차 개발 범위 |
 
 ## 4.3 보안 체크리스트
 
@@ -33,7 +30,6 @@
 | `SR-AUTH-02` | 로그인 무차별 대입 | 계정·IP 기준 경계와 병렬 실패 요청 | 기준 초과 시 일반화된 제한 응답 | DB 권위 제한, 병렬 직렬화, 오래된 상태 정리와 일반 오류 확인 | PASS | 계정 unit·동시성 테스트 |
 | `SR-AUTHZ-01` | 인증 없는 보호 기능 접근 | 로그아웃 상태로 보호 URL/API 요청 | 로그인 또는 403으로 차단 | 계정·상품·신고 보호 URL 음성 테스트 통과 | PASS | `tests/security/test_cycle1_http_security.py` |
 | `SR-AUTHZ-01` | 타인 프로필·상품·신고 수정 | 다른 사용자 객체 ID로 변경 요청 | 403 또는 존재를 숨긴 404 | 타인 상품 변경 404와 참여자 전용 채팅 테스트 통과 | PASS | HTTP·채팅 테스트 |
-| `SR-AUTHZ-01` | 권한 없는 관리자 접근 | 일반 사용자로 관리 URL·작업 요청 | 전부 차단 | 관리자 모듈과 URL을 만들지 않음 | PASS | `tests/integration/test_cycle1_scope.py` |
 | `SR-INPUT-01` | SQL Injection | 로그인 입력에 SQL 형태 문자열 전달 | 입력을 데이터로 처리하고 인증·DB 상태가 변하지 않음 | 잘못된 아이디로 일반 거부되고 기존 사용자 행 유지 | PASS | `tests/security/test_cycle1_http_security.py` |
 | `SR-INPUT-01` | XSS | 상품·소개글·채팅에 스크립트성 문자열 입력 | text로 저장되고 화면에서 escape | 템플릿 escape와 채팅 `textContent` 회귀 테스트 통과 | PASS | `tests/security/test_cycle1_http_security.py` |
 | `SR-SESSION-01` | CSRF | 토큰 없는 상태 변경 요청과 위조 Origin 요청 | 403으로 차단 | 상태 변경 POST의 CSRF와 WebSocket 정확 Origin 테스트 통과 | PASS | 독립 보안 스위트 |
@@ -49,7 +45,6 @@
 - HTTP 인증·권한·CSRF·입력값 통합 테스트
 - WebSocket 인증·Origin·참여자·재전송 테스트
 - 신고 임계값과 동시성 테스트
-- 모의 이체의 잔액 보존·멱등성·경합 테스트
 - 마이그레이션 생성 여부와 `django check --deploy`
 - 의존성·비밀값·정적 분석 점검
 
@@ -59,7 +54,6 @@
 - 오류 메시지와 화면 출력의 민감정보·XSS 여부
 - 이미지 표시와 메타데이터 제거 결과
 - 휴면·비노출 전후 화면과 만료 후 복구
-- 관리자 화면의 역할별 노출과 거부 응답
 - Docker Compose 시작·재시작·백업·복구
 
 ## 4.5 현재 실제 실행 결과
@@ -68,14 +62,15 @@
 
 | 대상 | 명령 | 결과 | 판단 범위 |
 |---|---|---|---|
-| 전체 자동 테스트 | `pytest -q` | 154 tests, 210 subtests PASS | 사용자·상품·채팅·신고 정상·음성·경계·경합과 보안 설정 |
+| 전체 자동 테스트 | `pytest -q` | 159 tests, 213 subtests PASS | 사용자·상품·채팅·신고 정상·음성·경계·경합과 보안 설정 |
 | Django 설정 | `python src/manage.py check` | PASS | 현재 테스트 설정 |
 | 운영 보안 설정 | `python src/manage.py check --deploy --fail-level WARNING` | PASS | 명시적 운영 환경 변수 사용 |
 | 마이그레이션 | `python src/manage.py makemigrations --check --dry-run` | 변경 없음 | 모델과 마이그레이션 일치 |
 | PostgreSQL 적용 | `python src/manage.py migrate --noinput` | PASS | 실제 PostgreSQL 컨테이너 |
-| 컨테이너 | `docker compose --env-file /dev/null config --quiet`, `build app`, `run --rm app ... migrate` | PASS | `.env` 없는 Compose 구성과 애플리케이션 이미지 |
-| 서비스 상태 | Compose 실행 후 `/readyz/` 요청 | HTTP 200 | 앱과 PostgreSQL 연결 |
-| 비밀값 | 고정 digest의 전체 Git 이력 스캐너 | 누출 없음 | 현재 Git 이력 |
-| `.env` 없는 Compose | 임시 디렉터리 `docker compose config`, `build`, `migrate`, `up -d --wait` | PASS | 선택적 `.env`, 로컬 기본값, 앱·DB·Redis healthy |
+| 의존성 취약점 | 전체 의존성 그룹 점검 | pytest 9.0.3 적용 뒤 취약점 없음 | 개발·검증 의존성 |
+| 비밀값 | 고정 버전 스캐너로 전체 Git 이력 점검 | 누출 없음 | 현재와 과거 Git 이력 |
+| `.env` 없는 Compose | `docker compose config`, 이미지 빌드, 마이그레이션, `up -d --wait` | PASS | 선택적 `.env`, 로컬 기본값, 앱·DB·Redis healthy |
+| 서비스 상태와 정적 자산 | Compose 실행 후 `/readyz/`, `/static/chat/chat.js` 요청 | 모두 HTTP 200, 채팅 자산은 `text/javascript` | 앱·PostgreSQL 연결과 DEBUG 정적 자산 제공 |
+| 재시작과 복구 | 앱·DB·Redis 재시작, PostgreSQL 백업·복원 | 재시작 복구 PASS; 복원 뒤 사용자 1명, 상품 1개, 마이그레이션 24개 일치 | 컨테이너와 데이터 복구 |
 
-전체 154개와 하위 사례 210개를 실제 PostgreSQL·Redis 컨테이너에 연결해 실행했습니다. 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·참여자·재전송·휴면 수신 차단, Redis 장애 이력 수렴, 동시 제재·만료와 마이그레이션 일치를 확인했습니다. `.env` 파일 없이 Compose 설정 해석, 이미지 빌드, 마이그레이션, 서비스 healthy 상태도 확인했습니다. 실제 프록시·백업 복원·브라우저 흐름은 종합 검증 단계의 별도 근거로 남깁니다.
+전체 159개와 하위 사례 213개를 실제 PostgreSQL·Redis 컨테이너에 연결해 실행했습니다. 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·참여자·재전송·휴면 수신 차단, Redis 장애 이력 수렴, 동시 제재·만료와 마이그레이션 일치를 확인했습니다. `.env` 파일 없이 Compose 설정 해석, 이미지 빌드, 마이그레이션, 서비스 healthy 상태, 재시작 복구와 백업·복원을 확인했습니다. 외부 터널 서비스는 실행하지 않았으므로 이 보고서의 검증 근거에 포함하지 않습니다.
