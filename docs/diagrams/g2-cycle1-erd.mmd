@@ -1,0 +1,67 @@
+erDiagram
+    USER ||--o{ PRODUCT : owns
+    USER ||--o{ ROOM_PARTICIPANT : joins
+    ROOM ||--o{ ROOM_PARTICIPANT : has
+    ROOM ||--o{ CHAT_MESSAGE : contains
+    USER ||--o{ CHAT_MESSAGE : sends
+    USER ||--o{ ABUSE_REPORT : files
+    USER ||--o{ ABUSE_REPORT : may_target
+    PRODUCT ||--o{ ABUSE_REPORT : may_target
+    USER ||--o{ MODERATION_ACTION : may_target
+    PRODUCT ||--o{ MODERATION_ACTION : may_target
+    MODERATION_ACTION ||--|{ ACTION_REPORT : consumes
+    ABUSE_REPORT ||--o| ACTION_REPORT : consumed_once
+    MODERATION_ACTION ||--|| AUDIT_EVENT : creates
+
+    USER {
+      bigint id PK
+      string canonical_username UK
+      string password_hash
+      bigint auth_epoch
+    }
+    PRODUCT {
+      bigint id PK
+      bigint owner_id FK
+      string safe_image_name
+    }
+    ROOM {
+      bigint id PK
+      string kind
+    }
+    ROOM_PARTICIPANT {
+      bigint room_id FK
+      bigint user_id FK
+    }
+    CHAT_MESSAGE {
+      bigint server_id PK
+      bigint room_id FK
+      bigint sender_id FK
+      uuid client_message_id
+      string canonical_text
+      timestamp committed_at
+    }
+    ABUSE_REPORT {
+      bigint id PK
+      bigint reporter_id FK
+      string target_type
+      bigint target_id
+      string context
+      timestamp created_at
+    }
+    MODERATION_ACTION {
+      bigint id PK
+      string target_type
+      bigint target_id
+      timestamp starts_at
+      timestamp expires_at
+    }
+    ACTION_REPORT {
+      bigint action_id FK
+      bigint report_id FK
+    }
+    AUDIT_EVENT {
+      bigint id PK
+      bigint action_id FK
+      string event_type
+      timestamp created_at
+    }

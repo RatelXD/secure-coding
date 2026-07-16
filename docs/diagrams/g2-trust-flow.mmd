@@ -1,0 +1,30 @@
+flowchart LR
+    Browser[Untrusted browser] -->|HTTPS request / WSS handshake| Ingress[Trusted ingress]
+    Ingress -->|Validated Host and scheme| ASGI[Django ASGI]
+    ASGI --> Controls[Session / CSRF / Origin / authorization]
+    Controls --> Policy[Canonical policy and service boundary]
+    Policy -->|Transactions and DB time| PG[(PostgreSQL authority)]
+    Policy -->|Best-effort publish only| Redis[(Redis fan-out)]
+    Browser -->|Hostile image bytes| Image[Image decode and re-encode]
+    Image -->|Generated safe raster| Media[(Validated media)]
+    Redis -. outage .-> Degraded[Accepted / degraded plus history resync]
+    Degraded -->|Cursor fetch| Policy
+
+    subgraph B1[Boundary B1: browser to same-origin ingress]
+      Ingress
+      ASGI
+    end
+    subgraph B2[Boundary B2: entrypoint to policy]
+      Controls
+      Policy
+    end
+    subgraph B3[Boundary B3: durable authority]
+      PG
+    end
+    subgraph B4[Boundary B4: disposable fan-out]
+      Redis
+    end
+    subgraph B5[Boundary B5: media processing]
+      Image
+      Media
+    end

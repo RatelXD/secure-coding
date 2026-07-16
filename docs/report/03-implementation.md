@@ -2,7 +2,7 @@
 
 ## 3.1 작성 기준
 
-이 장은 실제 코드 경로가 확인되는 내용과 앞으로 구현할 내용을 구분합니다. 2026-07-16 기준 공개 `main`에는 애플리케이션 코드가 없으며, 아래 코드 골격은 개발 브랜치에서 통합 전 검토 중입니다. 따라서 전체 기능을 `구현 완료`로 표시하지 않습니다.
+이 장은 실제 코드 경로가 확인되는 내용과 앞으로 구현할 내용을 구분합니다. 2026-07-16 기준 현재 저장소에는 아래 애플리케이션 골격이 반영되어 있으며 자동 테스트와 로컬 실행을 확인했습니다. 실제 URL·화면·종단 서비스가 아직 없으므로 전체 기능을 `구현 완료`로 표시하지 않습니다.
 
 ## 3.2 프로젝트 구조
 
@@ -29,9 +29,9 @@ src/
 | ASGI | `src/config/asgi.py`, `src/config/routing.py` | HTTP와 WebSocket 프로토콜 라우팅 | 구현 중 |
 | 사용자 상태 미들웨어 | `src/config/middleware.py` | 인증 사용자 요청에서 현재 휴면 상태 확인 | 구현 중 |
 | 상태 확인 | `src/config/health.py`, `src/config/urls.py` | liveness와 PostgreSQL readiness 분리 | 구현 중 |
-| 로컬 환경 | `Dockerfile`, `compose.yaml`, `.env.example` | 앱·PostgreSQL·Redis 구성 | 구현 중, 공개 `main` 통합 전 |
+| 로컬 환경 | `Dockerfile`, `compose.yaml`, `.env.example` | 앱·PostgreSQL·Redis 구성 | 실행 확인 |
 
-설정 파일이 공개 `main`에 반영된 뒤 `check --deploy`, 프록시 헤더, CSRF 출처, Secure 쿠키, 실제 Compose 실행을 다시 검증해야 합니다.
+`check --deploy`, 명시적 HTTPS CSRF 출처, 신뢰 프록시 IP 제한, Docker 이미지 빌드와 Compose 상태 확인을 실행했습니다. 실제 배포의 도메인·프록시 IP·TLS 종단 값은 배포 환경에서 별도로 확인해야 합니다.
 
 ## 3.4 사용자 기능
 

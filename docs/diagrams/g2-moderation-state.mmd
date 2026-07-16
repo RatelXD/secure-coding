@@ -1,0 +1,25 @@
+stateDiagram-v2
+    [*] --> Active
+    Active --> Active: valid reports below threshold
+    Active --> Sanctioned: transaction locks and rechecks threshold\nconsume reports once\ncreate one action and audit\nincrement auth_epoch for user
+    Sanctioned --> Sanctioned: additional reports do not extend action
+    Sanctioned --> Expired: db_now >= expires_at
+    Expired --> Active: canonical status ignores expired action
+    Active --> Sanctioned: only new unconsumed reports reach threshold
+
+    note right of Active
+      User is active or product is visible.
+      Canonical DB-time service is authoritative.
+    end note
+
+    note right of Sanctioned
+      Seven-day immutable action.
+      User dormant or product hidden.
+      HTTP, WS, chat, query, and report paths agree.
+    end note
+
+    note right of Expired
+      Historical action and audit remain.
+      No scheduler reversal and no physical deletion.
+      Invalidated sessions require fresh login.
+    end note

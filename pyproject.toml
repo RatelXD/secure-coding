@@ -1,0 +1,28 @@
+[project]
+name = "secure-coding-marketplace"
+version = "0.1.0"
+description = "Same-origin Django marketplace architecture skeleton"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "channels==4.3.2",
+  "channels-redis==4.3.0",
+  "django==5.2.16",
+  "pillow==12.3.0",
+  "psycopg[binary]==3.3.4",
+  "uvicorn==0.51.0",
+  "websockets==16.1",
+]
+
+[dependency-groups]
+test = [
+  "pytest==9.0.2",
+  "pytest-django==4.12.0",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings"
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.uv]
+package = false

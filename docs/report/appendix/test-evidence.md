@@ -1,36 +1,37 @@
 # 부록 B. 테스트 근거
 
-## B.1 공개 `main`에서 확인한 결과
+## B.1 현재 저장소에서 확인한 결과
 
 | 실행일 | 대상 | 명령 | 결과 | 판단 범위 |
 |---|---|---|---|---|
-| 2026-07-16 | 문서 보조 도구와 공개 저장소 경계 | `python3 -m unittest discover -s tests/governance -v` | 26 tests PASS | 제품 기능이 아니라 문서·저장소 검증 |
+| 2026-07-16 | 전체 자동 테스트 | `pytest -q` | 65 tests, 131 subtests PASS | 모델 제약, 정책 함수, 프록시 설정, 저장소 경계 |
+| 2026-07-16 | 저장소 경계 | `python3 -m unittest discover -s tests/governance -p 'test_*.py'` | 34 tests PASS | 문서 도구와 골격 구조 |
+| 2026-07-16 | Django 설정 | `python src/manage.py check` | PASS | 테스트 환경 설정 |
+| 2026-07-16 | 운영 보안 설정 | `python src/manage.py check --deploy --fail-level WARNING` | PASS | 명시적 HTTPS·TLS·프록시 값 |
+| 2026-07-16 | 마이그레이션 일치 | `python src/manage.py makemigrations --check --dry-run` | 변경 없음 | 현재 모델과 마이그레이션 |
+| 2026-07-16 | PostgreSQL 마이그레이션 | `python src/manage.py migrate --noinput` | PASS | 실제 PostgreSQL 컨테이너 |
+| 2026-07-16 | 컨테이너 정의·빌드 | `docker compose config --quiet`, `docker build --check .`, 이미지 build | PASS | Compose 구성과 애플리케이션 이미지 |
+| 2026-07-16 | 서비스 상태 | Compose 실행 후 `/readyz/` 요청 | HTTP 200 | 애플리케이션과 PostgreSQL 연결 |
+| 2026-07-16 | 비밀값 | 고정 digest의 전체 Git 이력 스캐너 | 누출 없음 | 현재 Git 이력 |
 
-위 결과는 실제로 실행했습니다. 사용자·상품·채팅·신고가 동작하거나 안전하다는 근거로 사용하지 않습니다.
+위 결과는 실제로 실행했습니다. 아직 구현하지 않은 사용자 화면, 상품 CRUD, WebSocket consumer, 신고 생성 서비스, 검색, 관리자, 모의 이체가 동작하거나 안전하다는 근거로 사용하지 않습니다.
 
-## B.2 개발 브랜치의 참고 결과
+## B.2 결과 해석
 
-| 대상 | 정리한 명령 | 관찰 결과 | 현재 판단 |
-|---|---|---|---|
-| 사용자·상품 모델·서비스 골격 | `pytest -q tests/unit/accounts_catalog` | 16 tests PASS 기록 | 공개 `main` 통합 뒤 같은 환경에서 재검증 필요 |
-| 사용자·상품 마이그레이션 골격 | `django-admin makemigrations accounts catalog --check --dry-run` | 변경 없음 기록 | PostgreSQL과 통합 설정에서 재검증 필요 |
-| Django 기본 점검 | `django-admin check` | PASS 기록 | 공개 `main` 통합 뒤 재검증 필요 |
-| Compose·애플리케이션 이미지 골격 | `docker compose config --quiet`와 이미지 build 점검 | PASS 기록 | 공개 `main`에 관련 파일이 없어 현재 재현 불가 |
+현재 자동 테스트는 아이디 정규화, 비밀번호 단방향 해시 저장, 상품 소유자 관계, 채팅 입력·재전송 정책, 신고 임계값 정책, 프록시 헤더 신뢰 경계를 확인합니다. 실제 HTTP·WebSocket 진입점과 브라우저 화면이 생기면 같은 정책이 모든 진입점에 적용되는지 별도의 통합·종단 테스트가 필요합니다.
 
-이 표의 명령은 공개 보고서에 로컬 임시 경로를 남기지 않도록 정리한 형태입니다. 결과는 통합 전 참고 자료이며 최종 PASS가 아닙니다.
-
-## B.3 제품 통합 후 실행할 자동화 테스트
+## B.3 남은 자동화 테스트
 
 | 영역 | 필요한 테스트 | 상태 |
 |---|---|---|
-| 사용자 | 아이디 경계, 비밀번호 검증, 로그인 제한, 세션 무효화, 타인 프로필 거부 | 구현 예정 |
-| 상품 | 소유권, 가격 경계, 공개 여부, 안전 이미지 재인코딩 | 구현 예정 |
-| 채팅 | 인증·Origin·참여자, 크기·속도, UUID 재전송, Redis 장애·이력 동기화 | 구현 예정 |
-| 신고·제재 | 자기·중복·가입기간, 임계값, 동시 신고, 만료, 감사 | 구현 예정 |
+| 사용자 | 회원가입·로그인, 로그인 제한, 세션 무효화, 타인 프로필 거부 | 구현 예정 |
+| 상품 | 가격 경계, 소유자 CRUD, 공개 여부, 안전 이미지 재인코딩 | 구현 예정 |
+| 채팅 | 인증·Origin·참여자, 크기·속도, Redis 장애·이력 동기화 | 구현 예정 |
+| 신고·제재 | 신고 생성, 동시 신고, 만료, 감사의 단일 트랜잭션 | 구현 예정 |
 | 검색 | 입력 길이, 정렬·페이지, 비노출 제외, 자원 제한 | 구현 예정 |
 | 관리자 | 역할·권한·재인증·CSRF·버전·감사 | 구현 예정 |
 | 모의 이체 | 금액 경계, 잔액 부족, 멱등성, 동시성, 합계 보존, 실패 롤백 | 구현 예정 |
-| 배포·복구 | `check --deploy`, Compose smoke, 백업·복원, 서비스 재시작 | 구현 예정 |
+| 배포·복구 | 실제 프록시·TLS, 백업·복원, 서비스 재시작 | 미검증 |
 
 ## B.4 최종 PDF에 넣을 캡처 목록
 

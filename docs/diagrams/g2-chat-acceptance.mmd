@@ -1,0 +1,38 @@
+sequenceDiagram
+    autonumber
+    participant C as Authenticated client
+    participant A as ASGI consumer
+    participant P as PostgreSQL
+    participant R as Redis fan-out
+    participant H as History endpoint
+
+    C->>A: send(client UUIDv4, room, text)
+    A->>P: begin; DB-time status, participant, rate checks
+    alt rejected policy or invalid input
+        P-->>A: rollback / no row
+        A-->>C: rejected 400/403/404/429
+    else new valid command
+        A->>P: insert unique(room, sender, client UUID)
+        P-->>A: commit(server ID, cursor)
+        A->>R: publish committed server ID once
+        alt publish succeeds
+            R-->>A: delivered
+            A-->>C: accepted, delivery=live
+        else publish fails or times out
+            R--xA: unavailable
+            A-->>C: accepted, delivery=degraded
+            C->>H: fetch after last cursor
+            H->>P: ordered authoritative history
+            P-->>H: committed messages
+            H-->>C: deduplicated cursor page
+        end
+    else idempotency key exists
+        P-->>A: stored server ID and canonical payload
+        alt payload identical
+            A-->>C: prior accepted result; no republish
+        else payload differs
+            A-->>C: 409 conflict; no new row
+        end
+    end
+
+    Note over C,P: Lost ACK is resolved by retrying the same UUID; PostgreSQL decides whether acceptance occurred.
