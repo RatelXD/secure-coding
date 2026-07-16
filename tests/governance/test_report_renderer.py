@@ -22,21 +22,20 @@ RENDER_WORKFLOW = ROOT / ".github" / "workflows" / "report-renderer-image.yml"
 
 
 class RendererContractTests(unittest.TestCase):
-    def test_toolchain_status_is_optional_and_non_gating(self) -> None:
+    def test_toolchain_status_is_optional_and_non_required(self) -> None:
         lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")
 
-        self.assertRegex(lock, r"\*\*Status:\*\*\s*OPTIONAL / NON-GATING")
+        self.assertRegex(lock, r"\*\*Status:\*\*\s*OPTIONAL")
         self.assertIn(
             "Generated PDF output, renderer publication, OCI attestations, "
-            "and renderer receipts are not G1 or G8a requirements",
+            "and renderer receipts are not required for assignment report completion",
             lock,
         )
         self.assertIn(
             "PDF generation, image publication, repository digests, "
-            "inventory receipts, and repeat renders are not required for G1 or G8a",
+            "inventory receipts, and repeat renders are optional helper outputs",
             lock,
         )
-        self.assertNotRegex(lock, r"\*\*Gate status:\*\*\s*BLOCK")
 
     def test_optional_inventory_contract_remains_documented(self) -> None:
         lock = TOOLCHAIN_LOCK.read_text(encoding="utf-8")

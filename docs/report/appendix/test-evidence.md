@@ -4,8 +4,8 @@
 
 | 실행일 | 대상 | 명령 또는 절차 | 관찰 결과 | 상태 |
 |---|---|---|---|---|
-| 2026-07-16 | 최종 자동 테스트 | `pytest -q` | 168 tests, 216 subtests PASS | PASS |
-| 2026-07-16 | 테스트 인프라 재현 | README의 테스트 전용 Compose 준비·전체 테스트·정리 절차 | loopback 전용 DB·Redis에서 168 tests, 216 subtests PASS; 별도 프로젝트·볼륨 정리 확인 | PASS |
+| 2026-07-16 | 최종 자동 테스트 | `pytest -q` | 170 tests, 217 subtests PASS | PASS |
+| 2026-07-16 | 테스트 인프라 재현 | README의 테스트 전용 Compose 준비·전체 테스트·정리 절차 | loopback 전용 DB·Redis에서 170 tests, 217 subtests PASS; 별도 프로젝트·볼륨 정리 확인 | PASS |
 | 2026-07-16 | 상품 이미지 지속성 | 깨끗한 Compose에서 유효 PNG 등록·미디어 GET·앱 재시작·재조회 | 등록 302, 미디어 HTTP 200 `image/png`, 재시작 후 파일·조회 유지 | PASS |
 | 2026-07-16 | DB 중단 준비 상태 | PostgreSQL 중단 뒤 3초 제한 `/readyz/`, 재시작 뒤 재요청 | 0.271초에 JSON 503, 복구 후 HTTP 200 | PASS |
 | 2026-07-16 | 릴리스 표현 | RC1·RC2 본문과 태그 대상 확인 | GitHub Release 객체와 태그/SHA 불변 규칙을 구분하고 기존 태그 대상 유지 | PASS |

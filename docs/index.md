@@ -12,6 +12,6 @@
 6. [유지보수](report/05-maintenance.md)
 7. [보안 약점과 개선 계획](report/06-security-improvements.md)
 
-현재 1차 개발 범위인 사용자·상품·채팅·신고·가역 제재를 구현했고, 유지보수 수정 후 자동 테스트 168개와 하위 사례 216개가 통과했습니다. 검색·관리자·모의 잔액 이체는 2차 개발 범위로 남아 있습니다. 실행하지 않은 검증은 완료된 것처럼 기록하지 않았으며, 세부 근거는 [테스트 근거](report/appendix/test-evidence.md)에서 확인할 수 있습니다.
+현재 1차 개발 범위인 사용자·상품·채팅·신고·가역 제재를 구현했고, 유지보수 수정과 2차 상세 정책 구조 검사를 포함한 자동 테스트 170개와 하위 사례 217개가 통과했습니다. 2차 필수 범위인 상품 검색·관리자 기능·모의 내부 잔액 이체는 요구사항·정책·위협·검증 계약을 작성했지만 제품 코드는 아직 구현하지 않았습니다. 계획된 음성·경계·동시성·장애 검증은 [2차 개발 검증 계약](report/04-checklist-and-testing.md), 요구사항별 현재 상태는 [기능 추적표](report/appendix/feature-traceability.md), 실제 실행 근거는 [테스트 근거](report/appendix/test-evidence.md)에서 구분해 확인할 수 있습니다.
 
 [공개 GitHub 저장소](https://github.com/RatelXD/secure-coding)

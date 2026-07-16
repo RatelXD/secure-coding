@@ -15,7 +15,7 @@
 | DB 중단 준비 상태 | PostgreSQL 중단 뒤 0.271초에 JSON 503, 재시작 뒤 HTTP 200 | PASS |
 | 공급망·이력 | pytest 9.0.3 업그레이드 뒤 all-groups `pip-audit` clean; 고정 버전 gitleaks 전체 이력 검사에서 누출 없음 | PASS |
 | 공개 문서 | GitHub Pages `https://ratelxd.github.io/secure-coding/` 접근 확인 | PASS |
-| 최종 자동 테스트 건수 | `pytest -q`: 168 tests, 216 subtests PASS | PASS |
+| 최종 자동 테스트 건수 | `pytest -q`: 170 tests, 217 subtests PASS | PASS |
 | ngrok | 사용할 수 없어 외부 터널 검증을 실행하지 않음 | 미검증 |
 
-과거 채팅 수락의 PostgreSQL 행 잠금 및 Origin 검증 실패는 발견 당시의 근거이며, 현재 실패 상태가 아닙니다. 수정 후 집중 회귀와 당시 통합 스위트(154 tests, 210 subtests PASS)를 확인했으며, 정식 릴리스 관찰에서 발견한 네 가지 유지보수 항목을 수정한 통합 스위트에서는 168 tests, 216 subtests가 통과했습니다.
+과거 채팅 수락의 PostgreSQL 행 잠금 및 Origin 검증 실패는 발견 당시의 근거이며, 현재 실패 상태가 아닙니다. 수정 후 집중 회귀와 당시 통합 스위트(154 tests, 210 subtests PASS)를 확인했으며, 1차 구현 후 유지보수 점검에서 발견한 네 항목을 수정한 통합 스위트에서는 168 tests, 216 subtests가 통과했습니다. 이후 2차 상세 정책 구조 검사를 추가한 통합 스위트는 169 tests, 217 subtests가 통과했고, 정책 추적성과 제출 문서 용어 검사를 분리한 현재 통합 스위트는 170 tests, 217 subtests가 통과했습니다.
