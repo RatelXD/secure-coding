@@ -1,8 +1,6 @@
 name: ci
 
 on:
-  pull_request:
-  # Transition only: remove pull_request after governance-trusted is required.
   pull_request_target:
   push:
     branches: [main]
@@ -12,7 +10,7 @@ permissions:
 
 jobs:
   governance:
-    name: ${{ github.event_name == 'pull_request_target' && 'governance-trusted' || 'governance' }}
+    name: governance-trusted
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
@@ -43,7 +41,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Reject GJC runtime state from PR history
-        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        if: github.event_name == 'pull_request_target'
         shell: python
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}

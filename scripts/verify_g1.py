@@ -22,7 +22,7 @@ TEMPLATE_REPOSITORY = "ChosunUniv2026Capstone/Backend"
 TEMPLATE_COMMIT = "e1e524bcff217999044ca6db3da65eedf990e5e5"
 TEMPLATE_BLOB = "8e4fed1229b1a12d7090c23222230917db738e18"
 TEMPLATE_PATH = ".github/pull_request_template.md"
-DEFAULT_REQUIRED_CHECKS = ("governance",)
+DEFAULT_REQUIRED_CHECKS = ("governance-trusted",)
 GITHUB_ACTIONS_APP_ID = 15368
 TEMPLATE_SECTIONS = (
     "## Why",
@@ -261,7 +261,7 @@ def check_github(
     )
 
     head_sha = (pr or {}).get("headRefOid")
-    self_review_marker = f"G1-GOVERNANCE-BOOTSTRAP-SELF-REVIEW: APPROVED head={head_sha}"
+    self_review_marker = f"G1-GOVERNANCE-SELF-REVIEW: APPROVED head={head_sha}"
     self_review_comments = [
         comment for comment in comments or []
         if actor_is_owner
