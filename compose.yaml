@@ -12,6 +12,7 @@ services:
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-localhost,127.0.0.1}
       DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-http://localhost:8000}
       DJANGO_TRUST_PROXY_HEADERS: ${DJANGO_TRUST_PROXY_HEADERS:-false}
+      DJANGO_TRUSTED_PROXY_IPS: ${DJANGO_TRUSTED_PROXY_IPS:-}
       POSTGRES_DB: ${POSTGRES_DB:-marketplace}
       POSTGRES_USER: ${POSTGRES_USER:-marketplace}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-development-only-database-password}
@@ -27,7 +28,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/readyz/', timeout=2)"]
+      test: ["CMD", "python", "-c", "import urllib.request; request = urllib.request.Request('http://127.0.0.1:8000/readyz/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(request, timeout=2)"]
       interval: 10s
       timeout: 3s
       retries: 5

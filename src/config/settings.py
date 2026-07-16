@@ -1,6 +1,7 @@
 """Django settings with explicit development and fail-closed production modes."""
 
 import os
+from ipaddress import ip_address
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
@@ -55,15 +56,26 @@ else:
     ALLOWED_HOSTS = _csv("DJANGO_ALLOWED_HOSTS", default="localhost,127.0.0.1")
 
 CSRF_TRUSTED_ORIGINS = _csv("DJANGO_CSRF_TRUSTED_ORIGINS")
+if IS_PRODUCTION and not CSRF_TRUSTED_ORIGINS:
+    raise ImproperlyConfigured("production requires explicit DJANGO_CSRF_TRUSTED_ORIGINS")
 if any(not origin.startswith(("http://", "https://")) for origin in CSRF_TRUSTED_ORIGINS):
     raise ImproperlyConfigured("DJANGO_CSRF_TRUSTED_ORIGINS entries must include a scheme")
 if IS_PRODUCTION and any(not origin.startswith("https://") for origin in CSRF_TRUSTED_ORIGINS):
     raise ImproperlyConfigured("production CSRF trusted origins must use HTTPS")
 
 TRUST_PROXY_HEADERS = _boolean("DJANGO_TRUST_PROXY_HEADERS", default=False)
+TRUSTED_PROXY_IPS = frozenset(_csv("DJANGO_TRUSTED_PROXY_IPS"))
+USE_X_FORWARDED_HOST = False
 if TRUST_PROXY_HEADERS:
+    if not TRUSTED_PROXY_IPS:
+        raise ImproperlyConfigured(
+            "DJANGO_TRUSTED_PROXY_IPS is required when proxy headers are trusted"
+        )
+    try:
+        TRUSTED_PROXY_IPS = frozenset(str(ip_address(value)) for value in TRUSTED_PROXY_IPS)
+    except ValueError as exc:
+        raise ImproperlyConfigured("DJANGO_TRUSTED_PROXY_IPS must contain IP literals") from exc
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    USE_X_FORWARDED_HOST = True
 
 INSTALLED_APPS = [
     "django.contrib.auth",
@@ -79,6 +91,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "config.middleware.TrustedProxyHeadersMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
