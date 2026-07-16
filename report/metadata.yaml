@@ -2,7 +2,8 @@ title: Secure Coding 중고거래 플랫폼 Living Report
 subtitle: Generic public submission artifact
 author: Secure Coding Project Team
 lang: ko-KR
-date: null
+date: 1970-01-01
+release-sha: RELEASE_SHA
 subject: Requirements, design, secure implementation, verification, maintenance, and release evidence
 keywords:
   - secure coding
