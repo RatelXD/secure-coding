@@ -1,24 +1,99 @@
-# 01 — Requirements analysis
+# 01. 요구사항 분석
 
-## Inputs
+## 1.1 프로젝트 목적
 
-- Approved project-local assignment context (required at agent startup; intentionally untracked)
-- Approved Cycle 1 and Cycle 2 scope
-- Policy oracle and security/release gates
+Tiny Second-hand Shopping Platform은 회원이 상품을 등록하고 다른 회원과 대화하며, 문제가 있는 사용자나 상품을 신고할 수 있는 소규모 중고거래 플랫폼입니다. 과제의 핵심은 기능 수를 늘리는 데 있지 않고, 인증·권한·입력값·파일·실시간 통신·상태 변경 과정에서 발생할 수 있는 보안 문제를 설계와 테스트로 확인하는 데 있습니다.
 
-## Cycle boundaries
+## 1.2 대상 사용자
 
-Cycle 1 covers username/password membership, safe profile self-service, one-image products, global/direct authenticated chat, user/product reports, and seven-day reversible moderation. Cycle 2 is mandatory but cannot begin before a real Cycle 1 observation→issue→fix→negative/regression→PATCH RC→same-SHA formal→retrospective chain closes G5.
+| 사용자 | 주요 작업 |
+|---|---|
+| 비회원 | 상품 목록과 상세 정보 조회 |
+| 일반 회원 | 회원가입·로그인, 본인 정보 변경, 상품 관리, 채팅, 신고 |
+| 관리자 | 신고·제재 상태 확인과 허용된 관리 작업 수행 |
 
-Only username and password are collected. Email, phone, address, payment data, real banking/PG, password recovery, SPA/CORS/token deployment, permanent moderation deletion, and Redis persistence are out of scope.
+가입 시 수집하는 필수 정보는 아이디와 비밀번호입니다. 이메일, 전화번호, 주소, 결제정보는 수집하지 않습니다.
 
-## Trace status
+## 1.3 범위와 개발 순서
 
-| AC family | Cycle | Status | Gate |
-|---|---:|---|---|
-| AC-REP/GOV | foundation | closure in progress | G1 |
-| AC-C1-* / AC-SEC-* | 1 | not started | prohibited before G1 |
-| AC-MNT-001 | 1 maintenance | not started | G5, no substitute |
-| AC-C2-* | 2 | not started | prohibited before G5/G6 |
-| AC-SUB-001/002 | public repository and release package | not started | G8a |
-| AC-SUB-003/004 | user-manual report and submission | Team forbidden | G8b user only |
+### 1차 핵심 범위
+
+- 회원가입, 로그인, 사용자 조회
+- 본인 소개글과 비밀번호 변경
+- 상품 등록, 본인 상품 관리, 목록·상세 조회
+- 상품당 이미지 1장 업로드
+- 인증 사용자의 전체 채팅과 1대1 채팅
+- 사용자·상품 신고
+- 기간이 정해진 상품 비노출과 사용자 휴면 처리
+
+### 2차 필수 범위
+
+- 상품 검색·정렬·페이지 나누기
+- 권한이 제한된 관리자 기능
+- 실제 결제와 분리된 모의 내부 잔액 이체
+
+2차 기능은 최종 범위에 포함되지만, 1차 기능의 구현·점검·유지보수 뒤에 개발합니다.
+
+### 범위 밖
+
+- 실제 은행·PG 결제, 정산, 환불
+- 이메일 인증과 비밀번호 분실 복구
+- 전화번호·주소·결제정보 등 추가 개인정보 수집
+- 별도 SPA와 토큰 기반 분리 API
+- 영구 삭제 방식의 자동 제재
+- 상시 공개 운영 서비스와 운영급 SRE
+
+## 1.4 기능 요구사항
+
+| ID | 기능 요구사항 | 현재 상태 |
+|---|---|---|
+| `FR-USER-01` | 사용자는 고유 아이디와 비밀번호로 회원가입하고 로그인할 수 있어야 한다. | 구현 중 |
+| `FR-USER-02` | 사용자는 다른 사용자의 공개 정보만 조회할 수 있어야 한다. | 구현 예정 |
+| `FR-USER-03` | 로그인한 사용자는 본인의 소개글과 비밀번호만 변경할 수 있어야 한다. | 구현 중 |
+| `FR-PRODUCT-01` | 로그인한 사용자는 이름, 가격, 설명, 이미지 1장으로 상품을 등록할 수 있어야 한다. | 구현 중, 가격 필드 확인 필요 |
+| `FR-PRODUCT-02` | 상품 소유자만 자신의 상품을 수정하거나 판매 상태를 관리할 수 있어야 한다. | 구현 중 |
+| `FR-PRODUCT-03` | 비회원도 공개 상품 목록과 상세 정보를 조회할 수 있어야 한다. | 구현 예정 |
+| `FR-CHAT-01` | 인증된 사용자는 전체 채팅에 참여할 수 있어야 한다. | 구현 중 |
+| `FR-CHAT-02` | 1대1 채팅은 두 참여자만 입장·열람·전송할 수 있어야 한다. | 구현 중 |
+| `FR-REPORT-01` | 인증된 사용자는 사유와 함께 사용자 또는 상품을 신고할 수 있어야 한다. | 구현 중, 사유 필드 확인 필요 |
+| `FR-REPORT-02` | 유효 신고가 기준에 도달하면 상품 비노출 또는 사용자 휴면을 중복 없이 적용해야 한다. | 구현 중 |
+| `FR-SEARCH-01` | 공개 상품을 검색하고 정렬하며 페이지 단위로 조회할 수 있어야 한다. | 구현 예정 |
+| `FR-ADMIN-01` | 관리자는 부여된 권한 안에서 사용자·상품·신고를 관리하고 변경 기록을 남겨야 한다. | 구현 예정 |
+| `FR-TRANSFER-01` | 사용자는 실제 결제가 아닌 내부 모의 잔액을 다른 사용자에게 원자적으로 이체할 수 있어야 한다. | 구현 예정 |
+
+## 1.5 보안 요구사항
+
+| ID | 보안 요구사항 | 확인 기준 |
+|---|---|---|
+| `SR-AUTH-01` | 비밀번호를 평문으로 저장하거나 로그에 남기지 않는다. | Django 비밀번호 해시 사용과 저장값 점검 |
+| `SR-AUTH-02` | 로그인 실패 횟수와 요청 속도를 제한하고 계정 존재 여부가 드러나지 않는 응답을 사용한다. | 경계값·병렬 요청·알 수 없는 계정 음성 테스트 |
+| `SR-AUTHZ-01` | 프로필·상품·채팅방·신고·관리 기능은 요청마다 서버에서 권한을 확인한다. | 다른 사용자 객체에 대한 조회·변경 거부 테스트 |
+| `SR-INPUT-01` | 아이디, 소개글, 상품 정보, 채팅, 신고 사유, 검색어의 길이·형식·제어문자를 검증한다. | 정상값, 경계값, 잘못된 값 테스트 |
+| `SR-UPLOAD-01` | 이미지는 JPEG·PNG·WebP만 허용하고 5MiB·4096×4096 이하로 제한한다. | 확장자·MIME 불일치, 손상·과대 파일 거부 테스트 |
+| `SR-UPLOAD-02` | 업로드 이미지를 완전히 디코딩한 뒤 새 파일로 재인코딩하고 메타데이터를 제거한다. | 재인코딩 결과와 저장 경로 점검 |
+| `SR-SESSION-01` | 세션 쿠키, CSRF, 허용 호스트와 HTTPS 설정을 환경에 맞게 적용한다. | 보호 요청·위조 Origin·CSRF 음성 테스트 |
+| `SR-CHAT-01` | WebSocket 연결에서 인증, Origin, 방 참여자, 계정 상태를 확인한다. | 비인증·타인 방·잘못된 Origin 연결 거부 테스트 |
+| `SR-CHAT-02` | 채팅 저장 성공을 기준으로 응답하고 재전송 시 중복 저장하지 않는다. | 동일 UUID 재전송·저장 후 전파 실패 테스트 |
+| `SR-REPORT-01` | 자기 신고, 중복 신고, 기준 미달 계정 신고를 제재 집계에서 제외한다. | 신고 조건과 경계값 테스트 |
+| `SR-REPORT-02` | 신고 저장, 임계값 판정, 제재, 감사 기록을 원자적이고 멱등적으로 처리한다. | 동시 신고·중복 제재·만료 경합 테스트 |
+| `SR-ERROR-01` | 오류 응답과 로그에 비밀번호, 세션, 내부 경로, 상세 예외를 노출하지 않는다. | 오류 메시지와 로그 내용 점검 |
+| `SR-TRANSFER-01` | 모의 이체는 잔액 보존, 양수 금액, 자기 이체 금지, 멱등성, 동시성을 보장한다. | 동시 이체·재시도·실패 롤백 테스트 |
+
+## 1.6 신고·제재 정책
+
+- 신고자는 인증된 활성 계정이며 가입 후 7일 이상이어야 합니다.
+- 자기 자신 또는 본인 상품 신고는 허용하지 않습니다.
+- 신고자와 대상의 조합당 한 번만 유효합니다.
+- 최근 7일 동안 서로 다른 유효 신고자 5명이 모여야 제재를 검토합니다.
+- 상품 신고와 사용자 신고는 별도로 집계합니다.
+- 상품은 7일 동안 비노출 처리하고, 사용자는 서로 다른 신고 맥락이 2개 이상일 때 7일 휴면 처리합니다.
+- 제재는 영구 삭제하지 않으며 만료 시 현재 시각을 기준으로 효력이 사라져야 합니다.
+
+이 정책은 설계 기준입니다. 실제 서비스·경합 테스트가 끝나기 전에는 적용 완료로 판단하지 않습니다.
+
+## 1.7 완료 판단 원칙
+
+- 코드 경로만 존재하면 `구현 중`으로 표시합니다.
+- 실제 명령과 결과가 없으면 `PASS`로 표시하지 않습니다.
+- 개발 브랜치의 결과는 공개 `main`에 통합한 뒤 다시 검증합니다.
+- 요구사항과 코드가 다르면 문서가 아니라 코드·테스트 상태를 기준으로 차이를 기록합니다.

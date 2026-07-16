@@ -1,22 +1,13 @@
-# Verification log
+# 검증 기록 안내
 
-Public summaries are append-only. Raw verification evidence belongs only to L5 under `.evidence-private/verification/`; raw provenance belongs only to L4 provenance paths.
+실제 실행한 테스트와 앞으로 필요한 검증은 [부록 B. 테스트 근거](appendix/test-evidence.md)에 통합했습니다.
 
-| Evidence-ID | Date (UTC) | Gate | Inspection or command | Result | Immutable subject |
-|---|---|---|---|---|---|
-| G1-SRC-PRT-20260716 | 2026-07-16 | G1-SRC/GOV | commit `?raw=1`, raw URL, Git Database blob API; strict RFC 4648 base64 decode | PASS: all 780 bytes and SHA `0cca…6798`; tree points to blob `8e4f…e18`; original sections present | commit `e1e524b…e5e5` |
-| G1-SUP-HUM-20260716 | 2026-07-16 | G1-SRC | pinned checkout, license and selected-subtree file hash inventory | PASS: exact selected subtree installed; local-only executable audit | commit `14aeb52…9689` |
-| G1-SUP-MMD-20260716 | 2026-07-16 | G1-SRC | pinned checkout, license and selected-subtree file hash inventory | PASS with enforced local-only policy: exact subtree installed; Kroki/network fallback disabled | commit `15d09cf…3f3b` |
-| G1-GH-20260716 | 2026-07-16 | G1 | GitHub REST repository/collaborator/protection/Pages/environment inspection | **BLOCK**: sole collaborator; no independent approval; main unprotected. Pages and protected release environment exist. | `RatelXD/secure-coding` |
-| G1-TOOL-20260716 | 2026-07-16 | G1 | renderer tool/version inventory | **BLOCK**: pinned renderer OCI digest/package/font hashes not established | report toolchain |
-| G1-GH-20260716-R2 | 2026-07-16 | G1 | `python3 scripts/verify_g1.py --repository RatelXD/secure-coding`; GitHub REST inspection | **BLOCK** only within GitHub governance: `RatelAI` is an independent collaborator and required release reviewer; `prevent_self_review=true`; admin bypass disabled; strict review/linear-history/no-force-push/no-delete rules PASS; required status checks absent pending governance workflow run and exact-context configuration | `RatelXD/secure-coding` live configuration |
-| G1-CRED-20260716 | 2026-07-16 | G1-SEC | non-secret repository-owner/provider-side revocation confirmation; full-history gitleaks and runtime-path CI | PASS: all five credentials from SEC-2026-003 revoked; no replacement credential generated or stored | SEC-2026-003/SEC-2026-006 credential set |
-| G1-GH-20260716-R3 | 2026-07-16 | G1-GOV | merged PR history and protected-branch configuration review | PASS: default-branch-trusted `governance-trusted` is strict and bound to GitHub Actions app `15368`; exact PR bytes are inspected without credentials or PR-controlled execution | `main` at `b4a9594…8dbad` |
-| G1-TOOL-20260716-R2 | 2026-07-16 | G1-TOOL | public OCI candidate/platform-digest audit and fail-closed renderer contract review | **BLOCK**: no compliant pullable image/build path or real repeat-render receipt; whole-worktree mounting exposes ignored private inputs and the root session-path guard is incomplete | report toolchain contract at `fe3bfcc…` |
-| G1-TOOL-TEST-20260716 | 2026-07-16 | G1-TOOL | `python3 -m unittest tests.governance.test_report_renderer -v` on temporary Lane A+B union | PASS: 5 focused contract tests in 0.602s; immutable-or-BLOCK, inventory, offline/no-Kroki, tracked privacy boundary, and mocked two-run orchestration covered. No real-container render was claimed. | Lane A `fe3bfcc…`; Lane B `2c66f99…` |
-| G1-TOOL-LOCAL-20260716 | 2026-07-16 | G1-TOOL | combined linux/amd64 local image build; two direct `--network none` render/inspect runs | PASS as local smoke only: inventory `c10e85a9…62b4`; two 13-page outputs were byte-identical at `a9fa7f74…2056`; fonts, metadata, and HTTP/file URI checks passed | delivery commit `5084386…` |
-| G1-TOOL-LOCAL-20260716-R2 | 2026-07-16 | G1-TOOL | independent local-image inventory inspection and two direct offline render/inspect runs | PASS as independent local smoke only: both 47,753,659-byte, 13-page outputs SHA `6e51e206…225`; **BLOCK** remains for wrapper bind, dependency/inventory provenance, publication digest, and accepted-digest repeats | verification commit `506c90b…` |
-| G1-REPORT-SCOPE-20260716 | 2026-07-16 | G1/G8a | user-directed gate-scope review; `python3 -m unittest tests.governance.test_report_renderer -v` on optional-helper union | **NON-GATING**: PDF processing is manual; renderer publication, digest, inventory, generated PDF, and repeat-render receipts are not G1/G8a requirements. Optional-helper suite: 10 PASS in 0.405s. | delivery `fe7fcda…`; verification `cf0bf0d…` |
+## 현재 확인된 결과
 
-A row marked BLOCK cannot be converted to PASS by a different row. Product implementation remains prohibited until every G1 component passes.
-The 2026-07-16 manual-report scope decision removes the renderer/PDF component from G1 and G8a. Earlier renderer BLOCK rows remain historical findings, not active gate predicates.
+| 실행일 | 명령 | 결과 | 범위 |
+|---|---|---|---|
+| 2026-07-16 | `python3 -m unittest discover -s tests/governance -v` | 26 tests PASS | 문서 보조 도구와 공개 저장소 경계 |
+
+이 결과는 제품 기능 테스트가 아닙니다. 사용자·상품·채팅·신고·검색·관리자·모의 이체의 실제 결과는 공개 `main`에 애플리케이션을 통합한 뒤 별도로 기록합니다.
+
+개발 브랜치의 사용자·상품 골격 단위 테스트 기록은 참고할 수 있지만, 통합 후 동일 조건에서 다시 실행하기 전에는 최종 PASS로 사용하지 않습니다.

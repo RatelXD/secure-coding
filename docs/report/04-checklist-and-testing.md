@@ -1,7 +1,78 @@
-# 04 — Checklist and testing
+# 04. 체크리스트와 테스트
 
-Independent L5 verification owns `tests/**`, sanitized artifacts, release/backup/restore verification scripts, and raw `.evidence-private/verification/**`. L4 records only public trace and provenance/redaction evidence.
+## 4.1 상태 표기
 
-Required lanes include unit, integration, E2E, security, concurrency, recovery, observability, evidence/Pages, and release/package checks. Each result links exact command, environment/tool version, result, failure and retest, immutable SHA, and Evidence-ID in the [verification log](verification-log.md).
+- `PASS`: 실제 실행 결과와 근거가 있습니다.
+- `FAIL`: 실제 실행 결과가 기대와 다릅니다.
+- `미검증`: 테스트 방법은 정했지만 아직 실행하지 않았습니다.
+- `구현 예정`: 테스트할 기능 자체가 아직 없습니다.
+- `재검증 필요`: 개발 브랜치에서 일부 결과가 있으나 공개 `main` 통합 뒤 다시 실행해야 합니다.
 
-Promotion requires unresolved Critical/High = 0 with no exception or severity manipulation. A default, tautology, skipped check, or missing raw evidence is not PASS.
+## 4.2 기능 체크리스트
+
+| 요구사항 ID | 점검 항목 | 테스트 방법 | 기대 결과 | 실제 결과 | 상태 | 근거 |
+|---|---|---|---|---|---|---|
+| `FR-USER-01` | 회원가입·로그인 | 정상·중복·잘못된 아이디와 비밀번호로 요청 | 유효한 사용자만 생성·로그인 | 공개 `main`에 제품 코드 없음 | 구현 예정 | 통합 후 자동·수동 테스트 필요 |
+| `FR-USER-03` | 본인 소개글·비밀번호 변경 | 본인과 다른 사용자 세션으로 변경 시도 | 본인만 허용 | 서비스 경계 골격만 확인 | 재검증 필요 | `tests/unit/accounts_catalog/` 통합 전 |
+| `FR-PRODUCT-01` | 상품 등록 | 정상·경계·잘못된 상품과 이미지 제출 | 유효한 상품만 저장 | 가격·이미지 처리 미완 | 구현 예정 | 코드와 테스트 보강 필요 |
+| `FR-PRODUCT-02` | 본인 상품 관리 | 타인 상품 수정·삭제 시도 | 타인은 거부 | 권한 Protocol만 확인 | 미검증 | HTTP 서비스·테스트 없음 |
+| `FR-PRODUCT-03` | 목록·상세 조회 | 비회원과 회원으로 공개·비노출 상품 조회 | 공개 상품만 노출 | URL·화면 없음 | 구현 예정 | 수동·통합 테스트 필요 |
+| `FR-CHAT-01` | 전체 채팅 | 인증·비인증 사용자의 연결과 전송 | 인증 사용자만 허용 | 모델·정책 골격만 있음 | 구현 예정 | consumer 통합 필요 |
+| `FR-CHAT-02` | 1대1 채팅 | 참여자와 제3자의 입장·이력 조회 | 두 참여자만 허용 | 방 모델 골격만 있음 | 구현 예정 | 권한 음성 테스트 필요 |
+| `FR-REPORT-01` | 사용자·상품 신고 | 정상·자기·중복·기준 미달 신고 | 유효 신고만 집계 | 모델 골격만 있음 | 구현 예정 | 신고 서비스 필요 |
+| `FR-REPORT-02` | 가역 제재 | 임계값 전후와 만료 시각 확인 | 한 번만 적용되고 만료 후 해제 | 현재 상태 조회 골격만 있음 | 미검증 | 동시성·시간 테스트 필요 |
+| `FR-SEARCH-01` | 상품 검색 | 검색어·정렬·페이지 경계 확인 | 공개 결과만 안정적으로 반환 | 기능 없음 | 구현 예정 | 2차 개발 범위 |
+| `FR-ADMIN-01` | 관리자 기능 | 일반 사용자와 권한별 관리자 접근 | 허용된 작업만 수행·감사 | 기능 없음 | 구현 예정 | 2차 개발 범위 |
+| `FR-TRANSFER-01` | 모의 잔액 이체 | 정상·잔액 부족·재전송·동시 이체 | 원자성·멱등성·합계 보존 | 기능 없음 | 구현 예정 | 2차 개발 범위 |
+
+## 4.3 보안 체크리스트
+
+| 보안 요구사항 ID | 점검 항목 | 테스트 방법 | 기대 결과 | 실제 결과 | 상태 | 근거 |
+|---|---|---|---|---|---|---|
+| `SR-AUTH-01` | 비밀번호 평문 저장·노출 여부 | DB 값, 오류 응답, 로그 검색 | 평문·원문 비밀번호 없음 | 제품 DB·로그 없음 | 미검증 | 앱 통합 후 확인 |
+| `SR-AUTH-02` | 로그인 무차별 대입 | 계정·IP 기준 경계와 병렬 실패 요청 | 기준 초과 시 일반화된 제한 응답 | 제한 기능 없음 | 구현 예정 | 자동화 필요 |
+| `SR-AUTHZ-01` | 인증 없는 보호 기능 접근 | 로그아웃 상태로 보호 URL/API 요청 | 로그인 또는 403으로 차단 | URL/API 없음 | 구현 예정 | 통합 테스트 필요 |
+| `SR-AUTHZ-01` | 타인 프로필·상품·신고 수정 | 다른 사용자 객체 ID로 변경 요청 | 403 또는 존재를 숨긴 404 | 서비스 미완 | 구현 예정 | IDOR 음성 테스트 필요 |
+| `SR-AUTHZ-01` | 권한 없는 관리자 접근 | 일반 사용자로 관리 URL·작업 요청 | 전부 차단 | 관리자 기능 없음 | 구현 예정 | 2차 보안 테스트 |
+| `SR-INPUT-01` | SQL Injection | 검색·필터·입력 필드에 최소 공격 문자열 입력 | ORM 바인딩으로 쿼리 구조 불변 | 입력 지점 없음 | 구현 예정 | 방어 검증 수준으로 수행 |
+| `SR-INPUT-01` | XSS | 상품·소개글·채팅에 스크립트성 문자열 입력 | text로 저장되고 화면에서 escape | 화면 없음 | 구현 예정 | 자동·브라우저 테스트 필요 |
+| `SR-SESSION-01` | CSRF | 토큰 없는 상태 변경 요청과 위조 Origin 요청 | 403으로 차단 | 설정 통합 전 | 미검증 | Django client·브라우저 테스트 |
+| `SR-UPLOAD-01` | 파일 업로드 우회 | 확장자/MIME 불일치, SVG, 손상·과대 파일 | 전부 거부하고 실행되지 않음 | 재인코딩 미구현 | 구현 예정 | 이미지 corpus 필요 |
+| `SR-CHAT-01` | WebSocket 인증·Origin·방 권한 | 비인증, null/위조 Origin, 제3자 방 연결 | handshake 또는 frame 단계에서 차단 | consumer 없음 | 구현 예정 | Channels 통합 테스트 |
+| `SR-ERROR-01` | 내부 정보 노출 | 400·403·404·500 응답과 로그 확인 | 비밀값·내부 경로·상세 예외 없음 | 제품 오류 경로 없음 | 미검증 | 배포 설정에서도 확인 |
+
+## 4.4 자동화 테스트와 수동 테스트
+
+### 자동화 대상
+
+- 모델 제약과 서비스 단위 테스트
+- HTTP 인증·권한·CSRF·입력값 통합 테스트
+- WebSocket 인증·Origin·참여자·재전송 테스트
+- 신고 임계값과 동시성 테스트
+- 모의 이체의 잔액 보존·멱등성·경합 테스트
+- 마이그레이션 생성 여부와 `django check --deploy`
+- 의존성·비밀값·정적 분석 점검
+
+### 수동 대상
+
+- 회원가입부터 상품·채팅·신고까지의 브라우저 흐름
+- 오류 메시지와 화면 출력의 민감정보·XSS 여부
+- 이미지 표시와 메타데이터 제거 결과
+- 휴면·비노출 전후 화면과 만료 후 복구
+- 관리자 화면의 역할별 노출과 거부 응답
+- Docker Compose 시작·재시작·백업·복구
+
+## 4.5 현재 실제 실행 결과
+
+현재 공개 코드에서 제품 기능 테스트를 PASS로 기록할 수 없습니다. 문서·저장소 경계를 확인하는 다음 명령만 실제로 실행했습니다.
+
+```bash
+python3 -m unittest discover -s tests/governance -v
+```
+
+- 실행일: 2026-07-16
+- 결과: 26개 테스트 PASS
+- 의미: 문서 보조 도구와 공개 저장소 경계 검증
+- 한계: 사용자·상품·채팅·신고 기능이 동작한다는 근거가 아님
+
+개발 브랜치에서 사용자·상품 골격 단위 테스트 16개가 통과한 기록은 있으나, 공개 `main` 통합 전 결과이므로 `재검증 필요`로 분류합니다. 자세한 구분은 [테스트 근거](appendix/test-evidence.md)에 기록했습니다.

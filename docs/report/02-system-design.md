@@ -1,7 +1,164 @@
-# 02 — System design
+# 02. 시스템 설계
 
-Design is gated and has not started. The approved architecture baseline is a same-origin Django 5.2 LTS ASGI application with server templates and vanilla JavaScript. PostgreSQL is the sole durable authority; Redis is non-durable Channels fan-out.
+## 2.1 설계 기준과 현재 상태
 
-The design packet must define actor/precondition/Given-When-Then acceptance statements, DFD/ERD/state/sequence diagrams, assets and trust boundaries, entrypoint/permission matrices, the complete Policy-ID oracle, image and exact ngrok ingress contracts, migration/rollback, and Test-ID mappings.
+플랫폼은 브라우저와 Django가 같은 출처를 사용하는 단일 ASGI 애플리케이션으로 설계했습니다. PostgreSQL은 사용자·상품·채팅·신고·거래 기록의 영속 저장소이고, Redis는 실시간 채팅 전달을 위한 비영속 fan-out에만 사용합니다.
 
-ADRs are append-only in the [decision log](decision-log.md). ADR-1 through ADR-3 must close G2 before Cycle 1 implementation. ADR-4 and ADR-5 cannot be analyzed or approved before the real G5 chain closes, and must close G6 before Cycle 2 implementation.
+2026-07-16 기준 공개 `main`에는 애플리케이션 코드가 아직 없습니다. 아래 구조와 모델은 승인된 설계와 통합 전 개발 브랜치의 코드 골격을 대조한 결과입니다. 공개 `main`에 반영한 뒤 마이그레이션과 동작을 다시 확인해야 합니다.
+
+## 2.2 기술 구성
+
+| 구분 | 기술 | 역할 | 상태 |
+|---|---|---|---|
+| 언어 | Python 3.12 | 백엔드 실행 환경 | 구현 중 |
+| 웹 프레임워크 | Django 5.2 LTS | 인증, 세션, ORM, 화면, HTTP 요청 처리 | 구현 중 |
+| 비동기 통신 | ASGI, Django Channels | HTTP와 WebSocket 통합 | 구현 중 |
+| 데이터베이스 | PostgreSQL | 영속 데이터와 트랜잭션의 기준 | 구현 중 |
+| 메시지 전달 | Redis | Channels 실시간 fan-out | 구현 중 |
+| 화면 | Django Templates, vanilla JavaScript | 같은 출처의 서버 렌더링 UI | 구현 예정 |
+| 로컬 실행 | Docker Compose | 앱·DB·Redis 구성 | 구현 중, 통합 전 |
+
+## 2.3 전체 구성
+
+```mermaid
+flowchart LR
+    U[비회원·회원 브라우저]
+    A[Django ASGI 애플리케이션]
+    P[(PostgreSQL)]
+    R[(Redis)]
+    M[(비실행 미디어 저장소)]
+
+    U -->|HTTPS 요청·세션·CSRF| A
+    U -->|WSS 연결·Origin 검사| A
+    A -->|사용자·상품·채팅·신고·감사| P
+    A -->|실시간 메시지 전달만| R
+    A -->|재인코딩한 상품 이미지| M
+```
+
+### 신뢰 경계
+
+| 경계 | 주요 위험 | 설계 원칙 |
+|---|---|---|
+| 브라우저 → HTTP | 세션 탈취, CSRF, 입력 조작, 객체 권한 우회 | Secure/HttpOnly/SameSite 쿠키, CSRF, 서버 권한 재검사 |
+| 브라우저 → WebSocket | 비인증 연결, Origin 위조, 타인 방 입장, 과도한 메시지 | 인증·Origin·참여자·크기·속도·계정 상태 검사 |
+| Django → PostgreSQL | 경합, 부분 저장, 권위 상태 불일치 | 트랜잭션, 고유 제약, DB 시각, 행 잠금 |
+| Django → Redis | Redis 장애를 저장 실패로 오인 | PostgreSQL 저장 성공과 실시간 전달 결과 분리 |
+| 업로드 → 미디어 | 위장 파일, 스크립트, 메타데이터, 경로 조작 | 완전 디코딩·재인코딩, UUID 파일명, 크기·해상도 제한 |
+
+## 2.4 주요 요청 흐름
+
+### 인증과 권한 확인
+
+```mermaid
+sequenceDiagram
+    participant B as 브라우저
+    participant D as Django
+    participant DB as PostgreSQL
+
+    B->>D: 세션 쿠키와 요청
+    D->>D: CSRF·Host·세션 확인
+    D->>DB: 사용자와 현재 제재 상태 조회
+    DB-->>D: 활성 또는 휴면 상태
+    alt 인증·권한 충족
+        D->>DB: 허용된 조회 또는 변경
+        D-->>B: 정상 응답
+    else 인증·권한 부족
+        D-->>B: 일반화된 403 또는 존재를 숨긴 404
+    end
+```
+
+요청에 포함된 사용자 ID나 소유자 ID를 신뢰하지 않고, 로그인 세션에서 행위자를 결정해야 합니다. 프로필·상품·채팅방·관리 기능은 각 진입점에서 다시 권한을 확인합니다.
+
+### 상품 이미지 업로드
+
+```mermaid
+flowchart TD
+    I[업로드 요청] --> S{크기 5MiB 이하?}
+    S -- 아니요 --> X[거부]
+    S -- 예 --> F{JPEG·PNG·WebP 디코딩 성공?}
+    F -- 아니요 --> X
+    F -- 예 --> D{가로·세로 4096 이하?}
+    D -- 아니요 --> X
+    D -- 예 --> R[새 이미지로 재인코딩]
+    R --> N[UUID 파일명·메타데이터 제거]
+    N --> O[상품 소유권 확인 후 저장]
+```
+
+현재 개발 코드에는 허용 확장자와 크기·해상도 계약이 정의되어 있지만, Pillow 기반 완전 디코딩·재인코딩 구현과 우회 테스트는 아직 필요합니다.
+
+### 채팅 저장과 전달
+
+```mermaid
+sequenceDiagram
+    participant C as 채팅 클라이언트
+    participant A as Django Channels
+    participant DB as PostgreSQL
+    participant R as Redis
+
+    C->>A: client_message_id와 메시지
+    A->>A: 인증·Origin·참여자·입력·속도 확인
+    A->>DB: 트랜잭션 안에서 중복 확인 후 저장
+    DB-->>A: server_message_id와 저장 시각
+    A->>R: 커밋 후 실시간 전달 시도
+    alt Redis 전달 성공
+        A-->>C: accepted, live
+    else Redis 전달 실패
+        A-->>C: accepted, degraded
+        C->>A: 마지막 server_message_id 이후 이력 요청
+    end
+```
+
+PostgreSQL 커밋이 메시지 수락의 기준입니다. Redis 장애가 저장 결과를 되돌리거나 같은 메시지를 중복 저장하게 해서는 안 됩니다.
+
+### 신고와 가역 제재
+
+```mermaid
+stateDiagram-v2
+    [*] --> 정상
+    정상 --> 신고누적: 유효 신고 저장
+    신고누적 --> 정상: 임계값 미달
+    신고누적 --> 제재중: 임계값 충족·단일 제재 생성
+    제재중 --> 제재중: 중복 신고는 기존 제재 연장 안 함
+    제재중 --> 정상: 만료 시각 경과
+```
+
+신고 저장, 임계값 판정, 제재 생성, 소비된 신고 연결, 감사 기록을 하나의 트랜잭션으로 처리해야 합니다. 저장된 플래그만 믿지 않고 DB 현재 시각과 유효 제재를 조회해 상태를 계산합니다.
+
+## 2.5 데이터 모델
+
+| 모델 | 주요 필드·관계 | 현재 확인된 상태 |
+|---|---|---|
+| `User` | Django `AbstractUser`, 고유 `username`, `bio`, `auth_epoch` | 개발 브랜치 골격 구현 중 |
+| `Product` | `owner`, `title`, `description`, `image`, `version`, 생성·수정 시각 | 골격 구현 중, 가격과 판매 상태 확인 필요 |
+| `Room` | 전체·1대1 구분, 생성 시각 | 골격 구현 중 |
+| `RoomParticipant` | 방과 사용자 관계, 참여 시각, 방-사용자 고유 제약 | 골격 구현 중, 1대1 정확히 2명 제약 확인 필요 |
+| `ChatMessage` | 방, 발신자, client UUID, 본문, payload hash, 저장 시각 | 골격 구현 중 |
+| `AbuseReport` | 신고자, 사용자·상품 대상, 맥락, 소비된 제재, 생성 시각 | 골격 구현 중, 신고 사유 필드 확인 필요 |
+| `ModerationAction` | 사용자 휴면·상품 비노출, 시작·만료 시각, 대상 | 골격 구현 중 |
+| `AuditEvent` | 행위 유형, 행위자, 제재, 세부 내용, 생성 시각 | 골격 구현 중 |
+| 이체·관리 모델 | 모의 계정·이체·원장·관리 감사 | 구현 예정 |
+
+데이터 모델의 자세한 관계는 코드가 공개 `main`에 통합된 뒤 실제 마이그레이션 기준으로 갱신합니다.
+
+## 2.6 보안 고려사항과 확인 방법
+
+| 기능 | 보안 고려사항 | 적용 방식 | 확인 방법 | 상태 |
+|---|---|---|---|---|
+| 로그인 | 무차별 대입, 계정 존재 노출 | 실패 횟수·속도 제한, 일반화된 응답 | 경계값·병렬·알 수 없는 계정 테스트 | 구현 예정 |
+| 프로필·상품 | IDOR, 대량 할당 | 세션 행위자와 객체 소유권 확인, 변경 필드 allowlist | 타인 객체 변경 음성 테스트 | 구현 중 |
+| 이미지 | 위장 MIME, 스크립트, 이미지 폭탄 | 제한 후 디코딩·재인코딩, 새 파일명 | 변조·과대·손상 파일 테스트 | 구현 예정 |
+| 채팅 | XSS, Origin 위조, 타인 방 접근, 중복 저장 | text 저장·출력 escape, Origin·참여자·UUID 검사 | WebSocket 음성·재전송·장애 테스트 | 구현 중 |
+| 신고·제재 | 자기·중복 신고, Sybil, 경합 | 유효 신고 조건, 고유 제약, 트랜잭션, 가역 제재 | 임계값·동시 신고·만료 테스트 | 구현 중 |
+| 모의 이체 | 잔액 불일치, 중복 이체, 경합 | 행 잠금, 이중 분개, 멱등성 키, 실패 롤백 | 동시성·재시도·합계 보존 테스트 | 구현 예정 |
+| 오류·로그 | 비밀값·내부 구조 노출 | 일반화된 오류, 민감값 미기록 | 오류 응답·로그 점검 | 확인 필요 |
+
+## 2.7 남은 설계 확인 사항
+
+- 상품 가격과 판매 상태의 실제 모델 반영
+- 신고 사유와 신고 생성 조건의 실제 모델·서비스 반영
+- 1대1 방의 참여자 수와 중복 방 생성 제약
+- 로그인 속도 제한의 영속 저장 방식
+- 이미지 재인코딩 구현과 미디어 제공 정책
+- 관리자 기능의 작업별 권한과 재인증 범위
+- 모의 이체의 계정 생성, 잔액 상한, 이중 분개·복구 정책
+- 운영 환경의 프록시 헤더와 정확한 허용 출처 설정

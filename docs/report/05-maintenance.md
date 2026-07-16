@@ -1,11 +1,73 @@
-# 05 — Maintenance
+# 05. 유지보수
 
-## Cycle 1 mandatory chain
+## 5.1 현재 상태
 
-G5 has exactly one path: real Compose/restricted-ngrok observation Evidence-ID → reproducible GitHub issue → fix/security/docs PR → relevant regression and negative revalidation → immutable PATCH RC → same-SHA PATCH formal → retrospective. A no-finding receipt is not a substitute. If no issue appears, observation expands and G5 remains open; Cycle 2 cannot begin.
+제품 기능이 공개 `main`에 통합되지 않았고 실제 사용 관찰도 시작하지 않았습니다. 따라서 현재 기록할 수 있는 실제 제품 유지보수 사례는 없습니다. 과제를 채우기 위해 가상의 오류나 수정 사례를 만들지 않습니다.
 
-## Cycle 2 maintenance
+이 문서는 애플리케이션을 실행한 뒤 실제로 발견한 문제를 같은 형식으로 남기기 위한 절차와 관찰 항목을 정리합니다.
 
-After G7R, the Cycle 2 RC is observed for transfer retry/race, search abuse, administration permission/reauth, and Cycle 1 regression. Real findings require issue/fix/retest/next-RC/G7R. An honest, evidenced Cycle 2 no-finding result is allowed but relaxes no AC. G7M freezes only the RC SHA; formal/Latest promotion waits for G8a.
+## 5.2 유지보수 절차
 
-No maintenance observation has started while G1 is BLOCKED.
+```mermaid
+flowchart LR
+    O[실제 사용·로그 관찰] --> R[재현 조건 기록]
+    R --> C[원인 분석]
+    C --> F[최소 범위 수정]
+    F --> N[관련 음성 테스트 추가]
+    N --> T[회귀 테스트]
+    T --> D[문서·잔여 위험 갱신]
+```
+
+1. Docker Compose 환경에서 정상 사용자와 악의적 사용 시나리오를 관찰합니다.
+2. 발견한 문제의 입력, 사전조건, 기대 결과, 실제 결과를 비밀값 없이 기록합니다.
+3. 코드·설정·데이터 상태를 확인해 원인을 좁힙니다.
+4. 문제 원인을 직접 수정하고 관련 없는 범위는 바꾸지 않습니다.
+5. 같은 문제가 다시 발생하지 않도록 음성 테스트 또는 회귀 테스트를 추가합니다.
+6. 수정 전 재현 테스트가 실패하고 수정 후 통과하는지 확인합니다.
+7. 영향 범위, 남은 한계, 사용자에게 보이는 변화를 보고서에 반영합니다.
+
+## 5.3 관찰할 항목
+
+| 영역 | 관찰 시나리오 | 확인할 문제 |
+|---|---|---|
+| 인증 | 반복 로그인 실패, 세션 만료, 비밀번호 변경 뒤 기존 세션 | 제한 우회, 계정 존재 노출, 세션 무효화 누락 |
+| 상품 | 타인 상품 접근, 비노출 전후, 이미지 변조 | IDOR, 캐시·목록 불일치, 업로드 우회 |
+| 채팅 | Redis 중단, ACK 유실, 재연결, 같은 UUID 재전송 | 메시지 유실·중복, 잘못된 성공 응답, 이력 누락 |
+| 신고·제재 | 임계값 경계, 동시 신고, 제재 만료 | 중복 제재, 부분 저장, 만료 후 상태 불일치 |
+| 검색 | 긴 검색어, 특수문자, 많은 페이지 요청 | 쿼리 오류, 자원 남용, 비노출 상품 노출 |
+| 관리자 | 권한 없는 작업, 오래된 화면에서 변경, 재인증 만료 | 권한 우회, 덮어쓰기, 감사 누락 |
+| 모의 이체 | 재전송, 동시 이체, 프로세스 중단 | 중복 이체, 잔액 불일치, 부분 커밋 |
+| 복구 | DB 백업·복원, 서비스 재시작 | 데이터 누락, 마이그레이션 불일치, 복구 절차 오류 |
+
+## 5.4 실제 사례 기록 양식
+
+실제 문제가 발견되면 다음 표를 복사해 작성합니다.
+
+| 항목 | 기록 내용 |
+|---|---|
+| 사례 ID | `MNT-01`부터 순서대로 부여 |
+| 발견 환경 | 코드 버전, 실행 방식, 필요한 비밀값을 제외한 환경 |
+| 문제 현상 | 사용자가 본 결과와 기대 결과 |
+| 재현 방법 | 방어 검증에 필요한 최소 절차 |
+| 원인 | 잘못된 코드·설정·데이터 가정 |
+| 수정 내용 | 변경 파일과 핵심 수정 |
+| 음성 테스트 | 취약한 입력이나 권한 요청이 차단되는지 |
+| 회귀 테스트 | 기존 정상 기능이 유지되는지 |
+| 결과 | 실제 명령과 결과 |
+| 잔여 위험 | 아직 확인하지 못한 범위 |
+
+## 5.5 보안 유지보수 연결
+
+보안 관련 문제는 [보안 약점과 개선 계획](06-security-improvements.md)의 `VULN-*` 항목과 연결합니다. 테스트 명령과 캡처는 [테스트 근거](appendix/test-evidence.md)에 남기고, 최종 PDF에는 비밀값·개인정보·내부 경로가 보이지 않도록 정리합니다.
+
+## 5.6 완료 조건
+
+유지보수 장은 다음 조건을 충족한 뒤 `작성 완료`로 바꿀 수 있습니다.
+
+- 실제 실행 환경에서 재현 가능한 문제를 한 건 이상 발견
+- 문제의 원인과 수정 내용 기록
+- 수정 전 실패·수정 후 통과하는 테스트 확보
+- 관련 정상 기능의 회귀 테스트 통과
+- 남은 한계와 후속 조치 기록
+
+현재는 위 조건을 충족하지 않았으므로 상태를 `구현 예정`으로 유지합니다.
