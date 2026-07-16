@@ -1,4 +1,4 @@
-site_name: Secure Coding Living Report
+site_name: 중고 거래 플랫폼 시큐어 코딩 과제 보고서
 site_url: https://ratelxd.github.io/secure-coding/
 repo_url: https://github.com/RatelXD/secure-coding
 repo_name: RatelXD/secure-coding
@@ -7,21 +7,25 @@ site_dir: site
 strict: true
 use_directory_urls: true
 nav:
-  - Report:
-      - Overview: report/index.md
-      - Requirements: report/01-requirements.md
-      - System design: report/02-system-design.md
-      - Implementation: report/03-implementation.md
-      - Checklist and testing: report/04-checklist-and-testing.md
-      - Maintenance: report/05-maintenance.md
-  - Logs:
-      - Security: report/security-log.md
-      - Decisions: report/decision-log.md
-      - Verification: report/verification-log.md
-  - Governance:
-      - Source ledger: report/source-ledger.md
-      - Evidence policy: report/evidence-policy.md
-      - Toolchain lock: report/toolchain.lock.md
+  - 과제 보고서:
+      - 보고서 개요: report/index.md
+      - 01. 요구사항 분석: report/01-requirements.md
+      - 02. 시스템 설계: report/02-system-design.md
+      - 03. 구현 내용: report/03-implementation.md
+      - 04. 체크리스트와 테스트: report/04-checklist-and-testing.md
+      - 05. 유지보수: report/05-maintenance.md
+      - 06. 보안 약점과 개선 계획: report/06-security-improvements.md
+  - 부록:
+      - 기능 추적표: report/appendix/feature-traceability.md
+      - 테스트 근거: report/appendix/test-evidence.md
+      - 참고 문헌: report/appendix/references.md
+  - 기록 및 참고:
+      - 보안 기록: report/security-log.md
+      - 의사 결정 기록: report/decision-log.md
+      - 검증 기록: report/verification-log.md
+      - 출처 목록: report/source-ledger.md
+      - 공개 근거 정책: report/evidence-policy.md
+      - 도구 버전 고정: report/toolchain.lock.md
 markdown_extensions:
   - admonition
   - attr_list
