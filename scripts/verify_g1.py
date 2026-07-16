@@ -22,6 +22,7 @@ TEMPLATE_REPOSITORY = "ChosunUniv2026Capstone/Backend"
 TEMPLATE_COMMIT = "e1e524bcff217999044ca6db3da65eedf990e5e5"
 TEMPLATE_BLOB = "8e4fed1229b1a12d7090c23222230917db738e18"
 TEMPLATE_PATH = ".github/pull_request_template.md"
+DEFAULT_REQUIRED_CHECKS = ("governance",)
 TEMPLATE_SECTIONS = (
     "## Why",
     "## What changed",
@@ -164,7 +165,12 @@ def gh_json(arguments: list[str]) -> tuple[Any | None, str | None]:
     return json.loads(result.stdout), None
 
 
-def check_github(repository: str) -> dict[str, Any]:
+def check_github(
+    repository: str,
+    *,
+    pull_request: int | None,
+    expected_required_checks: tuple[str, ...],
+) -> dict[str, Any]:
     repo, repo_error = gh_json([
         "repo", "view", repository, "--json",
         "nameWithOwner,isPrivate,defaultBranchRef,viewerPermission,mergeCommitAllowed,"
@@ -178,6 +184,14 @@ def check_github(repository: str) -> dict[str, Any]:
     environment, environment_error = gh_json(["api", f"repos/{repository}/environments/release"])
     actions, actions_error = gh_json(["api", f"repos/{repository}/actions/permissions"])
     actor, actor_error = gh_json(["api", "user"])
+    pr: Any | None = None
+    pr_error: str | None = "pull request number is required"
+    if pull_request is not None:
+        pr, pr_error = gh_json([
+            "pr", "view", str(pull_request), "--repo", repository, "--json",
+            "number,state,baseRefName,headRefOid,author,reviewDecision,reviews,"
+            "reviewRequests,statusCheckRollup,url",
+        ])
 
     actor_login = (actor or {}).get("login")
     collaborator_logins = [item.get("login") for item in collaborators or []]
@@ -210,7 +224,42 @@ def check_github(repository: str) -> dict[str, Any]:
         and (protection or {}).get("allow_force_pushes", {}).get("enabled") is False
         and (protection or {}).get("allow_deletions", {}).get("enabled") is False
     )
-    required_checks = status_checks.get("checks") or status_checks.get("contexts") or []
+    configured_checks = status_checks.get("checks") or []
+    configured_contexts = {
+        item.get("context") if isinstance(item, dict) else item
+        for item in configured_checks
+    }
+    configured_contexts.discard(None)
+    expected_contexts = set(expected_required_checks)
+    exact_required_checks = (
+        status_checks.get("strict") is True
+        and bool(expected_contexts)
+        and configured_contexts == expected_contexts
+    )
+
+    approved_reviews = [
+        review for review in (pr or {}).get("reviews", [])
+        if review.get("state") == "APPROVED"
+        and review.get("author", {}).get("login") in collaborator_logins
+        and review.get("author", {}).get("login") != actor_login
+    ]
+    independent_pr_approval = (
+        bool(pr)
+        and pr.get("state") == "OPEN"
+        and pr.get("baseRefName") == "main"
+        and pr.get("reviewDecision") == "APPROVED"
+        and bool(approved_reviews)
+    )
+    pr_check_runs = {
+        item.get("name"): item.get("conclusion")
+        for item in (pr or {}).get("statusCheckRollup", [])
+        if item.get("__typename", "CheckRun") == "CheckRun"
+    }
+    pr_required_checks_passed = (
+        bool(expected_contexts)
+        and all(pr_check_runs.get(context) == "SUCCESS" for context in expected_contexts)
+    )
+
     checks = {
         "public": bool(repo) and repo.get("isPrivate") is False,
         "admin_write": bool(repo) and repo.get("viewerPermission") == "ADMIN",
@@ -219,8 +268,10 @@ def check_github(repository: str) -> dict[str, Any]:
         and repo.get("mergeCommitAllowed") is False and repo.get("rebaseMergeAllowed") is False,
         "branch_protected": protection is not None,
         "branch_rules_complete": branch_rules_complete,
-        "required_status_checks": status_checks.get("strict") is True and bool(required_checks),
+        "required_status_checks_exact": exact_required_checks,
         "independent_reviewer_available": independent_reviewer_available,
+        "independent_pr_approval": independent_pr_approval,
+        "pr_required_checks_passed": pr_required_checks_passed,
         "pages_public_workflow_https": bool(pages) and pages.get("public") is True
         and pages.get("build_type") == "workflow" and pages.get("https_enforced") is True,
         "release_environment_independent_fail_closed": environment_independent,
@@ -233,6 +284,21 @@ def check_github(repository: str) -> dict[str, Any]:
         "collaborators": collaborator_logins,
         "release_reviewers": reviewers,
         "release_can_admins_bypass": (environment or {}).get("can_admins_bypass"),
+        "required_status_checks": {
+            "expected": sorted(expected_contexts),
+            "configured": sorted(configured_contexts),
+            "strict": status_checks.get("strict"),
+        },
+        "pull_request": {
+            "number": (pr or {}).get("number"),
+            "url": (pr or {}).get("url"),
+            "head_sha": (pr or {}).get("headRefOid"),
+            "review_decision": (pr or {}).get("reviewDecision"),
+            "independent_approvers": sorted({
+                review.get("author", {}).get("login") for review in approved_reviews
+            }),
+            "check_runs": pr_check_runs,
+        },
         "errors": {
             key: value for key, value in {
                 "repository": repo_error,
@@ -242,6 +308,7 @@ def check_github(repository: str) -> dict[str, Any]:
                 "pages": pages_error,
                 "release_environment": environment_error,
                 "actions": actions_error,
+                "pull_request": pr_error,
             }.items() if value
         },
     }
@@ -251,6 +318,13 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--source-pdf", required=True, type=Path)
     parser.add_argument("--repository", default="RatelXD/secure-coding")
+    parser.add_argument("--pull-request", type=int)
+    parser.add_argument(
+        "--required-check",
+        action="append",
+        dest="required_checks",
+        help="Exact required Actions check context; repeat for multiple contexts",
+    )
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
@@ -258,7 +332,11 @@ def main() -> int:
     try:
         receipt["pdf_provenance"] = check_pdf(args.source_pdf)
         receipt["template_provenance"] = check_template()
-        receipt["github_governance"] = check_github(args.repository)
+        receipt["github_governance"] = check_github(
+            args.repository,
+            pull_request=args.pull_request,
+            expected_required_checks=tuple(args.required_checks or DEFAULT_REQUIRED_CHECKS),
+        )
     except Exception as error:  # fail closed with a serializable receipt
         receipt["verification_error"] = f"{type(error).__name__}: {error}"
     components = [value.get("passed", False) for value in receipt.values() if isinstance(value, dict)]
