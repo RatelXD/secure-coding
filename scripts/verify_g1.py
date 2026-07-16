@@ -23,6 +23,7 @@ TEMPLATE_COMMIT = "e1e524bcff217999044ca6db3da65eedf990e5e5"
 TEMPLATE_BLOB = "8e4fed1229b1a12d7090c23222230917db738e18"
 TEMPLATE_PATH = ".github/pull_request_template.md"
 DEFAULT_REQUIRED_CHECKS = ("governance",)
+GITHUB_ACTIONS_APP_ID = 15368
 TEMPLATE_SECTIONS = (
     "## Why",
     "## What changed",
@@ -188,6 +189,8 @@ def check_github(
     pr_error: str | None = "pull request number is required"
     comments: Any | None = None
     comments_error: str | None = "pull request number is required"
+    check_runs_payload: Any | None = None
+    check_runs_error: str | None = "pull request number is required"
     if pull_request is not None:
         pr, pr_error = gh_json([
             "pr", "view", str(pull_request), "--repo", repository, "--json",
@@ -197,8 +200,19 @@ def check_github(
         comments, comments_error = gh_json([
             "api", f"repos/{repository}/issues/{pull_request}/comments?per_page=100",
         ])
-
+        head_ref_oid = (pr or {}).get("headRefOid")
+        if head_ref_oid:
+            check_runs_payload, check_runs_error = gh_json([
+                "api", f"repos/{repository}/commits/{head_ref_oid}/check-runs?per_page=100",
+            ])
+    repository_name = (repo or {}).get("nameWithOwner", "")
+    repository_owner = repository_name.split("/", 1)[0] if "/" in repository_name else None
     actor_login = (actor or {}).get("login")
+    actor_is_owner = (
+        bool(repository_owner)
+        and bool(actor_login)
+        and actor_login.casefold() == repository_owner.casefold()
+    )
     collaborator_logins = [item.get("login") for item in collaborators or []]
     rules = (environment or {}).get("protection_rules", [])
     reviewer_rules = [rule for rule in rules if rule.get("type") == "required_reviewers"]
@@ -206,14 +220,18 @@ def check_github(
         reviewer.get("reviewer", {}).get("login")
         for rule in reviewer_rules
         for reviewer in rule.get("reviewers", [])
+        if reviewer.get("reviewer", {}).get("login")
     ]
     independent_reviewer_available = bool(actor_login) and any(
-        login != actor_login for login in collaborator_logins
+        login.casefold() != actor_login.casefold()
+        for login in collaborator_logins
+        if login
     )
-    environment_self_review_allowed = (
-        bool(actor_login)
+    environment_owner_review_required = (
+        actor_is_owner
         and bool(reviewer_rules)
-        and actor_login in reviewers
+        and len(reviewers) == 1
+        and reviewers[0].casefold() == repository_owner.casefold()
         and all(rule.get("prevent_self_review") is False for rule in reviewer_rules)
         and (environment or {}).get("can_admins_bypass") is False
     )
@@ -227,40 +245,56 @@ def check_github(
         and (protection or {}).get("allow_deletions", {}).get("enabled") is False
     )
     configured_checks = status_checks.get("checks") or []
-    configured_contexts = {
-        item.get("context") if isinstance(item, dict) else item
+    configured_check_pairs = {
+        (item.get("context"), item.get("app_id"))
         for item in configured_checks
+        if isinstance(item, dict) and item.get("context")
     }
-    configured_contexts.discard(None)
     expected_contexts = set(expected_required_checks)
+    expected_check_pairs = {
+        (context, GITHUB_ACTIONS_APP_ID) for context in expected_contexts
+    }
     exact_required_checks = (
         status_checks.get("strict") is True
         and bool(expected_contexts)
-        and configured_contexts == expected_contexts
+        and configured_check_pairs == expected_check_pairs
     )
 
     head_sha = (pr or {}).get("headRefOid")
-    self_review_marker = f"G1-SELF-REVIEW: APPROVED head={head_sha}"
+    self_review_marker = f"G1-GOVERNANCE-BOOTSTRAP-SELF-REVIEW: APPROVED head={head_sha}"
     self_review_comments = [
         comment for comment in comments or []
-        if comment.get("user", {}).get("login") == actor_login
-        and self_review_marker in comment.get("body", "")
+        if actor_is_owner
+        and comment.get("user", {}).get("login", "").casefold()
+        == repository_owner.casefold()
+        and comment.get("body") == self_review_marker
+        and bool(comment.get("created_at"))
+        and comment.get("updated_at") == comment.get("created_at")
     ]
     documented_self_review = (
-        bool(pr)
+        actor_is_owner
+        and bool(pr)
         and pr.get("state") == "OPEN"
         and pr.get("baseRefName") == "main"
         and bool(head_sha)
         and bool(self_review_comments)
     )
-    pr_check_runs = {
-        item.get("name"): item.get("conclusion")
-        for item in (pr or {}).get("statusCheckRollup", [])
-        if item.get("__typename", "CheckRun") == "CheckRun"
+    check_runs = (check_runs_payload or {}).get("check_runs", [])
+    check_runs_by_context = {
+        context: [run for run in check_runs if run.get("name") == context]
+        for context in expected_contexts
     }
     pr_required_checks_passed = (
         bool(expected_contexts)
-        and all(pr_check_runs.get(context) == "SUCCESS" for context in expected_contexts)
+        and all(
+            len(check_runs_by_context[context]) == 1
+            and check_runs_by_context[context][0].get("head_sha") == head_sha
+            and check_runs_by_context[context][0].get("status") == "completed"
+            and check_runs_by_context[context][0].get("conclusion") == "success"
+            and check_runs_by_context[context][0].get("app", {}).get("id")
+            == GITHUB_ACTIONS_APP_ID
+            for context in expected_contexts
+        )
     )
 
     checks = {
@@ -276,7 +310,7 @@ def check_github(
         "pr_required_checks_passed": pr_required_checks_passed,
         "pages_public_workflow_https": bool(pages) and pages.get("public") is True
         and pages.get("build_type") == "workflow" and pages.get("https_enforced") is True,
-        "release_environment_self_review_allowed": environment_self_review_allowed,
+        "release_environment_owner_review_required": environment_owner_review_required,
         "actions_enabled": bool(actions) and actions.get("enabled") is True,
     }
     return {
@@ -284,13 +318,21 @@ def check_github(
         "checks": checks,
         "review_mode": "documented-self-review",
         "authenticated_actor": actor_login,
+        "repository_owner": repository_owner,
+        "authenticated_actor_is_owner": actor_is_owner,
         "collaborators": collaborator_logins,
         "independent_reviewer_available": independent_reviewer_available,
         "release_reviewers": reviewers,
         "release_can_admins_bypass": (environment or {}).get("can_admins_bypass"),
         "required_status_checks": {
-            "expected": sorted(expected_contexts),
-            "configured": sorted(configured_contexts),
+            "expected": [
+                {"context": context, "app_id": GITHUB_ACTIONS_APP_ID}
+                for context in sorted(expected_contexts)
+            ],
+            "configured": [
+                {"context": context, "app_id": app_id}
+                for context, app_id in sorted(configured_check_pairs)
+            ],
             "strict": status_checks.get("strict"),
         },
         "pull_request": {
@@ -302,7 +344,7 @@ def check_github(
             "self_review_comment_ids": sorted(
                 comment.get("id") for comment in self_review_comments if comment.get("id") is not None
             ),
-            "check_runs": pr_check_runs,
+            "check_runs": check_runs_by_context,
         },
         "errors": {
             key: value for key, value in {
@@ -315,6 +357,7 @@ def check_github(
                 "actions": actions_error,
                 "pull_request": pr_error,
                 "pull_request_comments": comments_error,
+                "commit_check_runs": check_runs_error,
             }.items() if value
         },
     }

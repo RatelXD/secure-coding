@@ -62,5 +62,17 @@ Entries are append-only and use IDs `SEC-YYYY-NNN`.
 - Why: the separate reviewer integration can inspect repository content but cannot submit GitHub reviews or comments with its current app permissions.
 - Before: G1 required a distinct collaborator approval and `prevent_self_review=true`, leaving the project blocked on integration permissions.
 - What changed: the user explicitly authorized documented self-review. Branch-required approvals are removed, while strict exact CI, admin enforcement, linear history, no force-push/delete, credential remediation, and current-head review binding remain mandatory.
-- After: G1 may pass only when the repository owner posts `G1-SELF-REVIEW: APPROVED head=<current PR SHA>` and every required check succeeds.
+- After: governance bootstrap PR #1 may be self-reviewed only when the repository owner posts `G1-GOVERNANCE-BOOTSTRAP-SELF-REVIEW: APPROVED head=<current PR SHA>` and every required check succeeds; this receipt does not complete G1.
 - Residual risk: reviewer independence and protection from confirmation bias are absent until the independent integration is repaired. The user accepted this temporary risk.
+
+### SEC-2026-005 — Governance workflow bootstrap trust gap
+
+- Stage: G1 governance bootstrap
+- Severity: release blocker after bootstrap merge
+- Evidence: Architect review of PR #1 head `c0663a2f914a3db057ee2d33fa2885968bab82fc`
+- Why: a `pull_request` workflow is loaded from the proposed revision, so the same PR can alter the code behind a required check while retaining its check name.
+- Before: the first governance PR necessarily introduces the workflow because `main` has no trusted workflow to run.
+- What changed: the owner identity, exact unedited marker, required GitHub Actions app ID, current head SHA, unique completed check run, full-history runtime-path guard, and pinned full-history secret scanner are verified.
+- After: PR #1 can establish the governance baseline under explicit owner bootstrap review, but overall G1 remains BLOCK until a follow-up installs a default-branch-trusted `pull_request_target` governance check that never executes PR-controlled code and branch protection requires its distinct context.
+- Verification: the bootstrap merge and the trusted-workflow follow-up must use separate PRs and receipts; product implementation remains prohibited between them.
+- Residual risk: the bootstrap check is not an independent attestation. The exact-head owner review is the temporary compensating control.
