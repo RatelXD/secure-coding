@@ -18,4 +18,4 @@ The renderer OCI image digest, package hashes, and font hashes must be added her
 
 `scripts/render-report.sh --release-sha <RC_SHA> --output dist/secure-coding-report-generic.pdf` must reject a dirty tree, a different `HEAD`, a tag that does not target `HEAD`, missing pinned tools/fonts, or any external fetch. Two runs from the same checkout/container/environment must have identical SHA-256 and page count.
 
-**Gate status:** BLOCKED until the digest and package/font hashes are proven. This is independent of the separate independent-review blocker and must not be bypassed with workstation tools.
+**Gate status:** BLOCKED until the digest and package/font hashes are proven. This is independent of the documented self-review and credential-remediation gates and must not be bypassed with workstation tools.

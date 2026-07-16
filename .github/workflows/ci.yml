@@ -13,9 +13,37 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.12.10'
+      - name: Reject GJC runtime state from PR history
+        if: github.event_name == 'pull_request'
+        shell: python
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          import os
+          import subprocess
+
+          result = subprocess.run(
+              [
+                  'git', 'log', '--format=', '--name-only',
+                  f"{os.environ['BASE_SHA']}..{os.environ['HEAD_SHA']}",
+                  '--', ':(glob).gjc/state/**', ':(glob).gjc/_session-*/**',
+              ],
+              check=True,
+              capture_output=True,
+              text=True,
+          )
+          forbidden = sorted({line for line in result.stdout.splitlines() if line})
+          if forbidden:
+              raise SystemExit(
+                  'GJC runtime state appeared in PR history: '
+                  + ', '.join(forbidden)
+              )
       - name: Verify public governance and pinned skills
         shell: python
         run: |
