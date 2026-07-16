@@ -1,0 +1,18 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; line-height: 1.5; }
+body { margin: 0; color: #17202a; background: #f7f8fa; }
+a { color: #0756a3; }
+.site-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 1rem max(1rem, calc((100% - 64rem) / 2)); background: #fff; border-bottom: 1px solid #dfe4ea; }
+.brand { color: #17202a; font-weight: 700; text-decoration: none; }
+nav { display: flex; align-items: center; gap: 1rem; }
+main { width: min(64rem, calc(100% - 2rem)); margin: 2rem auto; }
+form:not(.inline) { max-width: 32rem; }
+label { display: block; font-weight: 600; }
+input, textarea, button { box-sizing: border-box; max-width: 100%; padding: .6rem; font: inherit; }
+input, textarea { width: 100%; border: 1px solid #9aa4af; border-radius: .25rem; }
+button, .button { display: inline-block; border: 0; border-radius: .25rem; padding: .65rem 1rem; color: #fff; background: #0756a3; cursor: pointer; text-decoration: none; }
+.inline { display: inline; }
+.inline button { padding: .35rem .65rem; }
+.error, .errorlist { color: #a61b1b; }
+.notice { padding: .75rem; border-left: .25rem solid #0756a3; background: #eaf3fc; }
+.cards { padding: 0; list-style: none; }
+.cards li { margin-bottom: .75rem; padding: 1rem; background: #fff; border: 1px solid #dfe4ea; border-radius: .25rem; }

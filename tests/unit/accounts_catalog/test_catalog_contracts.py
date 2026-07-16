@@ -1,4 +1,5 @@
 import pytest
+from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
 
 from apps.accounts.models import User
@@ -18,7 +19,12 @@ pytestmark = pytest.mark.django_db
 def test_product_owner_is_explicit_and_protected() -> None:
     """TEST-ID CAT-OWNER-001: a product has one durable owner and cannot orphan on delete."""
     owner = User.objects.create_user(username="owner_01", password="not-a-real-secret-123")
-    product = Product.objects.create(owner=owner, title="Example", description="Description")
+    product = Product.objects.create(
+        owner=owner,
+        title="Example",
+        description="Description",
+        price=10_000,
+    )
 
     assert product.owner_id == owner.pk
     with pytest.raises(ProtectedError):
@@ -27,9 +33,30 @@ def test_product_owner_is_explicit_and_protected() -> None:
 
 def test_product_owner_update_boundary_excludes_authority_fields() -> None:
     """TEST-ID CAT-OWNER-002: owner edits cannot rebind ownership or version authority."""
-    assert OWNER_MUTABLE_FIELDS == {"title", "description", "image"}
+    assert OWNER_MUTABLE_FIELDS == {"title", "description", "price", "sale_state", "image"}
     assert {"id", "owner_id", "version", "created_at", "updated_at"} <= OWNER_IMMUTABLE_FIELDS
     assert OWNER_MUTABLE_FIELDS.isdisjoint(OWNER_IMMUTABLE_FIELDS)
+
+
+def test_product_price_and_sale_state_have_database_constraints() -> None:
+    owner = User.objects.create_user(username="owner_01", password="not-a-real-secret-123")
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Product.objects.create(
+            owner=owner,
+            title="Invalid price",
+            description="Description",
+            price=0,
+        )
+
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Product.objects.create(
+            owner=owner,
+            title="Invalid state",
+            description="Description",
+            price=1,
+            sale_state="INVALID",
+        )
 
 
 def test_product_has_no_persisted_visibility_shortcut() -> None:

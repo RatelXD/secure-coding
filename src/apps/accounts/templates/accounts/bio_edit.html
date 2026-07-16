@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}소개글 변경{% endblock %}
+{% block content %}
+<h1>소개글 변경</h1>
+<form method="post" novalidate>
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit">저장</button>
+</form>
+{% endblock %}

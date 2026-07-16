@@ -33,3 +33,36 @@ class User(AbstractUser):
     def save(self, *args: object, **kwargs: object) -> None:
         self.username = canonicalize_username(self.username)
         super().save(*args, **kwargs)
+
+
+class LoginThrottle(models.Model):
+    """Database-authoritative failure window for one opaque login identity."""
+
+    class Scope(models.TextChoices):
+        ACCOUNT = "account", "Account"
+        IP = "ip", "IP"
+
+    scope = models.CharField(max_length=8, choices=Scope.choices)
+    identifier_digest = models.CharField(max_length=64)
+    window_started_at = models.DateTimeField()
+    failure_count = models.PositiveIntegerField(default=0)
+    blocked_until = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("scope", "identifier_digest"),
+                name="accounts_login_throttle_identity_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("scope", "blocked_until"),
+                name="accounts_login_block_idx",
+            ),
+            models.Index(
+                fields=("updated_at",),
+                name="accounts_login_updated_idx",
+            ),
+        ]

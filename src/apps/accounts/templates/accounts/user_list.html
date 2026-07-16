@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}사용자 목록{% endblock %}
+{% block content %}
+<h1>사용자 목록</h1>
+<ul class="cards">
+  {% for profile_user in users %}
+    <li><a href="{% url 'accounts:user_detail' profile_user.username %}">{{ profile_user.username }}</a>{% if profile_user.bio %}<p>{{ profile_user.bio }}</p>{% endif %}</li>
+  {% empty %}<li>등록된 사용자가 없습니다.</li>{% endfor %}
+</ul>
+{% endblock %}

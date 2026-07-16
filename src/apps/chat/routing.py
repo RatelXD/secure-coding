@@ -1,8 +1,10 @@
 from __future__ import annotations
 
-from django.urls.resolvers import URLPattern
+from django.urls import path
+from django.urls.resolvers import URLPattern, URLResolver
 
-# Cycle 1 consumers are introduced only after G2. Keeping the exported routing
-# contract empty makes the ASGI skeleton executable without exposing a fake or
-# unauthenticated WebSocket endpoint.
-websocket_urlpatterns: list[URLPattern] = []
+from .consumers import ChatConsumer
+
+websocket_urlpatterns: list[URLPattern | URLResolver] = [
+    path("ws/chat/rooms/<int:room_id>/", ChatConsumer.as_asgi(), name="chat-room-socket"),
+]
