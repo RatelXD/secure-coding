@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "gate": "G6R-1",
+  "schema_version": 2,
+  "gate": "G6R-2",
   "source_root_hint": "../asset/stitch_ui_v1/stitch_",
   "policy": {
     "runtime_remote_urls_allowed": 0,
@@ -16,8 +16,8 @@
       "resolution": "local-replacement-required",
       "target": "src/static/fonts/NotoSansKR-Variable.woff2",
       "usage": "Bundled Korean body and heading fallback; no network fallback.",
-      "license": "SIL OFL 1.1; ship the license with the font.",
-      "checksum": "SHA-256 must be recorded before G6R-2 activation"
+      "license": "SIL OFL 1.1; bundled at src/static/fonts/OFL.txt.",
+      "checksum": "5f743318149c7a14fae8f021432362979efd78cce1923d0b5e2d54c34ba1aabe"
     },
     {
       "kind": "icon",
@@ -25,8 +25,8 @@
       "resolution": "local-replacement-required",
       "target": "src/static/icons/stitch-symbols.svg",
       "usage": "Only the icon allowlist recorded per screen; accessible controls retain Korean names.",
-      "license": "Apache-2.0 or project-owned redraw; record the selected provenance.",
-      "checksum": "SHA-256 must be recorded before G6R-2 activation"
+      "license": "Project-owned redraw; no Material Symbols font bytes were copied.",
+      "checksum": "a3da37c6e7892af7a1e24c2dfe7fbfed6b2d19c27607dc1e1df9c557b80f50bf"
     },
     {
       "kind": "toolchain",
@@ -44,7 +44,7 @@
       "target": "src/static/images/brand/logo.svg",
       "usage": "One project-owned logo for desktop and mobile; do not copy Stitch bytes.",
       "license": "Project-owned artwork",
-      "checksum": "SHA-256 must be recorded before G6R-2 activation"
+      "checksum": "b06ae878b49b7cc4c3256feeb6e696e8f513d3159ecd3d88ddafb4ab6c35e1eb"
     },
     {
       "kind": "hero",
@@ -53,7 +53,7 @@
       "target": "src/static/images/hero/exchange.svg",
       "usage": "Project-owned decorative image with empty alt text; do not copy Stitch bytes.",
       "license": "Project-owned artwork",
-      "checksum": "SHA-256 must be recorded before G6R-2 activation"
+      "checksum": "6065e2db77c1ea843b943789c2223d5efb9dbf15c36f4a7c0061088e4d58b7f3"
     },
     {
       "kind": "product",
@@ -62,7 +62,7 @@
       "target": "Product.image until G7A, then ordered ProductImage or src/static/images/product-default.svg",
       "usage": "Validated local JPEG/PNG/WebP only; Stitch bytes and URLs are never imported.",
       "license": "Uploader attestation, approved demo manifest, or project-owned default",
-      "checksum": "ProductImage/demo manifest SHA-256; default image SHA-256 in static manifest"
+      "checksum": "ProductImage/demo manifest SHA-256; project-owned default: 72d94627ee1b18121ba8d8eab69d4707a9da233a7af950285dffdc723fb59d61"
     },
     {
       "kind": "avatar",
@@ -72,6 +72,81 @@
       "usage": "Avoid invented identity and biometric imagery; expose no username beyond authorized views.",
       "license": "Not applicable",
       "checksum": "Not applicable: no file"
+    }
+  ],
+  "installed_assets": [
+    {
+      "kind": "font",
+      "path": "src/static/fonts/NotoSansKR-Variable.woff2",
+      "sha256": "5f743318149c7a14fae8f021432362979efd78cce1923d0b5e2d54c34ba1aabe",
+      "usage_conditions": "Self-hosted only; use for Korean body and heading text at weights 100 through 900; do not add a network font fallback.",
+      "license": "SIL Open Font License 1.1",
+      "license_path": "src/static/fonts/OFL.txt",
+      "provenance": {
+        "repository": "github.com/google/fonts",
+        "revision": "389b770410cc0b7c21c85673bfa2077420fe7f65",
+        "source_path": "ofl/notosanskr/NotoSansKR[wght].ttf",
+        "source_sha256": "194018e6b2b293a7964f037b25c0249ce1418bc9ab3c971060a03aa57861e252",
+        "conversion": "fontTools 4.46.0 WOFF2 with Brotli 1.1.0"
+      }
+    },
+    {
+      "kind": "license",
+      "path": "src/static/fonts/OFL.txt",
+      "sha256": "babcfe66c8a098b2fa279bc724a3a342f8124f77ce18941fbcc1bbb39823cded",
+      "usage_conditions": "Keep this license bundled with Noto Sans KR and preserve its notices.",
+      "license": "SIL Open Font License 1.1",
+      "provenance": {
+        "repository": "github.com/google/fonts",
+        "revision": "389b770410cc0b7c21c85673bfa2077420fe7f65",
+        "source_path": "ofl/notosanskr/OFL.txt",
+        "normalization": "Removed one trailing ASCII space from line 21; license wording is unchanged."
+      }
+    },
+    {
+      "kind": "icon",
+      "path": "src/static/icons/stitch-symbols.svg",
+      "sha256": "a3da37c6e7892af7a1e24c2dfe7fbfed6b2d19c27607dc1e1df9c557b80f50bf",
+      "usage_conditions": "Use only these symbols in semantic controls with a visible or Korean accessible name; decorative instances must be hidden from assistive technology.",
+      "license": "Project-owned original SVG redraw",
+      "provenance": {
+        "author": "secure-coding project",
+        "derived_from_external_bytes": false
+      },
+      "symbols": ["add", "add_circle", "add_photo_alternate", "arrow_back", "chair", "chat", "chat_bubble", "check", "checkroom", "chevron_left", "chevron_right", "devices", "done_all", "expand_more", "favorite", "favorite_border", "flag", "home", "kitchen", "location_on", "lock", "logout", "menu_book", "more_horiz", "more_vert", "notifications", "person", "report", "schedule", "search", "send", "shield", "sports_baseball", "verified_user", "visibility"]
+    },
+    {
+      "kind": "logo",
+      "path": "src/static/images/brand/logo.svg",
+      "sha256": "b06ae878b49b7cc4c3256feeb6e696e8f513d3159ecd3d88ddafb4ab6c35e1eb",
+      "usage_conditions": "Use as the single local brand mark; provide the product name in adjacent text or an accessible image name.",
+      "license": "Project-owned original SVG artwork",
+      "provenance": {
+        "author": "secure-coding project",
+        "derived_from_external_bytes": false
+      }
+    },
+    {
+      "kind": "hero",
+      "path": "src/static/images/hero/exchange.svg",
+      "sha256": "6065e2db77c1ea843b943789c2223d5efb9dbf15c36f4a7c0061088e4d58b7f3",
+      "usage_conditions": "Use only as local home hero artwork; render with empty alternative text when the surrounding copy conveys the same message.",
+      "license": "Project-owned original SVG artwork",
+      "provenance": {
+        "author": "secure-coding project",
+        "derived_from_external_bytes": false
+      }
+    },
+    {
+      "kind": "product-default",
+      "path": "src/static/images/product-default.svg",
+      "sha256": "72d94627ee1b18121ba8d8eab69d4707a9da233a7af950285dffdc723fb59d61",
+      "usage_conditions": "Use only when a product has no validated local image; never substitute a Stitch-hosted photograph or URL.",
+      "license": "Project-owned original SVG artwork",
+      "provenance": {
+        "author": "secure-coding project",
+        "derived_from_external_bytes": false
+      }
     }
   ],
   "screens": [

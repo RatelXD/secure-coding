@@ -1,10 +1,41 @@
 {% extends "base.html" %}
-{% block title %}홈 | 안전한 중고거래{% endblock %}
+{% load static %}
+{% block title %}홈 | 주거니 받거니{% endblock %}
 {% block content %}
-<section class="hero">
-  <h1>안전하게 연결되는 중고거래</h1>
-  <p>필요한 물건과 이웃을 확인하고 안전한 대화를 시작하세요.</p>
-  <a class="button" href="{% url 'catalog:list' %}">상품 둘러보기</a>
-  <a class="button" href="{% url 'accounts:user_list' %}">사용자 둘러보기</a>
+<section class="hero" aria-labelledby="home-heading">
+  <div class="hero__content">
+    <p class="hero__eyebrow">이웃과 이어지는 따뜻한 순환</p>
+    <h1 id="home-heading">필요한 건 받고,<br>쓰지 않는 건 건네세요</h1>
+    <p class="hero__description">공개된 상품과 이웃을 확인하고, 서로 존중하는 안전한 대화를 시작하세요.</p>
+    <div class="hero__actions">
+      <a class="button button--primary" href="{% url 'catalog:list' %}">상품 둘러보기</a>
+      <a class="button button--secondary" href="{% url 'accounts:user_list' %}">이웃 둘러보기</a>
+    </div>
+  </div>
+  <img class="hero__image" src="{% static 'images/hero/exchange.svg' %}" alt="" width="360" height="280">
+</section>
+
+<section class="home-guide" aria-labelledby="home-guide-heading">
+  <div class="section-heading">
+    <p class="section-heading__eyebrow">주거니 받거니 이용 안내</p>
+    <h2 id="home-guide-heading">가볍게 둘러보고 신중하게 연결하세요</h2>
+  </div>
+  <ol class="home-guide__list">
+    <li class="home-guide__item">
+      <span class="home-guide__step" aria-hidden="true">1</span>
+      <h3>상품 확인</h3>
+      <p>등록된 상품의 설명과 판매자 정보를 꼼꼼히 확인하세요.</p>
+    </li>
+    <li class="home-guide__item">
+      <span class="home-guide__step" aria-hidden="true">2</span>
+      <h3>이웃 확인</h3>
+      <p>공개 프로필에서 이웃의 소개와 판매 상품을 살펴보세요.</p>
+    </li>
+    <li class="home-guide__item">
+      <span class="home-guide__step" aria-hidden="true">3</span>
+      <h3>안전한 대화</h3>
+      <p>로그인한 뒤 서비스 안의 채팅으로 거래 내용을 확인하세요.</p>
+    </li>
+  </ol>
 </section>
 {% endblock %}

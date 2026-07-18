@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 480" role="img" aria-labelledby="title desc">
+  <title id="title">상품 기본 이미지</title>
+  <desc id="desc">등록된 상품 사진이 없을 때 표시하는 상자 그림</desc>
+  <rect width="640" height="480" fill="#F5F1E8"/>
+  <circle cx="320" cy="228" r="154" fill="#E6EDDF"/>
+  <path d="m191 191 129-69 129 69-129 69-129-69Z" fill="#D99A5E"/>
+  <path d="m191 191 129 69v142l-129-69V191Z" fill="#BE7545"/>
+  <path d="m449 191-129 69v142l129-69V191Z" fill="#E6AB70"/>
+  <path d="M320 260v142M191 191l129 69 129-69M320 122v54" fill="none" stroke="#6C4935" stroke-linejoin="round" stroke-width="8"/>
+  <path d="M286 140h68v67l-34 18-34-18v-67Z" fill="#FFF1D6" opacity=".85"/>
+  <path d="M262 313h54" stroke="#FFF1D6" stroke-linecap="round" stroke-width="10"/>
+</svg>
