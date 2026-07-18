@@ -40,11 +40,15 @@
       </header>
 
       <section class="product-seller-card" aria-label="판매자 정보">
-        <div class="product-seller-card__avatar" aria-hidden="true">{{ product.owner.username|first }}</div>
-        <div>
-          <h2>{{ product.owner.username }}</h2>
-          <p>{% if product.region %}{{ product.region.label }}{% else %}지역 미설정{% endif %}</p>
-        </div>
+        {% if seller_identity.is_tombstone %}
+          <h2>{{ seller_identity.display_name }}</h2>
+        {% else %}
+          <div class="product-seller-card__avatar" aria-hidden="true">{{ seller_identity.display_name|first }}</div>
+          <div>
+            <h2>{{ seller_identity.display_name }}</h2>
+            <p>{% if product.region %}{{ product.region.label }}{% else %}지역 미설정{% endif %}</p>
+          </div>
+        {% endif %}
       </section>
 
       <section class="product-description" aria-labelledby="product-description-heading">

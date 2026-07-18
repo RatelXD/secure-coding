@@ -5,6 +5,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_http_methods
+from apps.accounts.services import project_account_identity
 
 from apps.catalog.models import Product
 
@@ -34,7 +35,10 @@ def _render_report_form(
 @login_required
 @require_http_methods(["GET", "POST"])
 def report_user(request: HttpRequest, target_id: int) -> HttpResponse:
-    target = get_object_or_404(get_user_model().objects.only("pk", "username"), pk=target_id)
+    target = get_object_or_404(
+        get_user_model().objects.only("pk", "username", "withdrawn_at"),
+        pk=target_id,
+    )
     form = UserReportForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
         try:
@@ -53,7 +57,7 @@ def report_user(request: HttpRequest, target_id: int) -> HttpResponse:
     return _render_report_form(
         request,
         form=form,
-        target_label=target.username,
+        target_label=project_account_identity(user=target).display_name,
         status=status,
     )
 

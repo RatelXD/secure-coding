@@ -4,7 +4,7 @@
 <h1>사용자 목록</h1>
 <ul class="cards">
   {% for profile_user in users %}
-    <li><a href="{% url 'accounts:user_detail' profile_user.username %}">{{ profile_user.username }}</a>{% if profile_user.bio %}<p>{{ profile_user.bio }}</p>{% endif %}</li>
+    <li>{% if profile_user.identity.is_tombstone %}{{ profile_user.identity.display_name }}{% else %}<a href="{% url 'accounts:user_detail' profile_user.canonical_username %}">{{ profile_user.identity.display_name }}</a>{% endif %}{% if profile_user.bio %}<p>{{ profile_user.bio }}</p>{% endif %}</li>
   {% empty %}<li>등록된 사용자가 없습니다.</li>{% endfor %}
 </ul>
 {% endblock %}

@@ -11,6 +11,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from apps.accounts.services import project_account_identity
 from apps.moderation.services import visible_products
 
 from .projectors import ProductState, effective_product_state
@@ -79,7 +80,14 @@ def product_detail(request: HttpRequest, pk: int) -> HttpResponse:
     if not is_product_public(product_id=product.pk):
         raise Http404
     _attach_effective_state(product=product, db_now=_database_now())
-    return render(request, "catalog/product_detail.html", {"product": product})
+    return render(
+        request,
+        "catalog/product_detail.html",
+        {
+            "product": product,
+            "seller_identity": project_account_identity(user=product.owner),
+        },
+    )
 
 
 @login_required
