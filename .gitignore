@@ -16,6 +16,9 @@ htmlcov/
 *.sqlite3
 media/
 staticfiles/
+node_modules/
+playwright-report/
+test-results/
 
 # GJC runtime state (project-local pinned skills remain tracked)
 .gjc/*

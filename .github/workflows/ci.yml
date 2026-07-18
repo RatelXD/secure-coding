@@ -1,139 +1,270 @@
 name: ci
 
 on:
-  pull_request_target:
-  push:
-    branches: [main]
+  pull_request:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.12.13'
+  NODE_VERSION: '22.23.0'
+  UV_VERSION: '0.11.29'
+
 jobs:
-  governance:
-    name: governance-trusted
+  governance-title:
+    name: governance-title
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          repository: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name || github.repository }}
-          ref: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.12.10'
-      - name: Reject secret-scanner bypass configuration
-        shell: python
-        run: |
-          from pathlib import Path
-
-          bypass_files = [
-              path for path in (Path('.gitleaks.toml'), Path('.gitleaksignore'))
-              if path.exists()
-          ]
-          if bypass_files:
-              raise SystemExit(
-                  'repository-controlled gitleaks configuration is forbidden: '
-                  + ', '.join(str(path) for path in bypass_files)
-              )
-      - name: Scan complete Git history for secrets
-        shell: bash
-        run: >-
-          docker run --rm
-          -v "$GITHUB_WORKSPACE:/repo:ro"
-          -w /repo
-          ghcr.io/gitleaks/gitleaks@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854
-          git --redact --no-banner /repo
-      - name: Reject GJC runtime state from PR history
-        if: github.event_name == 'pull_request_target'
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Resolve and enforce immutable Korean title
         shell: python
         env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           import os
+          import runpy
           import subprocess
 
-          result = subprocess.run(
-              [
-                  'git', 'log', '--format=', '--name-only',
-                  f"{os.environ['BASE_SHA']}..{os.environ['HEAD_SHA']}",
-                  '--', ':(glob).gjc/state/**', ':(glob).gjc/_session-*/**',
-              ],
+          head = os.environ['HEAD_SHA']
+          subject = subprocess.run(
+              ['git', 'show', '-s', '--format=%s', head],
               check=True,
               capture_output=True,
               text=True,
+          ).stdout.rstrip('\n')
+          count = int(subprocess.run(
+              ['git', 'rev-list', '--count', f"{os.environ['BASE_SHA']}..{head}"],
+              check=True,
+              capture_output=True,
+              text=True,
+          ).stdout)
+          validator = runpy.run_path(
+              'scripts/verify_pr_title.py',
+              run_name='verify_pr_title',
           )
-          forbidden = sorted({line for line in result.stdout.splitlines() if line})
-          if forbidden:
-              raise SystemExit(
-                  'GJC runtime state appeared in PR history: '
-                  + ', '.join(forbidden)
-              )
-      - name: Verify public governance and pinned skills
-        shell: python
+          errors = validator['validate_pr'](
+              os.environ['PR_TITLE'],
+              subject,
+              count,
+          )
+          if errors:
+              raise SystemExit('\n'.join(errors))
+      - name: Verify governance and pinned toolchain contracts
         run: |
-          from pathlib import Path
-          import hashlib, re, sys
+          python .github/verify_toolchain.py --static
+          python -m unittest discover -s tests/governance -v
+      - name: Success receipt
+        run: echo 'CI receipt governance-title=PASS (title and governance executed)'
 
-          required = [
-              'README.md', 'mkdocs.yml', '.github/pull_request_template.md',
-              'docs/report/index.md', 'docs/report/source-ledger.md',
-              'docs/report/evidence-policy.md', 'docs/report/toolchain.lock.md',
-              '.gjc/skills/manifest.md',
-          ]
-          missing = [p for p in required if not Path(p).is_file()]
-          if missing:
-              raise SystemExit(f'missing governance files: {missing}')
-          unexpected_runtime_files = [
-              path for path in Path('.gjc').rglob('*')
-              if path.is_file() and not path.is_relative_to('.gjc/skills')
-          ]
-          if unexpected_runtime_files:
-              raise SystemExit(
-                  'GJC runtime state must never be tracked: '
-                  + ', '.join(str(path) for path in unexpected_runtime_files)
+  python-checks:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: unit
+            patterns: 'src/**;tests/unit/**;pyproject.toml;uv.lock;Dockerfile;.github/workflows/ci.yml;.github/toolchain.json'
+            command: 'uv run pytest -q tests/unit'
+          - name: integration-postgres-redis
+            patterns: 'src/**;tests/integration/**;compose.yaml;compose.test.yaml;pyproject.toml;uv.lock;Dockerfile;.github/workflows/ci.yml;.github/toolchain.json'
+            command: 'uv run pytest -q tests/integration'
+          - name: security
+            patterns: 'src/**;tests/security/**;compose.yaml;compose.test.yaml;pyproject.toml;uv.lock;Dockerfile;.github/**'
+            command: 'uv run pytest -q tests/security'
+          - name: migration
+            patterns: 'src/**/models.py;src/**/migrations/**;src/config/**;pyproject.toml;uv.lock;compose.yaml;compose.test.yaml;Dockerfile;.github/workflows/ci.yml;.github/toolchain.json'
+            command: 'uv run python src/manage.py makemigrations --check --dry-run && uv run python src/manage.py migrate --noinput'
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Detect relevant paths
+        id: changes
+        shell: python
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          PATTERNS: ${{ matrix.patterns }}
+        run: |
+          import fnmatch
+          import os
+          import subprocess
+
+          base = os.environ.get('BASE_SHA', '')
+          if not base or base == '0' * 40:
+              changed = ['<initial-push>']
+              relevant = True
+          else:
+              changed = subprocess.run(
+                  ['git', 'diff', '--name-only', base, os.environ['HEAD_SHA']],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              ).stdout.splitlines()
+              patterns = os.environ['PATTERNS'].split(';')
+              relevant = any(
+                  fnmatch.fnmatch(path, pattern)
+                  for path in changed
+                  for pattern in patterns
               )
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              print(f"relevant={'true' if relevant else 'false'}", file=output)
+          print(f"Relevant paths: {relevant}; changed files: {len(changed)}")
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        if: steps.changes.outputs.relevant == 'true'
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install pinned Python toolchain
+        if: steps.changes.outputs.relevant == 'true'
+        run: |
+          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
+          uv sync --frozen --group test
+      - name: Start isolated PostgreSQL and Redis
+        if: steps.changes.outputs.relevant == 'true'
+        run: docker compose -p "secure-coding-ci-${{ strategy.job-index }}" -f compose.yaml -f compose.test.yaml up -d --wait db redis
+      - name: Execute focused check
+        if: steps.changes.outputs.relevant == 'true'
+        env:
+          APP_ENV: test
+          DJANGO_SETTINGS_MODULE: config.settings
+          DJANGO_DEBUG: '1'
+          DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,testserver
+          POSTGRES_DB: marketplace
+          POSTGRES_USER: marketplace
+          POSTGRES_PASSWORD: development-only-database-password
+          POSTGRES_HOST: 127.0.0.1
+          POSTGRES_PORT: '55432'
+          POSTGRES_SSLMODE: disable
+          REDIS_URL: redis://127.0.0.1:56379/0
+          CHECK_COMMAND: ${{ matrix.command }}
+        run: bash -euo pipefail -c "$CHECK_COMMAND"
+      - name: Stop isolated services
+        if: always() && steps.changes.outputs.relevant == 'true'
+        run: docker compose -p "secure-coding-ci-${{ strategy.job-index }}" -f compose.yaml -f compose.test.yaml down -v
+      - name: Executed success receipt
+        if: steps.changes.outputs.relevant == 'true'
+        run: echo 'CI receipt ${{ matrix.name }}=PASS (focused check executed)'
+      - name: Path-skip success receipt
+        if: steps.changes.outputs.relevant != 'true'
+        run: echo 'CI receipt ${{ matrix.name }}=PASS (no relevant paths)'
 
-          manifest = Path('.gjc/skills/manifest.md').read_text()
-          skill = None
-          verified = 0
-          for line in manifest.splitlines():
-              if line == '## humanize-korean':
-                  skill = 'humanize-korean'
-              elif line == '## mermaid-skill':
-                  skill = 'mermaid-skill'
-              match = re.fullmatch(r'\| `([^`]+)` \| ([0-9,]+) \| `([0-9a-f]{64})` \|', line)
-              if skill and match:
-                  relative, byte_text, wanted = match.groups()
-                  path = Path('.gjc/skills') / skill / relative
-                  body = path.read_bytes()
-                  if len(body) != int(byte_text.replace(',', '')):
-                      raise SystemExit(f'{path}: byte length mismatch')
-                  got = hashlib.sha256(body).hexdigest()
-                  if got != wanted:
-                      raise SystemExit(f'{path}: SHA-256 mismatch: {got}')
-                  verified += 1
-          if verified != 16:
-              raise SystemExit(f'expected 16 pinned skill files, verified {verified}')
+  browser-a11y:
+    name: browser-a11y
+    runs-on: ubuntu-24.04
+    container:
+      image: mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48
+    env:
+      POSTGRES_DB: marketplace
+      POSTGRES_USER: marketplace
+      POSTGRES_PASSWORD: development-only-database-password
+      POSTGRES_HOST: db
+      POSTGRES_PORT: '5432'
+      POSTGRES_SSLMODE: disable
+      REDIS_URL: redis://redis:6379/0
+    services:
+      db:
+        image: postgres:17.10-alpine3.23@sha256:8189a1f6e40904781fc9e2612687877791d21679866db58b1de996b31fc312e4
+        env:
+          POSTGRES_DB: marketplace
+          POSTGRES_USER: marketplace
+          POSTGRES_PASSWORD: development-only-database-password
+        options: >-
+          --health-cmd "pg_isready -U marketplace -d marketplace"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7.4.9-alpine3.21@sha256:6ab0b6e7381779332f97b8ca76193e45b0756f38d4c0dcda72dbb3c32061ab99
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Detect browser-relevant paths and tests
+        id: changes
+        shell: python
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          import fnmatch
+          import os
+          from pathlib import Path
+          import subprocess
 
-          template = Path('.github/pull_request_template.md').read_text()
-          sections = [
-              '## Why', '## What changed', '## Docs consulted', '## Docs updated',
-              '## Tests / validation', '## Migration / rollback',
-              '## Screenshots (UI only)', '## Open questions / follow-ups',
-              '## Security / secure coding', '## Release impact',
-          ]
-          absent = [s for s in sections if s not in template]
-          if absent:
-              raise SystemExit(f'PR template sections missing: {absent}')
-
-          forbidden = re.compile(r'(/home/[A-Za-z0-9._-]+/|https://[a-z0-9-]+\.ngrok-free\.app|(?:authorization|cookie):\s*\S+|(?:LMS_(?:ID|PASSWORD)|SESSION_KEY)\s*=)', re.I)
-          for root in ('README.md', 'docs', 'dist'):
-              p = Path(root)
-              paths = [p] if p.is_file() else list(p.rglob('*')) if p.exists() else []
-              for candidate in paths:
-                  if candidate.is_file() and candidate.suffix.lower() in {'.md', '.txt', '.html'}:
-                      if forbidden.search(candidate.read_text(errors='ignore')):
-                          raise SystemExit(f'public-data policy violation: {candidate}')
-          print('governance checks passed')
+          base = os.environ.get('BASE_SHA', '')
+          if not base or base == '0' * 40:
+              changed = ['<initial-push>']
+              relevant = True
+          else:
+              changed = subprocess.run(
+                  ['git', 'diff', '--name-only', base, os.environ['HEAD_SHA']],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              ).stdout.splitlines()
+              patterns = (
+                  'src/**/*.html', 'src/**/*.css', 'src/**/*.js',
+                  'tests/e2e/**', 'package.json', 'package-lock.json',
+                  'playwright.config.js', '.github/workflows/ci.yml',
+                  '.github/toolchain.json', '.github/verify_toolchain.py',
+              )
+              relevant = any(
+                  fnmatch.fnmatch(path, pattern)
+                  for path in changed
+                  for pattern in patterns
+              )
+          has_tests = any(Path('tests/e2e').glob('**/*.spec.*'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              print(f"relevant={'true' if relevant else 'false'}", file=output)
+              print(f"has_tests={'true' if has_tests else 'false'}", file=output)
+          print(
+              f"Browser-relevant paths: {relevant}; "
+              f"browser specs: {has_tests}; changed files: {len(changed)}"
+          )
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        if: steps.changes.outputs.relevant == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Require browser smoke specs
+        if: steps.changes.outputs.relevant == 'true'
+        run: test "${{ steps.changes.outputs.has_tests }}" = 'true'
+      - name: Install and verify locked browser toolchain
+        if: steps.changes.outputs.relevant == 'true'
+        run: |
+          python -m pip install --disable-pip-version-check "uv==${UV_VERSION}"
+          uv sync --frozen
+          npm ci --ignore-scripts
+          python .github/verify_toolchain.py
+      - name: Run Chromium and local axe checks
+        if: steps.changes.outputs.relevant == 'true'
+        run: npx playwright test
+      - name: Executed success receipt
+        if: steps.changes.outputs.relevant == 'true'
+        run: echo 'CI receipt browser-a11y=PASS (two-viewport browser and axe checks executed)'
+      - name: Path-skip success receipt
+        if: steps.changes.outputs.relevant != 'true'
+        run: echo 'CI receipt browser-a11y=PASS (no browser-relevant paths)'
