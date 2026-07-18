@@ -1,21 +1,70 @@
 {% extends "base.html" %}
-{% block title %}{{ product.title }}{% endblock %}
+{% load static %}
+{% block title %}{{ product.title }} | 주거니 받거니{% endblock %}
 {% block content %}
-<article>
-  <h1>{{ product.title }}</h1>
-  {% if product.image %}<img src="{{ product.image.url }}" alt="{{ product.title }} 상품 이미지">{% endif %}
-  <p>{{ product.description|linebreaksbr }}</p>
-  <dl>
-    <dt>가격</dt><dd>{{ product.price }}원</dd>
-    <dt>판매 상태</dt><dd>{{ product.get_sale_state_display }}</dd>
-    <dt>판매자</dt><dd>{{ product.owner.username }}</dd>
-  </dl>
-  {% if user.is_authenticated and user.pk == product.owner_id %}
-    <p><a href="{% url 'catalog:update' product.pk %}">수정</a></p>
-    <p><a href="{% url 'catalog:delete' product.pk %}">삭제</a></p>
-  {% endif %}
-  {% if user.is_authenticated and user.pk != product.owner_id %}
-    <p><a href="{% url 'moderation:report-product' product.pk %}">상품 신고</a></p>
-  {% endif %}
+<article class="product-detail">
+  <p class="back-link"><a href="{% url 'catalog:list' %}">← 목록으로 돌아가기</a></p>
+
+  <div class="product-detail__layout">
+    <section class="gallery-grid" aria-label="{{ product.title }} 이미지">
+      {% with primary_image=product.images.all|first %}
+        <figure class="gallery-grid__primary">
+          {% if primary_image %}
+            <img src="{{ primary_image.image.url }}" alt="{{ product.title }} 이미지 1">
+          {% else %}
+            <img src="{% static 'images/product-default.svg' %}" alt="">
+            <figcaption>등록된 상품 이미지가 없습니다.</figcaption>
+          {% endif %}
+          <span class="badge badge-primary">{{ product.effective_state_label }}</span>
+        </figure>
+      {% endwith %}
+      {% if product.images.all %}
+        <ol class="gallery-grid__thumbnails" aria-label="상품 이미지 목록">
+          {% for item in product.images.all %}
+            <li class="product-gallery__item" id="product-image-{{ forloop.counter }}"><img src="{{ item.image.url }}" alt="{{ product.title }} 이미지 {{ forloop.counter }}"></li>
+          {% endfor %}
+        </ol>
+      {% endif %}
+    </section>
+
+    <div class="product-detail__content">
+      <header class="product-detail__heading">
+        <div>
+          <div class="product-detail__badges">
+            <span class="badge badge-primary">{{ product.effective_state_label }}</span>
+            <span class="badge">{{ product.category.label }}</span>
+          </div>
+          <h1>{{ product.title }}</h1>
+          <p class="product-detail__price">{{ product.price }}원</p>
+        </div>
+      </header>
+
+      <section class="product-seller-card" aria-label="판매자 정보">
+        <div class="product-seller-card__avatar" aria-hidden="true">{{ product.owner.username|first }}</div>
+        <div>
+          <h2>{{ product.owner.username }}</h2>
+          <p>{% if product.region %}{{ product.region.label }}{% else %}지역 미설정{% endif %}</p>
+        </div>
+      </section>
+
+      <section class="product-description" aria-labelledby="product-description-heading">
+        <h2 id="product-description-heading">상품 설명</h2>
+        <p>{{ product.description|linebreaksbr }}</p>
+      </section>
+
+      <footer class="product-detail__footer">
+        {% if user.is_authenticated and user.pk == product.owner_id %}
+          <div class="product-detail__actions">
+            <a class="button button--primary" href="{% url 'catalog:update' product.pk %}">상품 수정</a>
+            <a class="button button-outline" href="{% url 'catalog:delete' product.pk %}">상품 삭제</a>
+          </div>
+        {% endif %}
+        {% if user.is_authenticated and user.pk != product.owner_id %}
+          <a class="report-link" href="{% url 'moderation:report-product' product.pk %}">상품 신고</a>
+        {% endif %}
+        <p class="product-safety-notice"><strong>안전한 거래를 위해 외부 링크나 개인정보 전달에 주의해 주세요.</strong> 주거니 받거니 앱 내 채팅을 이용하는 것이 가장 안전합니다.</p>
+      </footer>
+    </div>
+  </div>
 </article>
 {% endblock %}

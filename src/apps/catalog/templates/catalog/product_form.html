@@ -1,11 +1,89 @@
 {% extends "base.html" %}
-{% block title %}{% if mode == "create" %}상품 등록{% else %}상품 수정{% endif %}{% endblock %}
+{% block title %}{% if mode == "create" %}상품 등록{% else %}상품 수정{% endif %} | 주거니 받거니{% endblock %}
 {% block content %}
-<h1>{% if mode == "create" %}상품 등록{% else %}상품 수정{% endif %}</h1>
-<form method="post" enctype="multipart/form-data">
-  {% csrf_token %}
-  {{ form.as_p }}
-  <button type="submit">저장</button>
-</form>
-{% if product %}<p><a href="{% url 'catalog:detail' product.pk %}">취소</a></p>{% endif %}
+<section class="catalog-form-page" aria-labelledby="product-form-heading">
+  <header class="catalog-form-page__header">
+    <h1 id="product-form-heading" class="section-title">{% if mode == "create" %}상품 등록{% else %}상품 수정{% endif %}</h1>
+    <p>이웃과 나눌 상품의 정보를 정확하게 입력해 주세요.</p>
+  </header>
+
+  {% if product and product.images.all %}
+    <section class="current-gallery" aria-labelledby="current-gallery-heading">
+      <h2 id="current-gallery-heading">현재 등록된 이미지</h2>
+      <ol class="gallery-thumbnails">
+        {% for item in product.images.all %}
+          <li><img src="{{ item.image.url }}" alt="{{ product.title }} 이미지 {{ forloop.counter }}"></li>
+        {% endfor %}
+      </ol>
+    </section>
+  {% endif %}
+
+  <form class="form-card product-form" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+    {% if form.non_field_errors %}
+      <div class="error" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="form-field form-field--upload{% if form.images.errors %} form-field--error{% endif %}">
+      <label for="{{ form.images.id_for_label }}">{{ form.images.label }}</label>
+      <div class="upload-zone">
+        {{ form.images }}
+        <p class="upload-zone__title">클릭하여 이미지를 업로드하거나 여기로 파일을 놓아 주세요.</p>
+        <p class="upload-zone__help">최대 4장 / JPEG, PNG, WebP / 장당 5 MiB</p>
+      </div>
+      {% if form.images.help_text %}<p class="help-text">{{ form.images.help_text }}</p>{% endif %}
+      {% if form.images.errors %}<div class="error" role="alert">{{ form.images.errors }}</div>{% endif %}
+    </div>
+
+    <div class="form-field{% if form.title.errors %} form-field--error{% endif %}">
+      {{ form.title.label_tag }}
+      {{ form.title }}
+      {% if form.title.help_text %}<p class="help-text">{{ form.title.help_text }}</p>{% endif %}
+      {% if form.title.errors %}<div class="error" role="alert">{{ form.title.errors }}</div>{% endif %}
+    </div>
+
+    <div class="product-form__row">
+      <div class="form-field{% if form.price.errors %} form-field--error{% endif %}">
+        {{ form.price.label_tag }}
+        <div class="price-input">{{ form.price }}<span aria-hidden="true">원</span></div>
+        {% if form.price.help_text %}<p class="help-text">{{ form.price.help_text }}</p>{% endif %}
+        {% if form.price.errors %}<div class="error" role="alert">{{ form.price.errors }}</div>{% endif %}
+      </div>
+      <div class="form-field{% if form.category.errors %} form-field--error{% endif %}">
+        {{ form.category.label_tag }}
+        {{ form.category }}
+        {% if form.category.help_text %}<p class="help-text">{{ form.category.help_text }}</p>{% endif %}
+        {% if form.category.errors %}<div class="error" role="alert">{{ form.category.errors }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="form-field{% if form.region.errors %} form-field--error{% endif %}">
+      {{ form.region.label_tag }}
+      {{ form.region }}
+      {% if form.region.help_text %}<p class="help-text">{{ form.region.help_text }}</p>{% endif %}
+      {% if form.region.errors %}<div class="error" role="alert">{{ form.region.errors }}</div>{% endif %}
+    </div>
+
+    <div class="form-field{% if form.description.errors %} form-field--error{% endif %}">
+      {{ form.description.label_tag }}
+      {{ form.description }}
+      {% if form.description.help_text %}<p class="help-text">{{ form.description.help_text }}</p>{% endif %}
+      {% if form.description.errors %}<div class="error" role="alert">{{ form.description.errors }}</div>{% endif %}
+    </div>
+
+    {% if form.clear_images %}
+      <div class="form-field form-field--checkbox{% if form.clear_images.errors %} form-field--error{% endif %}">
+        {{ form.clear_images }}
+        {{ form.clear_images.label_tag }}
+        {% if form.clear_images.errors %}<div class="error" role="alert">{{ form.clear_images.errors }}</div>{% endif %}
+      </div>
+    {% endif %}
+
+    <div class="form-actions">
+      <a class="button button-outline" href="{% if product %}{% url 'catalog:detail' product.pk %}{% else %}{% url 'catalog:list' %}{% endif %}">취소</a>
+      <button class="secondary-button" type="submit">저장</button>
+    </div>
+  </form>
+</section>
 {% endblock %}

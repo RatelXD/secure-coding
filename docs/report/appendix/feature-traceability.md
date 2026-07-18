@@ -7,7 +7,7 @@
 | `FR-USER-01` | 회원가입·로그인 | Django 인증·세션, 아이디 정규화, DB 제한 | `apps/accounts` model/form/service/view | 계정 HTTP·병렬 제한 테스트 | PASS | 계정·IP 임계값과 일반 오류 확인 |
 | `FR-USER-02` | 공개 사용자 조회 | 공개 필드 allowlist | `accounts/views.py`, 사용자 목록·상세 template | 민감 필드 비노출·XSS 테스트 | PASS | 아이디·소개글만 공개 |
 | `FR-USER-03` | 본인 소개글·비밀번호 변경 | 세션 행위자·변경 필드 allowlist | `accounts/forms.py`, `views.py` | 본인 변경·IDOR·CSRF·세션 테스트 | PASS | 본인 세션에서만 변경 |
-| `FR-PRODUCT-01` | 상품 등록 | 소유자 관계·안전 이미지 파이프라인 | `catalog/models.py`, `forms.py`, `services.py`, `views.py` | 가격·이미지·우회 입력 테스트 | PASS | 가격과 안전한 이미지 필수 |
+| `FR-PRODUCT-01` | 상품 등록 | 소유자 관계·안전 이미지 파이프라인 | `catalog/models.py`, `forms.py`, `services.py`, `views.py` | 가격·이미지·우회 입력 테스트 | PASS | 가격은 필수이며 이미지는 선택 사항, 제출한 이미지는 안전 처리 |
 | `FR-PRODUCT-02` | 본인 상품 관리 | 객체 소유권·버전 확인 | `catalog/views.py` | IDOR·CSRF·버전 충돌 테스트 | PASS | 잠금 안에서 소유자 재확인 |
 | `FR-PRODUCT-03` | 목록·상세 조회 | DB 시각 공개 여부 정책 | `catalog/views.py`, `moderation/services.py` | 공개·비노출·만료 조회 테스트 | PASS | 활성 제재 상품은 404 |
 | `FR-CHAT-01` | 전체 채팅 | ASGI·인증·Origin·DB 수락 | `chat/consumers.py`, `services.py`, `views.py` | 입력·재전송·속도·장애 테스트 | PASS | DB 저장 뒤 전달·ACK |
@@ -50,9 +50,21 @@
 | `관리-중복-01` | 중복 제재·해제의 상태 안전성 | 활성 제재 단일성·기존 결과 반환·만료 뒤 `SanctionRelease` 금지 | 없음(후속 구현) | 순차/병렬 중복 적용·반복 해제·만료 뒤 해제 409 테스트 | 설계 확정·미구현·미검증 | 기간 연장과 성공 감사 중복 금지 |
 
 2차 표의 `예정 검증`은 테스트 계약일 뿐 실행 근거가 아닙니다. 후속 구현에서 실제 파일, 명령, 결과를 확인한 뒤에만 구현·테스트 열과 상태를 갱신합니다.
+## G7A-1 상품 권위 구현 추적
+
+이 표는 구현 파일과 검증 시나리오의 연결을 기록합니다. 2026-07-18 UTC에 집중 테스트 53건, 전체 `pytest` 224건과 하위 사례 346건, 데스크톱 브라우저 2건, 거버넌스 55건을 같은 작업 트리에서 확인했습니다.
+
+| 정책 ID | 설계·위협 ID | 마이그레이션 ID | 구현 위치 | 테스트 ID | 한국어 시나리오와 기대값 | 상태 |
+|---|---|---|---|---|---|---|
+| `G7A-이미지-01` | `VULN-03`, 별도 byte 소유권 | `catalog.0003_catalog_authority_expand` | `apps/catalog/models.py`, catalog image service | `G7A-CAT-MIG-001`, `G7A-CAT-GUARD-002`, `G7A-CAT-GUARD-004` | 기존 source를 별도 migrated key로 복사하고 source/destination byte·checksum을 일치시킨다. reverse에서도 외부 byte를 파괴하지 않는다. | 통과 |
+| `G7A-이미지-02` | `VULN-03`, gallery 경계 | `catalog.0003`, `0005`, `0006` | catalog form/service/view, `ProductImage`, 삭제 intent | `G7A-CAT-BOUNDARY-001`, `002`, lifecycle 집중 테스트 | 인증 사용자의 0·1·4장 입력 순서, 5장 거부, temp→owned 승격과 실패 재시도, legacy key 비공유를 확인한다. | 통과 |
+| `G7A-분류지역-01` | 최소 지역정보·allowlist | `catalog.0003_catalog_authority_expand` | `Category`, `Region`, `Product.region_source`, catalog list | `G7A-CAT-REF-001`, `G7A-CAT-REGION-001`, `002` | 승인된 7개 분류, 기존 NULL 지역의 `LEGACY_UNSET`, 지역 생략·정확 선택·잘못된 코드의 fail-closed를 확인한다. | 통과 |
+| `G7A-거래권위-01` | typed legacy SOLD·단일 read projector | `trades.0001_typed_trade_authority` | `apps/trades/models.py`, `apps/catalog/projectors.py` | `G7A-CAT-PROJECTOR-001`~`003`, `G7A-CAT-MIG-001` | SOLD 호환값을 buyer 없는 `LEGACY_SOLD/COMPLETED` Trade로 이관하고 `sale_state`를 읽기 권위로 사용하지 않는다. | 통과 |
+| `G7A-동결-01` | mixed old/new write 금지 | `catalog.0004`, `0006` | DB trigger, owner field allowlist | `G7A-CAT-GUARD-001`~`004` | cutover 뒤 legacy 권위 변경과 Product hard DELETE, legacy/gallery shared key 직접 쓰기를 정확한 trigger로 거부한다. | 통과 |
+| `G7A-권한회귀-01` | 세션 행위자·CSRF·소유권 | 해당 없음(기존 HTTP 경계 유지) | catalog form/view | `G7A-CAT-AUTHZ-001`, 기존 catalog HTTP 회귀 | 비인증 다중 이미지 요청은 상품과 이미지 row를 만들지 못하며 기존 소유자·CSRF 경계를 약화하지 않는다. | 통과 |
 ## 추적표 갱신 규칙
 
-1. 파일이 생겼다는 이유만으로 상태를 `PASS`로 바꾸지 않습니다.
+1. 파일이 생겼다는 이유만으로 상태를 `통과`로 바꾸지 않습니다.
 2. 현재 저장소에 반영된 코드와 실제 테스트 결과를 기준으로 갱신합니다.
 3. 테스트 근거에는 명령, 결과, 대상 코드 상태를 함께 기록합니다.
 4. 요구사항과 코드가 다르면 차이를 비고에 남기고 구현 또는 문서를 수정합니다.

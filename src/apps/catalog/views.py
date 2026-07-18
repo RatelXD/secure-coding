@@ -1,31 +1,84 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+
 
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
-from django.db.models.deletion import ProtectedError
+from django.db import connection, transaction
+from django.db.models import Prefetch
+
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from apps.moderation.services import visible_products
+
+from .projectors import ProductState, effective_product_state
 from .forms import ProductCreateForm, ProductUpdateForm
-from .models import Product
-from .services import is_product_public
+from .models import Product, ProductImage, Region
+from .services import (
+    _persist_exception_cleanup_failures,
+    _record_cleanup_failures,
+    is_product_public,
+    replace_product_images,
+)
 
 
 def product_list(request: HttpRequest) -> HttpResponse:
-    products = visible_products(Product.objects.select_related("owner")).order_by(
-        "-created_at",
-        "-pk",
+    region_codes = request.GET.getlist("region")
+    selected_region = None
+    region_error = False
+
+    if region_codes not in ([], [""]):
+        if len(region_codes) == 1:
+            selected_region = Region.objects.filter(code=region_codes[0]).first()
+        if selected_region is None or selected_region.code != region_codes[0]:
+            region_error = True
+
+    queryset = Product.objects.filter(archived_at__isnull=True).select_related(
+        "owner", "category", "region"
+    ).prefetch_related(
+        Prefetch(
+            "images",
+            queryset=ProductImage.objects.filter(promotion_state="PROMOTED"),
+        )
     )
-    return render(request, "catalog/product_list.html", {"products": products})
+    if region_error:
+        queryset = queryset.none()
+    elif selected_region is not None:
+        queryset = queryset.filter(region=selected_region)
+
+    products = list(visible_products(queryset).order_by("-created_at", "-pk"))
+    db_now = _database_now()
+    for product in products:
+        _attach_effective_state(product=product, db_now=db_now)
+    return render(
+        request,
+        "catalog/product_list.html",
+        {
+            "products": products,
+            "regions": Region.objects.all(),
+            "selected_region_code": selected_region.code if selected_region else "",
+            "region_error": region_error,
+        },
+    )
 
 
 def product_detail(request: HttpRequest, pk: int) -> HttpResponse:
-    product = get_object_or_404(Product.objects.select_related("owner"), pk=pk)
+    product = get_object_or_404(
+        Product.objects.filter(archived_at__isnull=True)
+        .select_related("owner", "category", "region")
+        .prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.filter(promotion_state="PROMOTED"),
+            )
+        ),
+        pk=pk,
+    )
     if not is_product_public(product_id=product.pk):
         raise Http404
+    _attach_effective_state(product=product, db_now=_database_now())
     return render(request, "catalog/product_detail.html", {"product": product})
 
 
@@ -33,16 +86,38 @@ def product_detail(request: HttpRequest, pk: int) -> HttpResponse:
 def product_create(request: HttpRequest) -> HttpResponse:
     form = ProductCreateForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
-        product = form.save(commit=False)
-        product.owner = request.user
-        product.save()
+        staging = None
+        try:
+            with transaction.atomic():
+                product = form.save(commit=False)
+                product.owner = request.user
+                product.region_source = (
+                    Product.RegionSource.SELECTED
+                    if product.region_id is not None
+                    else Product.RegionSource.LEGACY_UNSET
+                )
+                product.save()
+                staging = replace_product_images(
+                    product=product,
+                    images=form.cleaned_data["images"],
+                )
+        except Exception as exc:
+            if staging is not None:
+                _record_cleanup_failures(exc=exc, keys=staging.cleanup())
+            _persist_exception_cleanup_failures(exc=exc)
+            raise
         return redirect("catalog:detail", pk=product.pk)
     return render(request, "catalog/product_form.html", {"form": form, "mode": "create"})
 
 
 @login_required
 def product_update(request: HttpRequest, pk: int) -> HttpResponse:
-    product = get_object_or_404(Product, pk=pk, owner_id=request.user.pk)
+    product = get_object_or_404(
+        Product,
+        pk=pk,
+        owner_id=request.user.pk,
+        archived_at__isnull=True,
+    )
     form = ProductUpdateForm(
         request.POST or None,
         request.FILES or None,
@@ -56,49 +131,69 @@ def product_update(request: HttpRequest, pk: int) -> HttpResponse:
             {"form": form, "mode": "update", "product": product},
         )
 
-    with transaction.atomic():
-        locked = get_object_or_404(
-            Product.objects.select_for_update(),
-            pk=pk,
-            owner_id=request.user.pk,
-        )
-        if form.cleaned_data["version"] != locked.version:
-            form.add_error(None, "다른 요청에서 상품이 변경되었습니다. 새로고침 후 다시 시도해 주세요.")
-            return render(
-                request,
-                "catalog/product_form.html",
-                {"form": form, "mode": "update", "product": locked},
-                status=409,
+    staging = None
+    try:
+        with transaction.atomic():
+            locked = get_object_or_404(
+                Product.objects.select_for_update(),
+                pk=pk,
+                owner_id=request.user.pk,
+                archived_at__isnull=True,
             )
+            if form.cleaned_data["version"] != locked.version:
+                form.add_error(None, "다른 요청에서 상품이 변경되었습니다. 새로고침 후 다시 시도해 주세요.")
+                return render(
+                    request,
+                    "catalog/product_form.html",
+                    {"form": form, "mode": "update", "product": locked},
+                    status=409,
+                )
 
-        old_image_name = locked.image.name
-        locked.title = form.cleaned_data["title"]
-        locked.description = form.cleaned_data["description"]
-        locked.price = form.cleaned_data["price"]
-        locked.sale_state = form.cleaned_data["sale_state"]
-        if form.cleaned_data["image"] is not None:
-            locked.image = form.cleaned_data["image"]
-        locked.version += 1
-        locked.save(
-            update_fields=(
-                "title",
-                "description",
-                "price",
-                "sale_state",
-                "image",
-                "version",
-                "updated_at",
+            locked.title = form.cleaned_data["title"]
+            locked.description = form.cleaned_data["description"]
+            locked.price = form.cleaned_data["price"]
+            locked.category = form.cleaned_data["category"]
+            locked.region = form.cleaned_data["region"]
+            locked.region_source = (
+                Product.RegionSource.SELECTED
+                if locked.region_id is not None
+                else Product.RegionSource.LEGACY_UNSET
             )
-        )
-        if old_image_name and old_image_name != locked.image.name:
-            _delete_after_commit(locked.image.storage.delete, old_image_name)
+            locked.version += 1
+            locked.save(
+                update_fields=(
+                    "title",
+                    "description",
+                    "price",
+                    "category",
+                    "region",
+                    "region_source",
+                    "version",
+                    "updated_at",
+                )
+            )
+            if form.cleaned_data["images"] or form.cleaned_data["clear_images"]:
+                staging = replace_product_images(
+                    product=locked,
+                    images=form.cleaned_data["images"],
+                )
+    except Exception as exc:
+        if staging is not None:
+            _record_cleanup_failures(exc=exc, keys=staging.cleanup())
+        _persist_exception_cleanup_failures(exc=exc)
+        raise
 
     return redirect("catalog:detail", pk=locked.pk)
 
 
 @login_required
 def product_delete(request: HttpRequest, pk: int) -> HttpResponse:
-    product = get_object_or_404(Product, pk=pk, owner_id=request.user.pk)
+    product = get_object_or_404(
+        Product,
+        pk=pk,
+        owner_id=request.user.pk,
+        archived_at__isnull=True,
+    )
     if request.method != "POST":
         return render(request, "catalog/product_confirm_delete.html", {"product": product})
 
@@ -112,19 +207,37 @@ def product_delete(request: HttpRequest, pk: int) -> HttpResponse:
             Product.objects.select_for_update(),
             pk=pk,
             owner_id=request.user.pk,
+            archived_at__isnull=True,
         )
         if submitted_version != locked.version:
             return HttpResponse("상품이 변경되었습니다. 새로고침 후 다시 시도해 주세요.", status=409)
-        image_name = locked.image.name
-        storage_delete = locked.image.storage.delete
-        try:
-            locked.delete()
-        except ProtectedError:
-            return HttpResponse("신고 기록이 있는 상품은 삭제할 수 없습니다.", status=409)
-        if image_name:
-            _delete_after_commit(storage_delete, image_name)
+        locked.archived_at = _database_now()
+        locked.version += 1
+        locked.save(update_fields=("archived_at", "version", "updated_at"))
     return redirect("catalog:list")
 
 
-def _delete_after_commit(delete: Callable[[str], None], name: str) -> None:
-    transaction.on_commit(lambda: delete(name))
+_PRODUCT_STATE_LABELS = {
+    ProductState.AVAILABLE: "판매 중",
+    ProductState.RESERVED: "예약 중",
+    ProductState.SOLD: "판매 완료",
+}
+
+
+def _attach_effective_state(*, product: Product, db_now) -> None:
+    state = effective_product_state(product=product, db_now=db_now)
+    product.effective_state = state.value
+    product.effective_state_label = _PRODUCT_STATE_LABELS[state]
+
+
+def _database_now():
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT CURRENT_TIMESTAMP")
+        value = cursor.fetchone()[0]
+    if isinstance(value, str):
+        value = parse_datetime(value)
+    if value is None:
+        raise RuntimeError("데이터베이스 현재 시각을 읽을 수 없습니다.")
+    if timezone.is_naive(value):
+        value = timezone.make_aware(value, timezone.get_current_timezone())
+    return value

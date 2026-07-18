@@ -4,7 +4,7 @@
 
 | 실행일 | 대상 | 명령 또는 절차 | 관찰 결과 | 상태 |
 |---|---|---|---|---|
-| 2026-07-16 | 최종 자동 테스트 | `pytest -q` | 170 tests, 217 subtests PASS | PASS |
+| 2026-07-18 UTC | 최종 자동 테스트 | `uv run pytest -q` | 224 tests, 346 subtests PASS | PASS |
 | 2026-07-16 | 테스트 인프라 재현 | README의 테스트 전용 Compose 준비·전체 테스트·정리 절차 | loopback 전용 DB·Redis에서 170 tests, 217 subtests PASS; 별도 프로젝트·볼륨 정리 확인 | PASS |
 | 2026-07-16 | 상품 이미지 지속성 | 깨끗한 Compose에서 유효 PNG 등록·미디어 GET·앱 재시작·재조회 | 등록 302, 미디어 HTTP 200 `image/png`, 재시작 후 파일·조회 유지 | PASS |
 | 2026-07-16 | DB 중단 준비 상태 | PostgreSQL 중단 뒤 3초 제한 `/readyz/`, 재시작 뒤 재요청 | 0.271초에 JSON 503, 복구 후 HTTP 200 | PASS |
@@ -32,7 +32,7 @@
 |---|---|---|---|
 | 2026-07-16 | 채팅 수락 PostgreSQL 독립 테스트 | nullable join과 행 잠금 조합으로 3 errors | 잠금·Origin·휴면 수신 집중 회귀 PASS |
 | 2026-07-16 | WebSocket 정확 Origin 독립 테스트 | Host userinfo 검증 누락으로 FAIL | 집중 회귀 PASS |
-| 2026-07-16 | 1차 통합 스위트 | 당시 `pytest -q`가 154 tests, 210 subtests PASS | 당시 수정본의 회귀 근거; 유지보수 수정 후 최종 168 tests, 216 subtests는 B.1에 기록 |
+| 2026-07-16 | 1차 통합 스위트 | 당시 `pytest -q`가 154 tests, 210 subtests PASS | 당시 수정본의 회귀 근거; 이후 기준 170 tests, 217 subtests를 거쳐 현재 224 tests, 346 subtests는 B.1에 기록 |
 | 2026-07-16 | 정식 릴리스 `v0.1.0` README 테스트 절차 | 기본 Compose 실행 뒤 문서의 `127.0.0.1:5432` 연결이 거부됨 | [issue #20](https://github.com/RatelXD/secure-coding/issues/20) 기록; 테스트 오버레이와 구성 회귀 테스트 추가 후 전체 테스트 PASS |
 | 2026-07-16 | 정식 릴리스 상품 이미지 등록 | 유효 PNG 제출이 `/app/media` 권한 오류로 HTTP 500 | [issue #21](https://github.com/RatelXD/secure-coding/issues/21) 기록; 앱 소유 디렉터리·영속 볼륨 추가 후 등록·재시작 회귀 PASS |
 | 2026-07-16 | 정식 릴리스 DB 중단 준비 상태 | `/readyz/`가 JSON 503 대신 3초 제한 시간 초과 | [issue #22](https://github.com/RatelXD/secure-coding/issues/22) 기록; 제한된 해석과 다중 주소 단일 쿼리로 수정 후 0.271초 503·복구 200 |
@@ -50,7 +50,21 @@
 | 실제 프록시·TLS | 배포 환경의 종단 프록시와 TLS | 미검증 |
 | ngrok 외부 터널 | 터널을 통한 외부 접속 | 미검증(도구 사용 불가) |
 
-## B.4 보고서용 캡처 원칙
+## B.4 상품 권위 구현 검증 근거
+
+아래 항목은 2026-07-18 UTC의 동일 작업 트리에서 PostgreSQL·Redis 테스트 환경으로 실행했습니다. 집중 스위트 53건, 전체 `pytest` 224건과 하위 사례 346건, 데스크톱 브라우저 2건, 거버넌스 55건이 통과했으며 마이그레이션 변경도 없음을 확인했습니다.
+
+| Test-ID | 대상 | 실행 절차 | 확인한 불변식 | 현재 상태 |
+|---|---|---|---|---|
+| `G7A-CAT-MIG-001` | legacy image·SOLD·region forward/reverse | `tests/integration/test_catalog_authority_migration.py` 집중 실행 | source/destination byte·SHA-256 일치와 key 분리, `LEGACY_SOLD` 1:1, NULL→`LEGACY_UNSET`, 안전한 reverse 뒤 source와 외부 copy byte 보존 | PASS |
+| `G7A-CAT-BOUNDARY-001`~`002` | gallery 0/1/4/5와 저장 수명주기 | gallery boundary/lifecycle 집중 실행 | 0·1·4장 순서·checksum 저장, 5장과 rollback 잔여 파일 0, promotion·삭제 실패의 재시도 근거 보존 | PASS |
+| `G7A-CAT-PROJECTOR-001`~`003` | Trade 읽기 권위 | `tests/unit/accounts_catalog/test_catalog_authority.py` 집중 실행 | 호환 `sale_state` 무시, typed completed만 SOLD, timezone-aware DB 경계 시각 입력 필수 | PASS |
+| `G7A-CAT-GUARD-001`~`004` | direct write·old-app·shared key | `tests/security/catalog/test_authority_guards.py` 집중 실행 | `sale_state`/legacy image UPDATE와 hard DELETE 거부, 정확한 trigger 식별, shared key 직접 쓰기 거부 | PASS |
+| `G7A-CAT-AUTHZ-001` | 기존 인증·소유권·지역 경계 | gallery 집중 테스트와 catalog HTTP 회귀 실행 | 비인증 생성 0, 소유권·CSRF 유지, 지역 생략·정확 선택·잘못된 코드 fail-closed | PASS |
+| `G7A-CAT-BROWSER-001` | 실제 로컬 catalog 브라우저 권위 | 명시 포트의 credential-free `http://127.0.0.1:<port>`에서 `npx playwright test` | 기존 서버 재사용 없이 네 장의 순서·서로 다른 이미지, 양의 natural dimension, same-origin 응답, axe·overflow·모바일/데스크톱 캡처 | PASS |
+
+실행 기록에는 대상 SHA, migration leaf, PostgreSQL/Python 버전, 시작·종료 UTC, 명령, 실제 row/count/checksum과 실패 분류를 함께 남깁니다.
+## B.5 보고서용 캡처 원칙
 
 1. 자동화된 결과와 운영 확인은 위 표의 명령·관찰 결과로 인용합니다.
 2. 캡처를 추가할 때는 사용자 실명, 비밀번호, 세션, 토큰, 로컬 절대 경로를 포함하지 않습니다.

@@ -37,6 +37,7 @@ if APP_ENV not in {"development", "test", "production"}:
     raise ImproperlyConfigured("APP_ENV must be development, test, or production")
 
 IS_PRODUCTION = APP_ENV == "production"
+CATALOG_RESEED_CATEGORIES_FOR_TESTS = APP_ENV == "test"
 DEBUG = _boolean("DJANGO_DEBUG", default=False)
 if IS_PRODUCTION and DEBUG:
     raise ImproperlyConfigured("DJANGO_DEBUG cannot be enabled in production")
@@ -86,6 +87,7 @@ INSTALLED_APPS = [
     "channels",
     "apps.accounts",
     "apps.catalog",
+    "apps.trades",
     "apps.chat",
     "apps.moderation",
 ]

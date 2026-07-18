@@ -33,8 +33,23 @@ def test_product_owner_is_explicit_and_protected() -> None:
 
 def test_product_owner_update_boundary_excludes_authority_fields() -> None:
     """TEST-ID CAT-OWNER-002: owner edits cannot rebind ownership or version authority."""
-    assert OWNER_MUTABLE_FIELDS == {"title", "description", "price", "sale_state", "image"}
-    assert {"id", "owner_id", "version", "created_at", "updated_at"} <= OWNER_IMMUTABLE_FIELDS
+    assert OWNER_MUTABLE_FIELDS == {
+        "title",
+        "description",
+        "price",
+        "category_id",
+        "region_id",
+        "region_source",
+    }
+    assert {
+        "id",
+        "owner_id",
+        "sale_state",
+        "image",
+        "version",
+        "created_at",
+        "updated_at",
+    } <= OWNER_IMMUTABLE_FIELDS
     assert OWNER_MUTABLE_FIELDS.isdisjoint(OWNER_IMMUTABLE_FIELDS)
 
 
