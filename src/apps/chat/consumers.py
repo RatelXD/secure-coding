@@ -15,6 +15,7 @@ from .services import (
     _require_active_user,
     _require_room_access,
     room_group_name,
+    user_close_group_name,
 )
 
 DORMANT_CLOSE_CODE = 4403
@@ -100,8 +101,10 @@ def _history(*, room_id: int, user_id: int, cursor: int):
 class ChatConsumer(AsyncJsonWebsocketConsumer):
     room_id: int
     room_group: str
+    user_close_group: str
     connection_id: UUID
     group_joined: bool
+    user_close_group_joined: bool
 
     async def connect(self) -> None:
         user = self.scope.get("user")
@@ -117,22 +120,36 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
 
         self.connection_id = uuid4()
         self.room_group = room_group_name(self.room_id)
+        self.user_close_group = user_close_group_name(user.pk)
         self.group_joined = False
+        self.user_close_group_joined = False
         try:
             await self.channel_layer.group_add(self.room_group, self.channel_name)
             self.group_joined = True
         except Exception:
-            self.group_joined = False
+            pass
+        try:
+            await self.channel_layer.group_add(self.user_close_group, self.channel_name)
+            self.user_close_group_joined = True
+        except Exception:
+            pass
         await self.accept()
-        if not self.group_joined:
+        if not self.group_joined or not self.user_close_group_joined:
             await self.send_json({"type": "delivery_status", "delivery": "degraded"})
 
     async def disconnect(self, close_code: int) -> None:
-        if getattr(self, "group_joined", False):
-            try:
-                await self.channel_layer.group_discard(self.room_group, self.channel_name)
-            except Exception:
-                pass
+        for group, joined in (
+            (getattr(self, "room_group", ""), getattr(self, "group_joined", False)),
+            (
+                getattr(self, "user_close_group", ""),
+                getattr(self, "user_close_group_joined", False),
+            ),
+        ):
+            if joined:
+                try:
+                    await self.channel_layer.group_discard(group, self.channel_name)
+                except Exception:
+                    pass
 
     async def receive_json(self, content: object, **kwargs: object) -> None:
         user = self.scope["user"]
@@ -243,6 +260,10 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
                 "accepted_at": event["accepted_at"],
             }
         )
+
+    async def user_close(self, event: dict[str, object]) -> None:
+        await self.close(code=DORMANT_CLOSE_CODE)
+
 
     async def _send_error(self, code: str) -> None:
         await self.send_json({"type": "error", "code": code})

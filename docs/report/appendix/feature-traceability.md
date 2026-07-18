@@ -62,6 +62,20 @@
 | `G7A-거래권위-01` | typed legacy SOLD·단일 read projector | `trades.0001_typed_trade_authority` | `apps/trades/models.py`, `apps/catalog/projectors.py` | `G7A-CAT-PROJECTOR-001`~`003`, `G7A-CAT-MIG-001` | SOLD 호환값을 buyer 없는 `LEGACY_SOLD/COMPLETED` Trade로 이관하고 `sale_state`를 읽기 권위로 사용하지 않는다. | 통과 |
 | `G7A-동결-01` | mixed old/new write 금지 | `catalog.0004`, `0006` | DB trigger, owner field allowlist | `G7A-CAT-GUARD-001`~`004` | cutover 뒤 legacy 권위 변경과 Product hard DELETE, legacy/gallery shared key 직접 쓰기를 정확한 trigger로 거부한다. | 통과 |
 | `G7A-권한회귀-01` | 세션 행위자·CSRF·소유권 | 해당 없음(기존 HTTP 경계 유지) | catalog form/view | `G7A-CAT-AUTHZ-001`, 기존 catalog HTTP 회귀 | 비인증 다중 이미지 요청은 상품과 이미지 row를 만들지 못하며 기존 소유자·CSRF 경계를 약화하지 않는다. | 통과 |
+## G7A-2 회원 탈퇴 폐기 준비 추적
+
+Phase 7A는 폐기 준비 경계만 추가하며 활성화는 Phase 7D에 맡깁니다. 2026-07-18 UTC에 계정·세션·폐기 task·채팅 종료 그룹·hard-OFF 경계를 포함한 집중 테스트 73건을 같은 작업 트리에서 통과시켰습니다.
+
+| 정책 ID | 설계·위협 경계 | 구현·검증 위치 | 테스트 ID | 한국어 시나리오와 기대값 | 상태 |
+|---|---|---|---|---|---|
+| `G7A-탈퇴-OFF-01` | 공개 탈퇴 URL·폼 0개 | `apps/accounts/urls.py`, `forms.py`, `tests/unit/accounts_catalog/test_withdrawal_surface_contract.py` | `G7A-WITHDRAWAL-001`, `002` | accounts URL 이름·경로와 공개 form inventory에 withdraw/delete/deactivate 계열 진입점이 없음을 확인한다. | 통과 |
+| `G7A-탈퇴-OFF-02` | 파괴적 사용자 변경 0건 | `tests/integration/test_withdrawal_no_mutation.py` | `G7A-WITHDRAWAL-003` | 인증 사용자가 예상 가능한 탈퇴·삭제 경로에 GET/POST해도 모두 404이고 accounts 소유 row 전체 snapshot이 바뀌지 않는다. | 통과 |
+| `G7A-탈퇴-OFF-03` | 공개 내비게이션·동작 0개 | `src/templates/base.html`, 계정 template, `tests/security/accounts/test_withdrawal_navigation_security.py` | `G7A-WITHDRAWAL-004` | 홈·마이페이지·소개글·비밀번호 화면의 링크와 form action에 탈퇴 진입점이 없고 `회원 탈퇴` 문구도 노출되지 않는다. | 통과 |
+| `G7A-탈퇴-준비-01` | 탈퇴 계정 fail-closed·공개 tombstone | `apps/accounts/services.py`, accounts·catalog·chat 공개 presenter와 template | 계정·상품·채팅 withdrawal 서비스 테스트 | `withdrawn_at` 계정은 HTTP·채팅 권위에서 거부하고 공개 화면과 이력에는 원래 아이디·소개 대신 `탈퇴한 회원`만 표시한다. | 통과 |
+| `G7A-탈퇴-준비-02` | 인증 epoch·세션 폐기 인덱스 | `accounts.0004_withdrawal_preparation`, `UserSessionIndex`, `AccountSessionService` | `test_withdrawal_services.py`, `test_withdrawal_preparation_migration.py` | 로그인·가입·비밀번호 변경·로그아웃과 기존 유효 세션의 인덱스 생성·회전·폐기를 검증하고 epoch가 없거나 맞지 않으면 거부한다. | 통과 |
+| `G7A-탈퇴-준비-03` | 내구성 있는 폐기 task·heartbeat | `RevocationTask`, `RevocationWorkerHeartbeat`, `prepare_withdrawal_revocation` | withdrawal model·service 테스트 | 비활성·사용 불가 비밀번호·탈퇴 시각·양의 epoch가 모두 맞을 때만 canonical event key의 task를 멱등 생성하고 상태·lease·heartbeat 제약을 적용한다. | 통과 |
+| `G7A-탈퇴-준비-04` | 사용자별 WebSocket 종료 준비 | `apps/chat/services.py`, `ChatConsumer` | `tests/unit/chat/test_chat_delivery.py` | 연결마다 room 그룹과 사용자 종료 그룹을 함께 등록·해제하고 `user.close` 수신 시 4403으로 종료하며 그룹 등록 실패는 degraded로 노출한다. | 통과 |
+| `G7A-탈퇴-OFF-04` | 활성화 hard OFF | `WITHDRAWAL_ACTIVATION_ENABLED = False`, withdrawal surface contract | hard-OFF 상수·URL·form·navigation 테스트 | 환경 변수로 켤 수 없는 코드 상수와 비노출 계약을 함께 확인하고 Phase 7D 전 공개 활성화를 금지한다. | 통과 |
 ## 추적표 갱신 규칙
 
 1. 파일이 생겼다는 이유만으로 상태를 `통과`로 바꾸지 않습니다.

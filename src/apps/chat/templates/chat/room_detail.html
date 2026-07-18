@@ -6,10 +6,10 @@
   <h1 id="room-title">{% if room.kind == "GLOBAL" %}전체 채팅{% else %}1대1 채팅{% endif %}</h1>
   <p id="chat-status" role="status" aria-live="polite"></p>
   <ol id="chat-messages">
-    {% for message in chat_messages %}
-      <li data-message-id="{{ message.id }}">
-        <strong>{{ message.sender.username }}</strong>
-        <span>{{ message.body }}</span>
+    {% for chat_message in chat_messages %}
+      <li data-message-id="{{ chat_message.message.id }}">
+        <strong>{{ chat_message.sender_identity.display_name }}</strong>
+        <span>{{ chat_message.message.body }}</span>
       </li>
     {% endfor %}
   </ol>

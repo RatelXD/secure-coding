@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}{{ profile_user.username }} | 사용자{% endblock %}
+{% block title %}{{ profile_identity.display_name }} | 사용자{% endblock %}
 {% block content %}
-<h1>{{ profile_user.username }}</h1>
+<h1>{{ profile_identity.display_name }}</h1>
 <section aria-label="사용자 소개">
-  {% if profile_user.bio %}<p>{{ profile_user.bio }}</p>{% else %}<p>등록된 소개글이 없습니다.</p>{% endif %}
+  {% if profile_bio %}<p>{{ profile_bio }}</p>{% else %}<p>등록된 소개글이 없습니다.</p>{% endif %}
 </section>
-{% if user.is_authenticated and user.pk != profile_user.pk %}
+{% if show_report %}
   <p><a href="{% url 'moderation:report-user' profile_user.pk %}">사용자 신고</a></p>
 {% endif %}
 {% endblock %}

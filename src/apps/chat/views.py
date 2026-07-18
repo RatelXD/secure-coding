@@ -7,6 +7,7 @@ from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.views.decorators.http import require_GET, require_http_methods
 
+from apps.accounts.services import project_account_identity
 from .forms import DirectRoomForm
 from .models import ChatMessage, Room
 from .services import (
@@ -42,17 +43,19 @@ def room_list(request: HttpRequest) -> HttpResponse:
         .select_related("direct_user_low", "direct_user_high")
         .order_by("-created_at")
     )
-    room_rows = [
-        {
-            "room": room,
-            "other_user": (
-                room.direct_user_high
-                if room.direct_user_low_id == request.user.pk
-                else room.direct_user_low
-            ),
-        }
-        for room in direct_rooms
-    ]
+    room_rows = []
+    for room in direct_rooms:
+        other_user = (
+            room.direct_user_high
+            if room.direct_user_low_id == request.user.pk
+            else room.direct_user_low
+        )
+        room_rows.append(
+            {
+                "room": room,
+                "other_identity": project_account_identity(user=other_user),
+            }
+        )
     return render(
         request,
         "chat/room_list.html",
@@ -79,10 +82,17 @@ def room_detail(request: HttpRequest, room_id: int) -> HttpResponse:
     except ChatAuthorizationError as exc:
         raise Http404 from exc
     messages.reverse()
+    chat_messages = [
+        {
+            "message": message,
+            "sender_identity": project_account_identity(user=message.sender),
+        }
+        for message in messages
+    ]
     return render(
         request,
         "chat/room_detail.html",
-        {"room": room, "chat_messages": messages},
+        {"room": room, "chat_messages": chat_messages},
     )
 
 

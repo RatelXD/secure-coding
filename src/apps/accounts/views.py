@@ -1,5 +1,5 @@
 from django.contrib import messages
-from django.contrib.auth import login, update_session_auth_hash
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.http import Http404, HttpRequest, HttpResponse
@@ -10,7 +10,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from .forms import BioForm, LoginForm, OwnPasswordChangeForm, SignupForm
 from .models import User
-from .services import SESSION_AUTH_EPOCH_KEY, authenticate_login
+from .services import AccountSessionService, authenticate_login, project_account_identity
 from .validators import canonicalize_username
 
 _GENERIC_LOGIN_ERROR = "아이디 또는 비밀번호를 확인해 주세요. 잠시 후 다시 시도할 수 있습니다."
@@ -29,7 +29,7 @@ def signup(request: HttpRequest) -> HttpResponse:
     if request.method == "POST" and form.is_valid():
         user = form.save()
         login(request, user)
-        request.session[SESSION_AUTH_EPOCH_KEY] = user.auth_epoch
+        AccountSessionService.start(request=request, user=user)
         messages.success(request, "회원가입이 완료되었습니다.")
         return redirect("accounts:profile")
     return render(request, "accounts/signup.html", {"form": form})
@@ -51,7 +51,7 @@ def login_view(request: HttpRequest) -> HttpResponse:
             )
             if user is not None:
                 login(request, user)
-                request.session[SESSION_AUTH_EPOCH_KEY] = user.auth_epoch
+                AccountSessionService.start(request=request, user=user)
                 destination = request.POST.get("next", "")
                 if not url_has_allowed_host_and_scheme(
                     destination,
@@ -70,14 +70,21 @@ def login_view(request: HttpRequest) -> HttpResponse:
 
 @require_POST
 def logout_view(request: HttpRequest) -> HttpResponse:
-    from django.contrib.auth import logout
-
-    logout(request)
+    AccountSessionService.end(request=request)
     return redirect("home")
 
 
 def user_list(request: HttpRequest) -> HttpResponse:
-    users = User.objects.only("id", "username", "bio").order_by("username")
+    users = []
+    for user in User.objects.only("id", "username", "bio", "withdrawn_at").order_by("username"):
+        identity = project_account_identity(user=user)
+        users.append(
+            {
+                "canonical_username": user.username,
+                "identity": identity,
+                "bio": None if identity.is_tombstone else user.bio,
+            }
+        )
     return render(request, "accounts/user_list.html", {"users": users})
 
 
@@ -87,10 +94,24 @@ def user_detail(request: HttpRequest, username: str) -> HttpResponse:
     except ValidationError as exc:
         raise Http404 from exc
     profile_user = get_object_or_404(
-        User.objects.only("id", "username", "bio"),
+        User.objects.only("id", "username", "bio", "withdrawn_at"),
         username=canonical_username,
     )
-    return render(request, "accounts/user_detail.html", {"profile_user": profile_user})
+    identity = project_account_identity(user=profile_user)
+    return render(
+        request,
+        "accounts/user_detail.html",
+        {
+            "profile_user": profile_user,
+            "profile_identity": identity,
+            "profile_bio": None if identity.is_tombstone else profile_user.bio,
+            "show_report": (
+                request.user.is_authenticated
+                and request.user.pk != profile_user.pk
+                and not identity.is_tombstone
+            ),
+        },
+    )
 
 
 @login_required
@@ -116,7 +137,7 @@ def password_change(request: HttpRequest) -> HttpResponse:
     form = OwnPasswordChangeForm(user=request.user, data=request.POST or None)
     if request.method == "POST" and form.is_valid():
         user = form.save()
-        update_session_auth_hash(request, user)
+        AccountSessionService.rotate_after_password_change(request=request, user=user)
         messages.success(request, "비밀번호를 변경했습니다.")
         return redirect("accounts:profile")
     return render(request, "accounts/password_change.html", {"form": form})

@@ -16,6 +16,11 @@ from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
+from apps.accounts.services import (
+    EffectiveAccountStatus,
+    effective_account_status,
+    project_account_identity,
+)
 from apps.moderation.services import EffectiveUserStatus, effective_user_status
 
 from .models import ChatMessage, Room, RoomParticipant
@@ -131,7 +136,10 @@ def _require_active_user(*, user_id: int, lock: bool) -> Any:
         user = users.get(pk=user_id, is_active=True)
     except get_user_model().DoesNotExist as exc:
         raise ChatAuthorizationError("Chat is unavailable.") from exc
-    if effective_user_status(user_id=user_id) is not EffectiveUserStatus.ACTIVE:
+    if (
+        effective_account_status(user=user) is not EffectiveAccountStatus.ACTIVE
+        or effective_user_status(user_id=user_id) is not EffectiveUserStatus.ACTIVE
+    ):
         raise ChatAuthorizationError("Chat is unavailable.")
     return user
 
@@ -160,6 +168,12 @@ def room_group_name(room_id: int) -> str:
     return f"chat.room.{room_id}"
 
 
+def user_close_group_name(user_id: int) -> str:
+    if isinstance(user_id, bool) or not isinstance(user_id, int) or user_id <= 0:
+        raise ValueError("User ID must be a positive integer.")
+    return f"chat.user-close.{user_id}"
+
+
 def get_or_create_global_room() -> Room:
     try:
         room, _ = Room.objects.get_or_create(kind=Room.Kind.GLOBAL)
@@ -182,7 +196,10 @@ def get_or_create_direct_room(*, user_a_id: int, user_b_id: int) -> Room:
     if len(users) != 2:
         raise ChatAuthorizationError("Chat is unavailable.")
     for user in users:
-        if effective_user_status(user_id=user.pk) is not EffectiveUserStatus.ACTIVE:
+        if (
+            effective_account_status(user=user) is not EffectiveAccountStatus.ACTIVE
+            or effective_user_status(user_id=user.pk) is not EffectiveUserStatus.ACTIVE
+        ):
             raise ChatAuthorizationError("Chat is unavailable.")
 
     room, created = Room.objects.get_or_create(
@@ -261,7 +278,7 @@ class DefaultChatService:
             "type": "chat.message",
             "server_message_id": message.pk,
             "sender_id": sender.pk,
-            "sender_username": sender.username,
+            "sender_username": project_account_identity(user=sender).display_name,
             "body": message.body,
             "accepted_at": message.accepted_at.isoformat(),
         }
@@ -342,13 +359,16 @@ class DefaultChatService:
             .select_related("sender")
             .order_by("pk")[:limit]
         )
-        return [
-            HistoryMessage(
-                server_message_id=message.pk,
-                sender_id=message.sender_id,
-                sender_username=message.sender.username,
-                body=message.body,
-                accepted_at=message.accepted_at,
+        history: list[HistoryMessage] = []
+        for message in messages:
+            identity = project_account_identity(user=message.sender)
+            history.append(
+                HistoryMessage(
+                    server_message_id=message.pk,
+                    sender_id=message.sender_id,
+                    sender_username=identity.display_name,
+                    body=message.body,
+                    accepted_at=message.accepted_at,
+                )
             )
-            for message in messages
-        ]
+        return history
