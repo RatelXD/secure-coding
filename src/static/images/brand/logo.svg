@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-labelledby="title">
+  <title id="title">동네장터 로고</title>
+  <rect width="48" height="48" rx="14" fill="#E85D2A"/>
+  <path d="M11 21.5 24 11l13 10.5V36a2 2 0 0 1-2 2H13a2 2 0 0 1-2-2V21.5Z" fill="#FFF7ED"/>
+  <path d="M16 26h16M20 22v8M28 22v8" fill="none" stroke="#E85D2A" stroke-linecap="round" stroke-width="2.5"/>
+  <path d="M19 35c1.5-3 3.2-4.5 5-4.5s3.5 1.5 5 4.5" fill="none" stroke="#E85D2A" stroke-linecap="round" stroke-width="2.5"/>
+</svg>

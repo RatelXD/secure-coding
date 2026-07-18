@@ -4,30 +4,46 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}안전한 중고거래{% endblock %}</title>
+  <title>{% block title %}주거니 받거니 | 안전한 중고거래{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'site.css' %}">
 </head>
 <body>
+  <a class="skip-link" href="#main-content">본문으로 바로가기</a>
   <header class="site-header">
-    <a class="brand" href="{% url 'home' %}">안전한 중고거래</a>
-    <nav aria-label="주요 메뉴">
-      <a href="{% url 'accounts:user_list' %}">사용자</a>
-      <a href="{% url 'catalog:list' %}">상품</a>
-      {% if request.user.is_authenticated %}
-        <a href="{% url 'accounts:profile' %}">마이페이지</a>
-        <a href="{% url 'chat:room-list' %}">채팅</a>
-        <form class="inline" method="post" action="{% url 'accounts:logout' %}">
-          {% csrf_token %}
-          <button type="submit">로그아웃</button>
-        </form>
-      {% else %}
-        <a href="{% url 'accounts:login' %}">로그인</a>
-        <a href="{% url 'accounts:signup' %}">회원가입</a>
-      {% endif %}
-    </nav>
+    <div class="site-header__inner">
+      <a class="brand" href="{% url 'home' %}" aria-label="주거니 받거니 홈">
+        <img class="brand__logo" src="{% static 'images/brand/logo.svg' %}" alt="">
+        <span class="brand__name">주거니 받거니</span>
+      </a>
+      <nav class="primary-nav" aria-label="주요 메뉴">
+        <ul class="primary-nav__list">
+          <li><a href="{% url 'home' %}"{% if request.resolver_match.url_name == "home" %} aria-current="page"{% endif %}>홈</a></li>
+          <li><a href="{% url 'catalog:list' %}"{% if request.resolver_match.namespace == "catalog" %} aria-current="page"{% endif %}>상품</a></li>
+          <li><a href="{% url 'accounts:user_list' %}"{% if request.resolver_match.url_name == "user_list" %} aria-current="page"{% endif %}>이웃</a></li>
+          {% if request.user.is_authenticated %}
+            <li><a href="{% url 'catalog:create' %}">상품 등록</a></li>
+            <li><a href="{% url 'chat:room-list' %}"{% if request.resolver_match.namespace == "chat" %} aria-current="page"{% endif %}>채팅</a></li>
+            <li><a href="{% url 'accounts:profile' %}"{% if request.resolver_match.url_name == "profile" %} aria-current="page"{% endif %}>마이페이지</a></li>
+            <li>
+              <form class="inline" method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button class="nav-action" type="submit">로그아웃</button>
+              </form>
+            </li>
+          {% else %}
+            <li><a href="{% url 'accounts:login' %}">로그인</a></li>
+            <li><a class="nav-action" href="{% url 'accounts:signup' %}">회원가입</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </div>
   </header>
-  <main>
-    {% for message in messages %}<p class="notice">{{ message }}</p>{% endfor %}
+  <main id="main-content" class="site-main" tabindex="-1">
+    {% if messages %}
+      <div class="notices" aria-live="polite">
+        {% for message in messages %}<p class="notice">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
     {% block content %}{% endblock %}
   </main>
 </body>

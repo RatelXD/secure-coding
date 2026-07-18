@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 480" role="img" aria-labelledby="title desc">
+  <title id="title">이웃 간 물건 교환</title>
+  <desc id="desc">두 이웃이 상자와 화분을 서로 건네는 따뜻한 동네 풍경</desc>
+  <rect width="720" height="480" rx="40" fill="#FFF1E7"/>
+  <circle cx="600" cy="94" r="44" fill="#FFD166"/>
+  <path d="M0 348c104-55 195-52 284 5 99 63 211 57 436-24v151H0V348Z" fill="#B8D8BA"/>
+  <path d="m72 245 108-88 108 88v130H72V245Z" fill="#FFFDF8"/>
+  <path d="m54 249 126-104 126 104" fill="none" stroke="#3F6B4F" stroke-linecap="round" stroke-linejoin="round" stroke-width="18"/>
+  <rect x="122" y="277" width="56" height="98" rx="5" fill="#E85D2A"/>
+  <rect x="203" y="272" width="48" height="48" rx="5" fill="#DCEADF"/>
+  <circle cx="392" cy="202" r="38" fill="#D99A70"/>
+  <path d="M342 358v-79c0-43 24-69 50-69s50 26 50 69v79" fill="#315A4A"/>
+  <path d="m358 276-73 42M427 274l72 33" fill="none" stroke="#D99A70" stroke-linecap="round" stroke-width="22"/>
+  <circle cx="550" cy="192" r="38" fill="#B97856"/>
+  <path d="M500 359v-80c0-43 24-69 50-69s50 26 50 69v80" fill="#E85D2A"/>
+  <path d="m516 275-68 44M585 274l-70 34" fill="none" stroke="#B97856" stroke-linecap="round" stroke-width="22"/>
+  <rect x="430" y="287" width="90" height="74" rx="8" fill="#C98B52"/>
+  <path d="M475 287v74M430 310h90" fill="none" stroke="#FFF1E7" stroke-width="4"/>
+  <path d="M298 300c22-31 47-43 75-36M622 290c-17-24-35-34-55-31" fill="none" stroke="#FFFDF8" stroke-linecap="round" stroke-width="8"/>
+  <path d="M329 174c18-46 57-70 113-63M476 116c44-35 88-36 133-4" fill="none" stroke="#B8D8BA" stroke-linecap="round" stroke-width="14"/>
+</svg>

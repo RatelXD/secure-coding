@@ -30,8 +30,13 @@ src/
 | 상태 확인 | `src/config/health.py`, `src/config/urls.py` | liveness와 PostgreSQL readiness 분리 | 구현 |
 | 로컬 환경 | `Dockerfile`, `compose.yaml`, `.env.example` | 선택적 `.env`, 앱·PostgreSQL·Redis 기본 구성 | 실행 확인 |
 | 정적 채팅 자산 | `src/apps/chat/static/chat/chat.js` | DEBUG 환경에서도 채팅 JavaScript를 올바른 MIME 형식으로 제공 | 실행 확인 |
+| 공통 화면 기반 | `src/templates/base.html`, `src/templates/home.html`, `src/static/site.css` | 로컬 디자인 토큰, 반응형 내비게이션, 본문 바로가기, 명확한 키보드 포커스와 홈 안내 화면 | 브라우저 확인 |
+| 로컬 디자인 자산 | `src/static/fonts/`, `src/static/icons/`, `src/static/images/` | 한국어 글리프가 포함된 로컬 폰트와 라이선스, 로컬 SVG 아이콘·로고·안내 그림·기본 상품 이미지 | 무결성 확인 |
 
 `check --deploy`, 명시적 HTTPS CSRF 출처, 신뢰 프록시 IP 제한, Docker 이미지 빌드와 `.env` 없는 Compose 상태 확인을 실행했습니다. Compose를 재시작한 뒤에도 앱·데이터베이스·Redis가 복구되었고, `/readyz/`와 `/static/chat/chat.js`가 각각 HTTP 200으로 응답했습니다. 실제 배포의 도메인·프록시 IP·TLS 종단 값은 배포 환경에서 별도로 확인해야 합니다.
+
+공통 화면은 외부 CDN 없이 로컬 정적 자산만 요청합니다. Stitch 원본 7개 화면의 155개 컨트롤과 169개 상호작용을 매니페스트와 대조해 미해결 항목과 런타임 외부 요청이 없음을 확인했습니다. 홈 화면은 390×844와 1440×900에서 키보드 이동, 가로 넘침, 한국어 화면 정체성, WCAG 기준 axe 검사와 스크린샷 회귀 검사를 실행해 통과했습니다.
+기존의 최소 홈 화면을 로컬 폰트·로고·안내 그림·디자인 토큰을 사용하는 화면으로 교체했으며, 데스크톱에서는 본문과 그림을 나란히 배치하고 모바일에서는 버튼·그림·안내 카드를 세로로 배치하는 것을 의도한 기준 화면으로 기록했습니다.
 
 ## 3.4 사용자 기능
 

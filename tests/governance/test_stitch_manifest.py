@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import copy
 import importlib.util
@@ -7,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+import xml.etree.ElementTree as ET
 
 
 MANIFEST = Path("docs/report/stitch-ui-manifest.json")
@@ -72,7 +74,7 @@ class StitchManifestGovernanceTests(unittest.TestCase):
             requirements.keys(),
         )
         self.assertIn("Korean", requirements["font"]["usage"])
-        self.assertIn("SHA-256", requirements["font"]["checksum"])
+        self.assertRegex(requirements["font"]["checksum"], r"\A[0-9a-f]{64}\Z")
         self.assertEqual("remove", requirements["avatar"]["resolution"])
         for requirement in requirements.values():
             with self.subTest(kind=requirement["kind"]):
@@ -136,6 +138,57 @@ class StitchManifestGovernanceTests(unittest.TestCase):
                 for error in VALIDATOR._validate_contract(duplicate_icon)
             )
         )
+
+    def test_g6r_2_assets_match_checksums_provenance_and_icon_allowlist(self) -> None:
+        assets = {
+            asset["kind"]: asset
+            for asset in self.manifest["installed_assets"]
+        }
+        self.assertEqual(
+            {"font", "license", "icon", "logo", "hero", "product-default"},
+            assets.keys(),
+        )
+
+        for asset in assets.values():
+            with self.subTest(asset=asset["kind"]):
+                path = Path(asset["path"])
+                self.assertFalse(path.is_absolute())
+                self.assertTrue(path.is_file(), path)
+                self.assertEqual(
+                    asset["sha256"],
+                    hashlib.sha256(path.read_bytes()).hexdigest(),
+                )
+                self.assertTrue(asset["usage_conditions"])
+                self.assertTrue(asset["license"])
+                self.assertNotIn("://", asset["path"])
+
+        self.assertEqual(b"wOF2", Path(assets["font"]["path"]).read_bytes()[:4])
+        self.assertEqual(assets["license"]["path"], assets["font"]["license_path"])
+        self.assertEqual(
+            assets["license"]["sha256"],
+            hashlib.sha256(Path(assets["font"]["license_path"]).read_bytes()).hexdigest(),
+        )
+
+        allowed_icons = sorted(
+            {icon for screen in self.manifest["screens"] for icon in screen["icons"]}
+        )
+        self.assertEqual(allowed_icons, assets["icon"]["symbols"])
+        sprite = ET.parse(assets["icon"]["path"]).getroot()
+        installed_icons = sorted(
+            element.attrib["id"]
+            for element in sprite.iter()
+            if element.tag.rsplit("}", 1)[-1] == "symbol"
+        )
+        self.assertEqual(allowed_icons, installed_icons)
+
+        for asset in assets.values():
+            if Path(asset["path"]).suffix != ".svg":
+                continue
+            root = ET.parse(asset["path"]).getroot()
+            for element in root.iter():
+                for attribute in ("href", "src"):
+                    value = element.attrib.get(attribute, "")
+                    self.assertFalse(value.startswith(("http://", "https://")), value)
 
 
 if __name__ == "__main__":
