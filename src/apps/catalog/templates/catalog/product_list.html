@@ -1,18 +1,61 @@
 {% extends "base.html" %}
-{% block title %}상품 목록{% endblock %}
+{% load static %}
+{% block title %}상품 목록 | 주거니 받거니{% endblock %}
 {% block content %}
-<h1>상품 목록</h1>
-{% if user.is_authenticated %}<p><a href="{% url 'catalog:create' %}">상품 등록</a></p>{% endif %}
-<ul>
-  {% for product in products %}
-    <li>
-      <a href="{% url 'catalog:detail' product.pk %}">{{ product.title }}</a>
-      <span>{{ product.price }}원</span>
-      <span>{{ product.get_sale_state_display }}</span>
-      <span>판매자: {{ product.owner.username }}</span>
-    </li>
-  {% empty %}
-    <li>등록된 상품이 없습니다.</li>
-  {% endfor %}
-</ul>
+<section class="catalog-page" aria-labelledby="catalog-heading">
+  <header class="catalog-heading">
+    <div>
+      <h1 id="catalog-heading" class="section-title">중고 상품 둘러보기</h1>
+    </div>
+    {% if user.is_authenticated %}
+      <a class="secondary-button" href="{% url 'catalog:create' %}">상품 등록하기</a>
+    {% endif %}
+  </header>
+
+  <form class="filter-bar" method="get" aria-label="지역으로 상품 필터링">
+    <div class="filter-bar__region">
+      <label for="region-filter">거래 지역</label>
+      <select id="region-filter" name="region"{% if region_error %} aria-describedby="region-filter-error" aria-invalid="true"{% endif %}>
+        <option value=""{% if not selected_region_code %} selected{% endif %}>전체 지역</option>
+        {% for region in regions %}
+          <option value="{{ region.code }}"{% if selected_region_code == region.code %} selected{% endif %}>{{ region.label }}</option>
+        {% endfor %}
+      </select>
+      <button class="button button--secondary" type="submit">적용</button>
+    </div>
+  </form>
+  {% if region_error %}
+    <p id="region-filter-error" class="alert alert-error" role="alert">선택할 수 없는 지역입니다. 목록을 다시 선택해 주세요.</p>
+  {% endif %}
+
+  <ul class="product-grid">
+    {% for product in products %}
+      <li class="product-card{% if product.effective_state_label == '판매 완료' %} product-card--sold{% endif %}">
+        <a class="product-card__image-link" href="{% url 'catalog:detail' product.pk %}">
+          {% with image=product.images.all|first %}
+            {% if image %}
+              <img class="card-image" src="{{ image.image.url }}" alt="{{ product.title }} 대표 이미지">
+            {% else %}
+              <img class="card-image" src="{% static 'images/product-default.svg' %}" alt="">
+            {% endif %}
+          {% endwith %}
+          {% if product.effective_state_label == '판매 완료' %}
+            <span class="badge">{{ product.effective_state_label }}</span>
+          {% endif %}
+        </a>
+        <div class="product-card__body">
+          <h2><a href="{% url 'catalog:detail' product.pk %}">{{ product.title }}</a></h2>
+          <p class="product-card__location">{% if product.region %}{{ product.region.label }}{% else %}지역 미설정{% endif %}</p>
+          <p class="product-card__price">{{ product.price }}원</p>
+        </div>
+      </li>
+    {% empty %}
+      <li class="empty-state">
+        <img src="{% static 'images/product-default.svg' %}" alt="" width="160" height="160">
+        <h2>아직 등록된 상품이 없습니다</h2>
+        <p>이웃에게 건넬 물건을 가장 먼저 등록해 보세요.</p>
+      </li>
+    {% endfor %}
+  </ul>
+</section>
 {% endblock %}

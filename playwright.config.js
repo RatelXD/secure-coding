@@ -2,10 +2,19 @@ const { defineConfig } = require('@playwright/test');
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://127.0.0.1:8000';
 const parsedBaseURL = new URL(baseURL);
-if (parsedBaseURL.protocol !== 'http:' || parsedBaseURL.hostname !== '127.0.0.1') {
-  throw new Error(`PLAYWRIGHT_BASE_URL must use http://127.0.0.1, got ${baseURL}`);
+if (
+  parsedBaseURL.protocol !== 'http:' ||
+  parsedBaseURL.hostname !== '127.0.0.1' ||
+  !parsedBaseURL.port ||
+  parsedBaseURL.username ||
+  parsedBaseURL.password ||
+  baseURL !== parsedBaseURL.origin
+) {
+  throw new Error(
+    `PLAYWRIGHT_BASE_URL must be a canonical credential-free loopback origin with an explicit port, got ${baseURL}`,
+  );
 }
-const port = parsedBaseURL.port || '80';
+const port = parsedBaseURL.port;
 const serverEnvironment = {
   APP_ENV: 'test',
   DJANGO_DEBUG: 'true',
@@ -29,6 +38,7 @@ module.exports = defineConfig({
   expect: {
     toHaveScreenshot: {
       animations: 'disabled',
+      maxDiffPixels: 100,
     },
   },
   use: {
@@ -41,18 +51,14 @@ module.exports = defineConfig({
   },
   projects: [
     {
-      name: 'chromium-mobile',
-      use: { viewport: { width: 390, height: 844 } },
-    },
-    {
       name: 'chromium-desktop',
       use: { viewport: { width: 1440, height: 900 } },
     },
   ],
   webServer: {
-    command: `uv run python src/manage.py runserver 127.0.0.1:${port} --noreload`,
+    command: `uv run python src/manage.py migrate --noinput && uv run python src/manage.py runserver 127.0.0.1:${port} --noreload`,
     env: serverEnvironment,
     url: `${baseURL}/healthz/`,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
   },
 });

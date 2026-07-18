@@ -4,15 +4,18 @@ from uuid import UUID
 
 import pytest
 from django.http import HttpResponse
-from django.test import Client, override_settings
+from django.test import Client, TestCase, override_settings
 from django.urls import include, path, reverse
 from PIL import Image
 
 from apps.accounts.models import User
 from apps.catalog.forms import ProductCreateForm
-from apps.catalog.models import Product
+from apps.catalog.models import Product, Region
 
-urlpatterns = [path("products/", include("apps.catalog.urls"))]
+urlpatterns = [
+    path("", lambda request: HttpResponse(), name="home"),
+    path("products/", include("apps.catalog.urls")),
+]
 pytestmark = pytest.mark.django_db
 
 
@@ -47,6 +50,56 @@ def force_login_with_epoch(client: Client, user: User) -> None:
     session.save()
 
 
+@override_settings(ROOT_URLCONF="config.urls")
+def test_product_list_region_filter_is_exact_and_fails_closed() -> None:
+    owner = User.objects.create_user(username="region_owner", password="long-password-123")
+    region = Region.objects.create(code="SEOUL-JONGNO", label="서울특별시 종로구")
+    other_region = Region.objects.create(code="BUSAN-HAEUNDAE", label="부산광역시 해운대구")
+    legacy = create_product(owner, title="지역 미설정", region=None)
+    selected = create_product(
+        owner,
+        title="서울 상품",
+        region=region,
+        region_source=Product.RegionSource.SELECTED,
+    )
+    other = create_product(
+        owner,
+        title="부산 상품",
+        region=other_region,
+        region_source=Product.RegionSource.SELECTED,
+    )
+    client = Client()
+
+    omitted = client.get(reverse("catalog:list"))
+    assert omitted.status_code == 200
+    assert {product.pk for product in omitted.context["products"]} == {
+        legacy.pk,
+        selected.pk,
+        other.pk,
+    }
+    assert len(omitted.context["products"]) == 3
+    assert omitted.context["region_error"] is False
+
+    selected_response = client.get(reverse("catalog:list"), {"region": region.code})
+    assert selected_response.status_code == 200
+    assert [product.pk for product in selected_response.context["products"]] == [selected.pk]
+    assert len(selected_response.context["products"]) == 1
+    assert selected_response.context["selected_region_code"] == region.code
+
+    invalid = client.get(reverse("catalog:list"), {"region": "owner__username"})
+    assert invalid.status_code == 200
+    assert invalid.context["products"] == []
+    assert len(invalid.context["products"]) == 0
+    assert invalid.context["region_error"] is True
+    assert "선택할 수 없는 지역입니다" in invalid.content.decode()
+
+    multiple = client.get(reverse("catalog:list"), [("region", region.code), ("region", region.code)])
+    assert multiple.status_code == 200
+    assert multiple.context["products"] == []
+    assert len(multiple.context["products"]) == 0
+    assert multiple.context["region_error"] is True
+
+
 def test_create_requires_authentication_and_csrf() -> None:
     assert Client().post(reverse("catalog:create")).status_code == 302
 
@@ -62,40 +115,46 @@ def test_owner_creates_product_with_sanitized_image(tmp_path: Path) -> None:
     force_login_with_epoch(client, user)
 
     with override_settings(MEDIA_ROOT=tmp_path):
-        response = client.post(
-            reverse("catalog:create"),
-            {
-                "title": "카메라",
-                "description": "정상 작동합니다.",
-                "price": "25000",
-                "sale_state": Product.SaleState.AVAILABLE,
-                "image": png_upload(),
-            },
-        )
+        with TestCase.captureOnCommitCallbacks(execute=True):
+            response = client.post(
+                reverse("catalog:create"),
+                {
+                    "title": "카메라",
+                    "description": "정상 작동합니다.",
+                    "price": "25000",
+                    "sale_state": Product.SaleState.AVAILABLE,
+                    "category": "OTHER",
+                    "region": "",
+                    "images": png_upload(),
+                },
+            )
         product = Product.objects.get()
-        stored_path = tmp_path / product.image.name
-
+        product_image = product.images.get()
+        product_image.refresh_from_db()
+        stored_path = tmp_path / product_image.image.name
     assert response.status_code == 302
     assert product.owner == user
     assert product.price == 25_000
-    assert product.image.name.startswith("product-images/")
-    assert UUID(Path(product.image.name).stem, version=4)
+    assert not product.image
+    assert product_image.image.name.startswith(f"product-images/owned/{product.pk}/")
+    assert UUID(Path(product_image.image.name).stem, version=4)
     assert stored_path.is_file()
 
 
-def test_price_and_image_are_required_on_create() -> None:
+def test_price_is_required_and_images_are_optional_on_create() -> None:
     form = ProductCreateForm(
         data={
             "title": "카메라",
             "description": "정상 작동합니다.",
             "price": "0",
-            "sale_state": Product.SaleState.AVAILABLE,
+            "category": "OTHER",
+            "region": "",
         }
     )
 
     assert not form.is_valid()
     assert "price" in form.errors
-    assert "image" in form.errors
+    assert "images" not in form.errors
 
 
 def test_non_owner_cannot_update_or_delete_product() -> None:
@@ -111,6 +170,8 @@ def test_non_owner_cannot_update_or_delete_product() -> None:
             "title": "탈취",
             "description": "권한 없음",
             "price": "1",
+            "category": "OTHER",
+            "region": "",
             "sale_state": Product.SaleState.SOLD,
             "version": product.version,
         },
@@ -138,6 +199,8 @@ def test_owner_update_increments_optimistic_version() -> None:
             "title": "수정된 상품",
             "description": "수정된 설명",
             "price": "12000",
+            "category": "OTHER",
+            "region": "",
             "sale_state": Product.SaleState.SOLD,
             "version": product.version,
         },
@@ -146,7 +209,7 @@ def test_owner_update_increments_optimistic_version() -> None:
     assert response.status_code == 302
     product.refresh_from_db()
     assert product.title == "수정된 상품"
-    assert product.sale_state == Product.SaleState.SOLD
+    assert product.sale_state == Product.SaleState.AVAILABLE
     assert product.version == 2
 
 
@@ -168,6 +231,8 @@ def test_stale_owner_update_is_rejected(
             "title": "덮어쓴 상품",
             "description": "오래된 요청",
             "price": "12000",
+            "category": "OTHER",
+            "region": "",
             "sale_state": Product.SaleState.SOLD,
             "version": 1,
         },

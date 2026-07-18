@@ -79,11 +79,19 @@ def effective_user_status(*, user_id: int) -> EffectiveUserStatus:
 
 def effective_product_visibility(*, product_id: int) -> EffectiveProductVisibility:
     """Return canonical visibility; callers must not trust a stored flag."""
+    visible = Product.objects.filter(
+        pk=product_id,
+        archived_at__isnull=True,
+    ).exists()
     hidden = _active_actions().filter(
         kind=ModerationAction.Kind.PRODUCT_HIDE,
         target_product_id=product_id,
     ).exists()
-    return EffectiveProductVisibility.HIDDEN if hidden else EffectiveProductVisibility.VISIBLE
+    return (
+        EffectiveProductVisibility.HIDDEN
+        if hidden or not visible
+        else EffectiveProductVisibility.VISIBLE
+    )
 
 
 def visible_products(queryset: _QuerySetT) -> _QuerySetT:
@@ -94,7 +102,11 @@ def visible_products(queryset: _QuerySetT) -> _QuerySetT:
         starts_at__lte=Now(),
         expires_at__gt=Now(),
     )
-    return queryset.annotate(_moderation_hidden=Exists(active_hide)).filter(_moderation_hidden=False)
+    return (
+        queryset.filter(archived_at__isnull=True)
+        .annotate(_moderation_hidden=Exists(active_hide))
+        .filter(_moderation_hidden=False)
+    )
 
 
 def _normalize_reason(reason: str) -> str:
@@ -129,7 +141,10 @@ def _lock_submission_parties(*, reporter_id: int, target_type: TargetType, targe
         return by_id[reporter_id], by_id[target_id], None, _database_now()
 
     try:
-        product = Product.objects.select_for_update().get(pk=target_id)
+        product = Product.objects.select_for_update().get(
+            pk=target_id,
+            archived_at__isnull=True,
+        )
         reporter = user_model.objects.select_for_update().get(pk=reporter_id)
     except (Product.DoesNotExist, user_model.DoesNotExist) as exc:
         raise ReportSubmissionError("report cannot be accepted") from exc
@@ -290,7 +305,10 @@ def evaluate_threshold(*, target_type: TargetType | str, target_id: int) -> Mode
                 raise ReportSubmissionError("report cannot be accepted") from exc
         else:
             try:
-                target = Product.objects.select_for_update().get(pk=target_id)
+                target = Product.objects.select_for_update().get(
+                    pk=target_id,
+                    archived_at__isnull=True,
+                )
             except Product.DoesNotExist as exc:
                 raise ReportSubmissionError("report cannot be accepted") from exc
         if normalized_target_type is TargetType.USER and (
