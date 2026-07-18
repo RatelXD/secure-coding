@@ -1,0 +1,261 @@
+{
+  "schema_version": 1,
+  "gate": "G6R-1",
+  "source_root_hint": "../asset/stitch_ui_v1/stitch_",
+  "policy": {
+    "runtime_remote_urls_allowed": 0,
+    "unresolved_rows_allowed": 0,
+    "external_stitch_assets_may_be_redistributed": false,
+    "integrity": "Every installed local file must have a SHA-256 entry before its owning phase is activated.",
+    "accessibility_precedence": "WCAG 2.2 AA, keyboard operation, privacy, and server authorization override visual fidelity."
+  },
+  "replacement_requirements": [
+    {
+      "kind": "font",
+      "remote": "Google Fonts: Plus Jakarta Sans, Be Vietnam Pro",
+      "resolution": "local-replacement-required",
+      "target": "src/static/fonts/NotoSansKR-Variable.woff2",
+      "usage": "Bundled Korean body and heading fallback; no network fallback.",
+      "license": "SIL OFL 1.1; ship the license with the font.",
+      "checksum": "SHA-256 must be recorded before G6R-2 activation"
+    },
+    {
+      "kind": "icon",
+      "remote": "Google Material Symbols font",
+      "resolution": "local-replacement-required",
+      "target": "src/static/icons/stitch-symbols.svg",
+      "usage": "Only the icon allowlist recorded per screen; accessible controls retain Korean names.",
+      "license": "Apache-2.0 or project-owned redraw; record the selected provenance.",
+      "checksum": "SHA-256 must be recorded before G6R-2 activation"
+    },
+    {
+      "kind": "toolchain",
+      "remote": "cdn.tailwindcss.com runtime compiler",
+      "resolution": "compile-or-remove",
+      "target": "src/static/site.css",
+      "usage": "Build-time/local CSS only; runtime JavaScript compiler is forbidden.",
+      "license": "Project stylesheet",
+      "checksum": "Covered by the release static-manifest SHA-256"
+    },
+    {
+      "kind": "logo",
+      "remote": "Stitch Google-hosted logo variants",
+      "resolution": "local-replacement-required",
+      "target": "src/static/images/brand/logo.svg",
+      "usage": "One project-owned logo for desktop and mobile; do not copy Stitch bytes.",
+      "license": "Project-owned artwork",
+      "checksum": "SHA-256 must be recorded before G6R-2 activation"
+    },
+    {
+      "kind": "hero",
+      "remote": "Stitch Google-hosted home hero",
+      "resolution": "local-replacement-required",
+      "target": "src/static/images/hero/exchange.svg",
+      "usage": "Project-owned decorative image with empty alt text; do not copy Stitch bytes.",
+      "license": "Project-owned artwork",
+      "checksum": "SHA-256 must be recorded before G6R-2 activation"
+    },
+    {
+      "kind": "product",
+      "remote": "Stitch Google-hosted product photographs",
+      "resolution": "model-backed-local-media",
+      "target": "Product.image until G7A, then ordered ProductImage or src/static/images/product-default.svg",
+      "usage": "Validated local JPEG/PNG/WebP only; Stitch bytes and URLs are never imported.",
+      "license": "Uploader attestation, approved demo manifest, or project-owned default",
+      "checksum": "ProductImage/demo manifest SHA-256; default image SHA-256 in static manifest"
+    },
+    {
+      "kind": "avatar",
+      "remote": "Stitch Google-hosted portraits",
+      "resolution": "remove",
+      "target": "Server-generated initials with no image URL",
+      "usage": "Avoid invented identity and biometric imagery; expose no username beyond authorized views.",
+      "license": "Not applicable",
+      "checksum": "Not applicable: no file"
+    }
+  ],
+  "screens": [
+    {
+      "id": "STITCH-01-HOME",
+      "source": "_1/code.html",
+      "source_sha256": "c71ded2aa3591d7900c6090812faecbba34e1e170c92d34b59050364a8a1d7f2",
+      "screen": "홈과 최신 상품",
+      "django_route": "/",
+      "control_count": 30,
+      "non_semantic_interaction_count": 0,
+      "interaction_count": 30,
+      "control_tags": {"a": 26, "button": 4},
+      "control_map": [
+        {"group": "desktop/mobile navigation, logo, search, create, chat, account", "count": 14, "resolution": "django-route", "targets": ["/", "/products/", "/products/new/", "/chat/", "/account/"]},
+        {"group": "notification actions", "count": 2, "resolution": "phase-gated-route", "targets": ["G7C Notification inbox"]},
+        {"group": "hero browse/create calls to action", "count": 2, "resolution": "django-route", "targets": ["/products/", "/products/new/"]},
+        {"group": "seven category filters and more-results link", "count": 8, "resolution": "phase-gated-route", "targets": ["G7A Category model", "G7D /products/?category="]},
+        {"group": "four product cards", "count": 4, "resolution": "django-route", "targets": ["/products/<pk>/", "Product"]}
+      ],
+      "remote_occurrences": 10,
+      "remote_assets": {"font_or_preconnect": 2, "toolchain": 1, "logo": 2, "hero": 1, "product": 4, "avatar": 0},
+      "icons": ["add", "chair", "chat", "chat_bubble", "checkroom", "chevron_right", "devices", "favorite", "home", "kitchen", "menu_book", "more_horiz", "notifications", "person", "search", "sports_baseball", "verified_user"]
+    },
+    {
+      "id": "STITCH-02-PRODUCT-LIST",
+      "source": "_2/code.html",
+      "source_sha256": "deeb208fe7b5127d838c8cff10bc259a95bfde9db20c0ce1daa4c04f3096a792",
+      "screen": "상품 검색 목록",
+      "django_route": "/products/",
+      "control_count": 19,
+      "non_semantic_interaction_count": 5,
+      "interaction_count": 24,
+      "control_tags": {"a": 10, "button": 7, "select": 2},
+      "control_map": [
+        {"group": "desktop/mobile navigation", "count": 10, "resolution": "django-route", "targets": ["/", "/products/", "/products/new/", "/chat/", "/account/"]},
+        {"group": "search and notification actions", "count": 2, "resolution": "phase-gated-route", "targets": ["G7D search form", "G7C Notification inbox"]},
+        {"group": "desktop/mobile product-create actions", "count": 2, "resolution": "django-route", "targets": ["/products/new/"]},
+        {"group": "status filters", "count": 3, "resolution": "django-query", "targets": ["/products/?status=", "effective_product_state at G7B"]},
+        {"group": "price and sort selects", "count": 2, "resolution": "django-query", "targets": ["/products/?min_price=&max_price=&sort="]}
+      ],
+      "non_semantic_interactions": [
+        {"group": "five visible product cards", "count": 5, "resolution": "django-route", "targets": ["/products/<pk>/", "Product"], "semantic_control": "a", "keyboard_semantic_conversion": "replace-with-link"}
+      ],
+      "remote_occurrences": 12,
+      "remote_assets": {"font_or_preconnect": 4, "toolchain": 1, "logo": 1, "hero": 0, "product": 6, "avatar": 0},
+      "icons": ["add", "add_circle", "chat", "home", "location_on", "notifications", "person", "search"]
+    },
+    {
+      "id": "STITCH-03-PRODUCT-DETAIL",
+      "source": "_3/code.html",
+      "source_sha256": "7296375be5ab41ca4ff69f1faf46b28a86278858460678af4f763686e446194a",
+      "screen": "상품 상세",
+      "django_route": "/products/<pk>/",
+      "control_count": 19,
+      "non_semantic_interaction_count": 2,
+      "interaction_count": 21,
+      "control_tags": {"a": 11, "button": 8},
+      "control_map": [
+        {"group": "logo, desktop and mobile navigation", "count": 11, "resolution": "django-route", "targets": ["/", "/products/", "/products/new/", "/chat/", "/account/"]},
+        {"group": "search and notification actions", "count": 2, "resolution": "phase-gated-route", "targets": ["G7D search form", "G7C Notification inbox"]},
+        {"group": "back and gallery controls", "count": 3, "resolution": "local-control", "targets": ["/products/", "G7A ProductImage ordered gallery"]},
+        {"group": "favorite", "count": 1, "resolution": "phase-gated-route", "targets": ["G7C Favorite"]},
+        {"group": "product chat", "count": 1, "resolution": "phase-gated-route", "targets": ["G7B ProductConversation using Room and ChatMessage"]},
+        {"group": "product report", "count": 1, "resolution": "django-route", "targets": ["/reports/products/<pk>/", "AbuseReport"]}
+      ],
+      "non_semantic_interactions": [
+        {"group": "gallery thumbnails", "count": 2, "resolution": "local-control", "targets": ["G7A ProductImage ordered gallery"], "semantic_control": "button", "keyboard_semantic_conversion": "replace-with-button"}
+      ],
+      "remote_occurrences": 8,
+      "remote_assets": {"font_or_preconnect": 2, "toolchain": 1, "logo": 1, "hero": 0, "product": 3, "avatar": 1},
+      "icons": ["add", "arrow_back", "chat", "chevron_left", "chevron_right", "favorite", "favorite_border", "flag", "home", "notifications", "person", "schedule", "search", "shield", "visibility"]
+    },
+    {
+      "id": "STITCH-04-CHAT",
+      "source": "_4/code.html",
+      "source_sha256": "d9ee367133815d3c003f16ccf01598760bb87962872443c87dd90b4da12404da",
+      "screen": "채팅 목록과 대화",
+      "django_route": "/chat/",
+      "control_count": 21,
+      "non_semantic_interaction_count": 1,
+      "interaction_count": 22,
+      "control_tags": {"a": 9, "button": 10, "input": 1, "textarea": 1},
+      "control_map": [
+        {"group": "desktop/mobile navigation", "count": 9, "resolution": "django-route", "targets": ["/", "/products/", "/products/new/", "/chat/", "/account/"]},
+        {"group": "global search and notification actions", "count": 3, "resolution": "phase-gated-route", "targets": ["G7D search form", "G7C Notification inbox"]},
+        {"group": "room list search", "count": 1, "resolution": "local-control", "targets": ["authorized Room list client filter"]},
+        {"group": "room selection", "count": 3, "resolution": "django-route", "targets": ["/chat/rooms/<room_id>/", "Room"]},
+        {"group": "room menu", "count": 1, "resolution": "remove", "targets": ["Remove until an authorized server action exists"]},
+        {"group": "attachment action", "count": 1, "resolution": "remove", "targets": ["Chat attachments are out of scope"]},
+        {"group": "message composer and send", "count": 2, "resolution": "existing-pipeline", "targets": ["Room consumer", "ChatMessage", "Origin and rate checks"]},
+        {"group": "mobile create action", "count": 1, "resolution": "django-route", "targets": ["/products/new/"]}
+      ],
+      "non_semantic_interactions": [
+        {"group": "chat product card", "count": 1, "resolution": "django-route", "targets": ["/products/<pk>/", "Product"], "semantic_control": "a", "keyboard_semantic_conversion": "replace-with-link"}
+      ],
+      "remote_occurrences": 11,
+      "remote_assets": {"font_or_preconnect": 2, "toolchain": 1, "logo": 2, "hero": 0, "product": 1, "avatar": 5},
+      "icons": ["add", "add_circle", "chat", "check", "chevron_right", "done_all", "home", "more_vert", "notifications", "person", "search", "send"]
+    },
+    {
+      "id": "STITCH-05-PRODUCT-CREATE",
+      "source": "_5/code.html",
+      "source_sha256": "84da2b3ec26d57fd74b6448969689853e2430c4671c08a9cc26f86fada59aabb",
+      "screen": "상품 등록",
+      "django_route": "/products/new/",
+      "control_count": 20,
+      "non_semantic_interaction_count": 1,
+      "interaction_count": 21,
+      "control_tags": {"a": 10, "button": 4, "form": 1, "input": 3, "select": 1, "textarea": 1},
+      "control_map": [
+        {"group": "desktop/mobile navigation", "count": 10, "resolution": "django-route", "targets": ["/", "/products/", "/products/new/", "/chat/", "/account/"]},
+        {"group": "search and notification actions", "count": 2, "resolution": "phase-gated-route", "targets": ["G7D search form", "G7C Notification inbox"]},
+        {"group": "multipart product form", "count": 1, "resolution": "django-route", "targets": ["POST /products/new/", "Product"]},
+        {"group": "image upload", "count": 1, "resolution": "phase-gated-model", "targets": ["G7A ProductImage, 0 to 4 images; replace Stitch maximum 10"]},
+        {"group": "title, price and description fields", "count": 3, "resolution": "django-model", "targets": ["Product.title", "Product.price", "Product.description"]},
+        {"group": "condition select", "count": 1, "resolution": "remove", "targets": ["No authoritative condition model in approved first release"]},
+        {"group": "cancel and submit", "count": 2, "resolution": "django-route", "targets": ["/products/", "POST /products/new/"]}
+      ],
+      "non_semantic_interactions": [
+        {"group": "image upload dropzone", "count": 1, "resolution": "local-control", "targets": ["ProductImage upload input"], "semantic_control": "label+input", "keyboard_semantic_conversion": "native-file-input"}
+      ],
+      "remote_occurrences": 5,
+      "remote_assets": {"font_or_preconnect": 2, "toolchain": 1, "logo": 2, "hero": 0, "product": 0, "avatar": 0},
+      "icons": ["add_circle", "add_photo_alternate", "chat", "expand_more", "home", "notifications", "person", "search"]
+    },
+    {
+      "id": "STITCH-06-OWN-PROFILE",
+      "source": "_6/code.html",
+      "source_sha256": "170d8800211b6034bf33a68f5e8fdb9c2366144bd741941d634b366f83381c2a",
+      "screen": "내 프로필",
+      "django_route": "/account/",
+      "control_count": 24,
+      "non_semantic_interaction_count": 0,
+      "interaction_count": 24,
+      "control_tags": {"a": 12, "button": 12},
+      "control_map": [
+        {"group": "desktop/mobile navigation and product cards", "count": 12, "resolution": "django-route", "targets": ["/", "/products/", "/products/<pk>/", "/products/new/", "/chat/", "/account/"]},
+        {"group": "search and notification actions", "count": 2, "resolution": "phase-gated-route", "targets": ["G7D search form", "G7C Notification inbox"]},
+        {"group": "profile edit and password", "count": 2, "resolution": "django-route", "targets": ["/account/bio/", "/account/password/"]},
+        {"group": "withdrawal", "count": 1, "resolution": "phase-gated-route", "targets": ["G7A preparation has no route; G7D activation only"]},
+        {"group": "trade history and favorite list", "count": 2, "resolution": "phase-gated-route", "targets": ["G7B Trade history", "G7C Favorite owner list"]},
+        {"group": "logout", "count": 1, "resolution": "django-route", "targets": ["POST /accounts/logout/"]},
+        {"group": "product state filters", "count": 3, "resolution": "phase-gated-query", "targets": ["G7B effective_product_state"]},
+        {"group": "pagination", "count": 1, "resolution": "django-query", "targets": ["server-owned page parameter"]}
+      ],
+      "remote_occurrences": 8,
+      "remote_assets": {"font_or_preconnect": 2, "toolchain": 1, "logo": 2, "hero": 0, "product": 2, "avatar": 1},
+      "icons": ["add_circle", "chat", "chevron_right", "favorite_border", "home", "lock", "logout", "notifications", "person", "search"]
+    },
+    {
+      "id": "STITCH-07-PUBLIC-PROFILE",
+      "source": "_7/code.html",
+      "source_sha256": "a0627aa02460aed5e32f2a1fa55eb8204faf3579736c2ff45798eec8b7e02ff3",
+      "screen": "공개 사용자 프로필",
+      "django_route": "/users/<username>/",
+      "control_count": 22,
+      "non_semantic_interaction_count": 5,
+      "interaction_count": 27,
+      "control_tags": {"a": 11, "button": 11},
+      "control_map": [
+        {"group": "logo, desktop navigation and product cards", "count": 11, "resolution": "django-route", "targets": ["/", "/products/", "/products/<pk>/", "/products/new/", "/chat/", "/account/"]},
+        {"group": "search and notification actions", "count": 2, "resolution": "phase-gated-route", "targets": ["G7D search form", "G7C Notification inbox"]},
+        {"group": "direct chat", "count": 1, "resolution": "existing-pipeline", "targets": ["DIRECT Room using Room and ChatMessage"]},
+        {"group": "user report", "count": 1, "resolution": "django-route", "targets": ["/reports/users/<target_id>/", "AbuseReport"]},
+        {"group": "product state filters", "count": 3, "resolution": "phase-gated-query", "targets": ["G7B effective_product_state"]},
+        {"group": "favorite toggles", "count": 3, "resolution": "phase-gated-route", "targets": ["G7C Favorite"]},
+        {"group": "pagination", "count": 1, "resolution": "django-query", "targets": ["server-owned page parameter"]}
+      ],
+      "non_semantic_interactions": [
+        {"group": "duplicate report affordance", "count": 1, "resolution": "remove", "targets": ["Remove duplicate trigger; retain the semantic user report button"], "semantic_control": "remove", "keyboard_semantic_conversion": "remove"},
+        {"group": "four visible product cards", "count": 4, "resolution": "django-route", "targets": ["/products/<pk>/", "Product"], "semantic_control": "a", "keyboard_semantic_conversion": "replace-with-link"}
+      ],
+      "remote_occurrences": 9,
+      "remote_assets": {"font_or_preconnect": 2, "toolchain": 1, "logo": 1, "hero": 0, "product": 4, "avatar": 1},
+      "icons": ["add_circle", "chat", "favorite", "home", "notifications", "person", "report", "search"]
+    }
+  ],
+  "summary": {
+    "source_files": 7,
+    "controls": 155,
+    "interactions": 169,
+    "remote_occurrences": 63,
+    "unresolved_rows": 0,
+    "runtime_remote_urls": 0
+  }
+}
