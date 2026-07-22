@@ -8,7 +8,7 @@ from apps.accounts.models import User
 
 pytestmark = pytest.mark.django_db
 
-FORBIDDEN_TARGET_MARKERS = ("withdraw", "delete", "deactivate", "close-account")
+WITHDRAWAL_MARKER = "withdraw"
 
 
 class NavigationTargetParser(HTMLParser):
@@ -46,10 +46,9 @@ def force_login_with_epoch(client: Client, user: User) -> None:
         "accounts:password_change",
     ),
 )
-def test_g7a_withdrawal_004_authenticated_pages_expose_no_withdrawal_navigation(
+def test_g7d_withdrawal_navigation_is_exposed_only_from_profile(
     route_name: str,
 ) -> None:
-    """TEST-ID G7A-WITHDRAWAL-004: no authenticated link or form activates withdrawal."""
     user = User.objects.create_user(
         username="withdrawal_nav_user",
         password="Correct-Horse-Battery-47!",
@@ -62,10 +61,11 @@ def test_g7a_withdrawal_004_authenticated_pages_expose_no_withdrawal_navigation(
     assert response.status_code == 200
     parser = NavigationTargetParser()
     parser.feed(response.content.decode())
-    assert parser.targets
-    assert not any(
-        marker in target.casefold()
-        for target in parser.targets
-        for marker in FORBIDDEN_TARGET_MARKERS
-    )
-    assert "회원 탈퇴" not in response.content.decode()
+    withdrawal_targets = [
+        target for target in parser.targets if WITHDRAWAL_MARKER in target.casefold()
+    ]
+    if route_name == "accounts:profile":
+        assert withdrawal_targets == [reverse("accounts:withdraw")]
+        assert "회원 탈퇴" in response.content.decode()
+    else:
+        assert withdrawal_targets == []

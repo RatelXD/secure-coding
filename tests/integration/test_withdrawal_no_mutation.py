@@ -1,14 +1,12 @@
 import pytest
 from django.apps import apps
 from django.test import Client
-from django.urls import reverse
 
 from apps.accounts.models import User
 
 pytestmark = pytest.mark.django_db
 
-WITHDRAWAL_PATHS = (
-    "/account/withdraw/",
+LEGACY_WITHDRAWAL_PATHS = (
     "/accounts/withdraw/",
     "/account/delete/",
     "/accounts/delete/",
@@ -31,12 +29,11 @@ def snapshot_accounts_rows() -> dict[str, list[dict[str, object]]]:
 
 
 @pytest.mark.parametrize("method", ("get", "post"))
-@pytest.mark.parametrize("path", WITHDRAWAL_PATHS)
-def test_g7a_withdrawal_003_public_withdrawal_paths_are_404_and_write_nothing(
+@pytest.mark.parametrize("path", LEGACY_WITHDRAWAL_PATHS)
+def test_g7d_withdrawal_003_legacy_paths_are_404_and_write_nothing(
     method: str,
     path: str,
 ) -> None:
-    """TEST-ID G7A-WITHDRAWAL-003: hard-OFF endpoints cannot mutate any account row."""
     user = User.objects.create_user(
         username="withdrawal_guard_user",
         password="Correct-Horse-Battery-47!",
@@ -44,10 +41,30 @@ def test_g7a_withdrawal_003_public_withdrawal_paths_are_404_and_write_nothing(
     )
     client = Client()
     force_login_with_epoch(client, user)
-    assert client.get(reverse("accounts:profile")).status_code == 200
+    assert client.get("/account/").status_code == 200
     before = snapshot_accounts_rows()
 
     response = getattr(client, method)(path, {"confirm": "yes"})
 
     assert response.status_code == 404
+    assert snapshot_accounts_rows() == before
+
+
+@pytest.mark.parametrize("method, expected", (("get", 200), ("post", 200)))
+def test_g7d_withdrawal_004_invalid_activation_request_writes_nothing(
+    method: str,
+    expected: int,
+) -> None:
+    user = User.objects.create_user(
+        username="withdrawal_active_guard",
+        password="Correct-Horse-Battery-47!",
+    )
+    client = Client()
+    force_login_with_epoch(client, user)
+    assert client.get("/account/").status_code == 200
+    before = snapshot_accounts_rows()
+
+    response = getattr(client, method)("/account/withdraw/", {"confirm": "yes"})
+
+    assert response.status_code == expected
     assert snapshot_accounts_rows() == before

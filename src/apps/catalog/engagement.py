@@ -6,14 +6,15 @@ from datetime import UTC
 
 from django.apps import apps
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
 
+from apps.accounts.models import User
 from apps.trades.models import Trade
 
 from .models import Favorite, Product, ProductMetric, ProductView
-
 
 def recompute_product_metric(*, product_id: int) -> ProductMetric:
     """Replace the rebuildable projection from authoritative relation rows."""
@@ -51,6 +52,14 @@ def metric_recompute_delta(*, product_id: int) -> dict[str, int]:
 def set_favorite(*, user_id: int, product_id: int, active: bool) -> ProductMetric:
     """Apply an idempotent owner-scoped favorite command and repair its projection."""
     with transaction.atomic():
+        try:
+            User.objects.select_for_update().get(
+                pk=user_id,
+                is_active=True,
+                withdrawn_at__isnull=True,
+            )
+        except User.DoesNotExist as exc:
+            raise PermissionDenied("관심 상품을 변경할 수 없습니다.") from exc
         Product.objects.select_for_update().get(pk=product_id)
         if active:
             Favorite.objects.get_or_create(user_id=user_id, product_id=product_id)

@@ -151,7 +151,13 @@ def _require_active_user(*, user_id: int, lock: bool) -> Any:
     return user
 
 
-def _require_room_access(*, room_id: int, user_id: int, lock: bool = False) -> Room:
+def _require_room_access(
+    *,
+    room_id: int,
+    user_id: int,
+    lock: bool = False,
+    require_active_participants: bool = True,
+) -> Room:
     rooms = Room.objects.select_related("direct_user_low", "direct_user_high")
     if lock:
         rooms = rooms.select_for_update(of=("self",))
@@ -176,8 +182,9 @@ def _require_room_access(*, room_id: int, user_id: int, lock: bool = False) -> R
             is not EffectiveProductVisibility.VISIBLE
         ):
             raise ChatAuthorizationError("Chat is unavailable.")
-        for participant_id in participant_ids:
-            _require_active_user(user_id=participant_id, lock=False)
+        if require_active_participants:
+            for participant_id in participant_ids:
+                _require_active_user(user_id=participant_id, lock=False)
     return room
 
 

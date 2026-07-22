@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}회원 탈퇴{% endblock %}
+{% block content %}
+<section aria-labelledby="withdraw-heading">
+  <h1 id="withdraw-heading">회원 탈퇴</h1>
+  <p>진행 중인 예약이 없고 모의 잔액이 0원일 때만 탈퇴할 수 있습니다.</p>
+  <p>판매 중 상품은 즉시 비공개되며 관심 상품과 알림은 삭제됩니다. 거래·채팅·후기·신고·감사 기록은 상대방과 서비스의 안전을 위해 탈퇴 회원 표시로 보존됩니다.</p>
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    <p>{{ form.password.label_tag }} {{ form.password }} {{ form.password.errors }}</p>
+    <button class="button button--danger" type="submit">회원 탈퇴 확정</button>
+    <a class="button button--secondary" href="{% url 'accounts:profile' %}">취소</a>
+  </form>
+</section>
+{% endblock %}

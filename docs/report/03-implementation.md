@@ -52,10 +52,15 @@ src/
   - 가입·로그인·POST 로그아웃, 공개 사용자 목록·상세, 본인 소개글·비밀번호 변경을 제공합니다.
   - 가입 화면에는 한국어 안내 문구와 비밀번호 조건을 표시하고, 공개 응답은 아이디와 소개글만 사용합니다. 본인 변경 URL에는 로그인·CSRF 경계를 적용합니다.
   - 주요 화면을 이동할 수 있는 내비게이션을 제공해 기능 진입점을 찾기 쉽게 했습니다.
+  - 회원 탈퇴는 현재 비밀번호와 CSRF를 확인한 뒤 사용자→판매 상품→당사자 거래→모의 계좌→관심·알림 순서로 권위를 잠급니다. 예약 0건과 잔액 0원을 같은 트랜잭션에서 재확인하고, 권위가 없거나 장애가 나면 503으로 전체 변경을 롤백합니다.
+  - 성공 시 판매 중 상품 비노출, 관심·알림 삭제, 모의 계좌 종료, 비밀번호 폐기, `is_active=false`, `withdrawn_at`, `auth_epoch` 증가와 내구성 있는 `RevocationTask`를 함께 커밋합니다. 거래·채팅·후기·신고·감사 기록과 내부 아이디 고유값은 보존하되 공개 화면은 탈퇴 회원 표기만 사용합니다.
+- `src/apps/accounts/withdrawal.py`, `management/commands/process_withdrawal_revocations.py`
+  - 재시도 가능한 작업이 모든 DB 세션을 제거하고 사용자 소켓 close group과 Redis presence를 폐기합니다. Redis·Channels 장애는 계정 탈퇴를 되돌리지 않고 작업을 `retry`로 남기며 Compose worker가 만료 lease를 포함해 복구합니다.
 
 ### 검증 상태
 
 비밀번호 해시·로그, 일반 로그인 오류, 공개 필드, XSS, 인증·CSRF, 계정·IP 제한 경합과 세션 무효화 테스트를 통합 스위트에서 실행해 통과했습니다. 가입 안내와 화면 내비게이션도 브라우저 흐름에서 확인했습니다.
+2026-07-22 회원 탈퇴 변경 경계 게이트에서 accounts/catalog/chat 단위 테스트, 탈퇴 migration·HTTP와 chat resilience 통합 테스트, accounts/catalog/chat 보안 부정 테스트를 실행해 `154 passed, 6 subtests passed`를 확인했습니다. 현재 비밀번호·CSRF·예약·잔액·추가 필드 거부, 원자적 개인정보 정리와 보존 기록, 다중 세션 삭제, 소켓 close, 탈퇴 presence offline, 외부 의존 장애의 내구성 있는 재시도를 포함합니다.
 
 ## 3.5 상품 기능
 

@@ -48,10 +48,19 @@ def _presence_key(room_id: int, user_id: int) -> str:
     return f"marketplace:presence:{room_id}:{user_id}"
 
 
-def authorized_presence_peers(*, room_id: int, user_id: int) -> tuple[int, ...]:
+def authorized_presence_peers(
+    *,
+    room_id: int,
+    user_id: int,
+    require_active_peers: bool = True,
+) -> tuple[int, ...]:
     """Return only server-authorized one-to-one peers; global presence is never exposed."""
     _require_active_user(user_id=user_id, lock=False)
-    room = _require_room_access(room_id=room_id, user_id=user_id)
+    room = _require_room_access(
+        room_id=room_id,
+        user_id=user_id,
+        require_active_participants=require_active_peers,
+    )
     if room.kind == Room.Kind.GLOBAL:
         raise ChatAuthorizationError("Presence is unavailable.")
     if room.kind == Room.Kind.DIRECT:
@@ -68,9 +77,18 @@ def authorized_presence_peers(*, room_id: int, user_id: int) -> tuple[int, ...]:
             else conversation.seller_id,
         )
     peer_ids = tuple(int(peer_id) for peer_id in peers if peer_id is not None)
-    for peer_id in peer_ids:
-        _require_active_user(user_id=peer_id, lock=False)
+    if require_active_peers:
+        for peer_id in peer_ids:
+            _require_active_user(user_id=peer_id, lock=False)
     return peer_ids
+
+
+def _active_presence_peer(*, user_id: int) -> bool:
+    try:
+        _require_active_user(user_id=user_id, lock=False)
+    except ChatAuthorizationError:
+        return False
+    return True
 
 
 class PresenceService:
@@ -93,11 +111,15 @@ class PresenceService:
         peer_ids = await sync_to_async(authorized_presence_peers)(
             room_id=room_id,
             user_id=user_id,
+            require_active_peers=False,
         )
         now = time.time()
-        return {
-            peer_id: bool(
+        states: dict[int, bool] = {}
+        for peer_id in peer_ids:
+            if not await sync_to_async(_active_presence_peer)(user_id=peer_id):
+                states[peer_id] = False
+                continue
+            states[peer_id] = bool(
                 await self.backend.count_live(_presence_key(room_id, peer_id), now)
             )
-            for peer_id in peer_ids
-        }
+        return states

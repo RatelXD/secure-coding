@@ -24,7 +24,7 @@ IDENTITY_IMMUTABLE_FIELDS = frozenset(
 )
 SESSION_AUTH_EPOCH_KEY = "account_auth_epoch"
 SESSION_INDEX_TOUCH_INTERVAL = timedelta(minutes=5)
-WITHDRAWAL_ACTIVATION_ENABLED = False
+WITHDRAWAL_ACTIVATION_ENABLED = True
 
 if TYPE_CHECKING:
     from .models import RevocationTask

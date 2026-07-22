@@ -26,14 +26,23 @@ class PurgeResult:
     lock_acquired: bool
 
 
+@transaction.atomic
 def create_notification(
     *, recipient_id: int, event_key: str, kind: str, payload: dict[str, Any]
 ) -> tuple[Notification, bool]:
-    """Create an inbox event once; callers provide only a server-derived recipient."""
+    """Create an inbox event once for a currently active server-derived recipient."""
     if not event_key or len(event_key) > 160:
         raise ValueError("event_key is invalid")
+    try:
+        recipient = (
+            get_user_model()
+            .objects.select_for_update()
+            .get(pk=recipient_id, is_active=True, withdrawn_at__isnull=True)
+        )
+    except get_user_model().DoesNotExist as exc:
+        raise NotificationAuthorizationError("Notifications are unavailable.") from exc
     return Notification.objects.get_or_create(
-        recipient_id=recipient_id,
+        recipient=recipient,
         event_key=event_key,
         defaults={"kind": kind, "payload": payload},
     )
