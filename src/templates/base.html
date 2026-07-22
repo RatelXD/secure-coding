@@ -23,6 +23,7 @@
           {% if request.user.is_authenticated %}
             <li><a href="{% url 'catalog:create' %}">상품 등록</a></li>
             <li><a href="{% url 'chat:room-list' %}"{% if request.resolver_match.namespace == "chat" %} aria-current="page"{% endif %}>채팅</a></li>
+            <li><a href="{% url 'notifications:inbox' %}"{% if request.resolver_match.namespace == "notifications" %} aria-current="page"{% endif %}>알림</a></li>
             <li><a href="{% url 'accounts:profile' %}"{% if request.resolver_match.url_name == "profile" %} aria-current="page"{% endif %}>마이페이지</a></li>
             <li><form class="inline" method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button class="nav-action" type="submit">로그아웃</button></form></li>
           {% else %}

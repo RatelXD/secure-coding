@@ -21,9 +21,16 @@ from apps.accounts.services import (
     effective_account_status,
     project_account_identity,
 )
-from apps.moderation.services import EffectiveUserStatus, effective_user_status
+from apps.catalog.models import Product
+from apps.moderation.services import (
+    EffectiveProductVisibility,
+    EffectiveUserStatus,
+    effective_product_visibility,
+    effective_user_status,
+)
+from apps.notifications.services import create_notification
 
-from .models import ChatMessage, Room, RoomParticipant
+from .models import ChatMessage, ProductConversation, Room, RoomParticipant
 from .policies import (
     CHAT_BURST_MESSAGES,
     CHAT_BURST_SECONDS,
@@ -154,7 +161,76 @@ def _require_room_access(*, room_id: int, user_id: int, lock: bool = False) -> R
         raise ChatAuthorizationError("Chat is unavailable.") from exc
     if not room.contains_user(user_id):
         raise ChatAuthorizationError("Chat is unavailable.")
+    if room.kind == Room.Kind.PRODUCT:
+        try:
+            conversation = ProductConversation.objects.select_related("product").get(room=room)
+        except ProductConversation.DoesNotExist as exc:
+            raise ChatAuthorizationError("Chat is unavailable.") from exc
+        participant_ids = set(
+            RoomParticipant.objects.filter(room=room).values_list("user_id", flat=True)
+        )
+        if (
+            participant_ids != {conversation.seller_id, conversation.buyer_id}
+            or conversation.product.owner_id != conversation.seller_id
+            or effective_product_visibility(product_id=conversation.product_id)
+            is not EffectiveProductVisibility.VISIBLE
+        ):
+            raise ChatAuthorizationError("Chat is unavailable.")
+        for participant_id in participant_ids:
+            _require_active_user(user_id=participant_id, lock=False)
     return room
+
+
+def _require_message_accept_access(*, room_id: int, sender_id: int) -> tuple[Any, Room]:
+    try:
+        room_kind = Room.objects.values_list("kind", flat=True).get(pk=room_id)
+    except Room.DoesNotExist as exc:
+        raise ChatAuthorizationError("Chat is unavailable.") from exc
+    if room_kind != Room.Kind.PRODUCT:
+        sender = _require_active_user(user_id=sender_id, lock=True)
+        return sender, _require_room_access(room_id=room_id, user_id=sender_id, lock=True)
+
+    try:
+        metadata = ProductConversation.objects.values(
+            "pk", "product_id", "seller_id", "buyer_id"
+        ).get(room_id=room_id)
+    except ProductConversation.DoesNotExist as exc:
+        raise ChatAuthorizationError("Chat is unavailable.") from exc
+    party_ids = (metadata["seller_id"], metadata["buyer_id"])
+    if sender_id not in party_ids:
+        raise ChatAuthorizationError("Chat is unavailable.")
+    users = list(
+        get_user_model()
+        .objects.select_for_update()
+        .filter(pk__in=party_ids, is_active=True)
+        .order_by("pk")
+    )
+    if len(users) != 2:
+        raise ChatAuthorizationError("Chat is unavailable.")
+    for user in users:
+        if (
+            effective_account_status(user=user) is not EffectiveAccountStatus.ACTIVE
+            or effective_user_status(user_id=user.pk) is not EffectiveUserStatus.ACTIVE
+        ):
+            raise ChatAuthorizationError("Chat is unavailable.")
+    try:
+        Product.objects.select_for_update().get(
+            pk=metadata["product_id"],
+            owner_id=metadata["seller_id"],
+            archived_at__isnull=True,
+        )
+        ProductConversation.objects.select_for_update().get(
+            pk=metadata["pk"],
+            room_id=room_id,
+            product_id=metadata["product_id"],
+            seller_id=metadata["seller_id"],
+            buyer_id=metadata["buyer_id"],
+        )
+    except (Product.DoesNotExist, ProductConversation.DoesNotExist) as exc:
+        raise ChatAuthorizationError("Chat is unavailable.") from exc
+    room = _require_room_access(room_id=room_id, user_id=sender_id, lock=True)
+    sender = next(user for user in users if user.pk == sender_id)
+    return sender, room
 
 
 def _default_publish(room_id: int, event: dict[str, Any]) -> None:
@@ -180,6 +256,72 @@ def get_or_create_global_room() -> Room:
         return room
     except IntegrityError:
         return Room.objects.get(kind=Room.Kind.GLOBAL)
+
+
+@transaction.atomic
+def get_or_create_product_conversation(*, product_id: int, actor_id: int) -> ProductConversation:
+    _require_active_user(user_id=actor_id, lock=False)
+    try:
+        product_owner_id = Product.objects.values_list("owner_id", flat=True).get(
+            pk=product_id,
+            archived_at__isnull=True,
+        )
+    except Product.DoesNotExist as exc:
+        raise ChatAuthorizationError("Chat is unavailable.") from exc
+    if actor_id == product_owner_id:
+        raise ChatAuthorizationError("Chat is unavailable.")
+
+    users = list(
+        get_user_model()
+        .objects.select_for_update()
+        .filter(pk__in=(actor_id, product_owner_id), is_active=True)
+        .order_by("pk")
+    )
+    if len(users) != 2:
+        raise ChatAuthorizationError("Chat is unavailable.")
+    for user in users:
+        if (
+            effective_account_status(user=user) is not EffectiveAccountStatus.ACTIVE
+            or effective_user_status(user_id=user.pk) is not EffectiveUserStatus.ACTIVE
+        ):
+            raise ChatAuthorizationError("Chat is unavailable.")
+    actor = next(user for user in users if user.pk == actor_id)
+
+    try:
+        product = Product.objects.select_for_update().select_related("owner").get(
+            pk=product_id,
+            owner_id=product_owner_id,
+            archived_at__isnull=True,
+        )
+    except Product.DoesNotExist as exc:
+        raise ChatAuthorizationError("Chat is unavailable.") from exc
+    if (
+        effective_product_visibility(product_id=product.pk)
+        is not EffectiveProductVisibility.VISIBLE
+    ):
+        raise ChatAuthorizationError("Chat is unavailable.")
+
+    try:
+        return ProductConversation.objects.select_related("room").get(
+            product=product,
+            seller_id=product.owner_id,
+            buyer=actor,
+        )
+    except ProductConversation.DoesNotExist:
+        room = Room.objects.create(kind=Room.Kind.PRODUCT)
+        conversation = ProductConversation.objects.create(
+            room=room,
+            product=product,
+            seller_id=product.owner_id,
+            buyer=actor,
+        )
+        RoomParticipant.objects.bulk_create(
+            [
+                RoomParticipant(room=room, user_id=product.owner_id),
+                RoomParticipant(room=room, user_id=actor.pk),
+            ]
+        )
+        return conversation
 
 
 @transaction.atomic
@@ -240,8 +382,10 @@ class DefaultChatService:
         )
 
         with transaction.atomic():
-            sender = _require_active_user(user_id=sender_id, lock=True)
-            room = _require_room_access(room_id=room_id, user_id=sender_id, lock=True)
+            sender, room = _require_message_accept_access(
+                room_id=room_id,
+                sender_id=sender_id,
+            )
             replay = ChatMessage.objects.filter(
                 room=room,
                 sender=sender,
@@ -273,6 +417,24 @@ class DefaultChatService:
                 payload_sha256=payload_hash,
                 delivery=ChatMessage.Delivery.DEGRADED,
             )
+            if room.kind == Room.Kind.PRODUCT:
+                conversation = ProductConversation.objects.get(room=room)
+                recipient_id = (
+                    conversation.buyer_id
+                    if sender_id == conversation.seller_id
+                    else conversation.seller_id
+                )
+                create_notification(
+                    recipient_id=recipient_id,
+                    event_key=f"chat.message:{message.pk}",
+                    kind="PRODUCT_MESSAGE",
+                    payload={
+                        "message": "상품 대화에 새 메시지가 있습니다.",
+                        "room_id": room.pk,
+                        "product_id": conversation.product_id,
+                        "message_id": message.pk,
+                    },
+                )
 
         event = {
             "type": "chat.message",

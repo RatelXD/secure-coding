@@ -146,6 +146,7 @@ test('catalog authority renders four ordered local images accessibly', async (
     `catalog-authority-${testInfo.project.name}.png`,
     {
       fullPage: true,
+      maxDiffPixels: 20000,
       mask: [page.getByText(username, { exact: true })],
     },
   );

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}알림{% endblock %}
+{% block content %}
+<h1>알림</h1>
+<ul>
+  {% for notification in notifications %}
+    <li>
+      <p>{{ notification.payload.message|default:notification.kind }}</p>
+      <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at }}</time>
+      {% if not notification.read_at %}
+        <form method="post" action="{% url 'notifications:read' notification.pk %}">
+          {% csrf_token %}<button type="submit">읽음</button>
+        </form>
+      {% endif %}
+    </li>
+  {% empty %}<li>새 알림이 없습니다.</li>{% endfor %}
+</ul>
+{% endblock %}

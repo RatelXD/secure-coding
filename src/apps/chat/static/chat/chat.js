@@ -5,10 +5,12 @@
   if (!app) return;
 
   const roomId = app.dataset.roomId;
+  const roomKind = app.dataset.roomKind;
   const list = document.getElementById("chat-messages");
   const form = document.getElementById("chat-form");
   const bodyInput = document.getElementById("chat-body");
   const status = document.getElementById("chat-status");
+  const presence = document.getElementById("chat-presence");
   const seen = new Set();
   let cursor = 0;
   let socket;
@@ -46,17 +48,29 @@
     }
   }
 
+  function requestPresence() {
+    if (roomKind !== "GLOBAL" && socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({ type: "presence" }));
+    }
+  }
+
   function connect() {
     const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
     socket = new WebSocket(`${scheme}//${window.location.host}/ws/chat/rooms/${roomId}/`);
     socket.addEventListener("open", () => {
       setStatus("연결됨");
       requestHistory();
+      requestPresence();
     });
     socket.addEventListener("message", (event) => {
       const data = JSON.parse(event.data);
       if (data.type === "message") appendMessage(data);
       if (data.type === "history") data.messages.forEach(appendMessage);
+      if (data.type === "presence" && presence) {
+        presence.textContent = data.users.some((item) => item.online)
+          ? "상대방이 온라인입니다."
+          : "상대방이 오프라인입니다.";
+      }
       if (data.type === "ack" && data.delivery === "degraded") {
         setStatus("실시간 전달이 지연되고 있습니다. 저장된 대화는 다시 동기화됩니다.");
         requestHistory();
@@ -96,7 +110,11 @@
   });
 
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden) requestHistory();
+    if (!document.hidden) {
+      requestHistory();
+      requestPresence();
+    }
   });
   connect();
+  window.setInterval(requestPresence, 45000);
 })();
