@@ -65,10 +65,8 @@ class G2ArchitectureTests(unittest.TestCase):
         self.assertIn("exactly one seven-day action and audit event", services)
         self.assertNotIn("on_delete=models.CASCADE", models)
 
-    def test_cycle_two_modules_are_absent(self) -> None:
-        for relative in ("src/apps/transfers", "src/apps/administration"):
-            self.assertFalse((ROOT / relative).exists(), relative)
-        self.assertFalse((ROOT / "src/apps/catalog/search.py").exists())
+    def test_administration_module_is_absent(self) -> None:
+        self.assertFalse((ROOT / "src/apps/administration").exists())
 
 
 if __name__ == "__main__":

@@ -29,6 +29,16 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    command:
+      - /bin/sh
+      - -ec
+      - >-
+        python manage.py migrate --noinput;
+        if [ "$${APP_ENV}" = "development" ]; then
+          python manage.py bootstrap_demo_catalog;
+        fi;
+        exec uvicorn config.asgi:application --host 0.0.0.0 --port 8000
+        --proxy-headers --forwarded-allow-ips 127.0.0.1
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; request = urllib.request.Request('http://127.0.0.1:8000/readyz/', headers={'X-Forwarded-Proto': 'https'}); urllib.request.urlopen(request, timeout=2)"]
       interval: 10s

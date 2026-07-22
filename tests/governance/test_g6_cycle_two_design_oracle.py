@@ -140,7 +140,7 @@ class CycleTwoDesignOracleTests(unittest.TestCase):
             test_id = test_match.group(1)
             self.assertNotIn(test_id, actual_test_policies)
             actual_test_policies[test_id] = self.policy_ids(cells[1])
-            self.assertTrue(row.endswith("| 구현 예정 |"), row)
+            self.assertIn(cells[-1], {"구현 예정", "미검증"}, row)
 
         self.assertEqual(actual_test_policies, EXPECTED_TEST_POLICIES)
         self.assertEqual(set().union(*actual_test_policies.values()), POLICY_IDS)

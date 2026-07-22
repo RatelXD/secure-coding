@@ -55,8 +55,24 @@
         <h2 id="product-description-heading">상품 설명</h2>
         <p>{{ product.description|linebreaksbr }}</p>
       </section>
+      <section aria-labelledby="product-metrics-heading">
+        <h2 id="product-metrics-heading">상품 지표</h2>
+        <p>관심 {{ metric.favorite_count }} · 조회 {{ metric.view_count }} · 상품 대화 {{ metric.product_chat_count }} · 완료 거래 {{ metric.completed_trade_count }}</p>
+      </section>
 
       <footer class="product-detail__footer">
+        {% if user.is_authenticated and user.pk != product.owner_id %}
+          <form method="post" action="{% url 'catalog:favorite' product.pk %}">
+            {% csrf_token %}
+            {% if is_favorite %}
+              <input type="hidden" name="action" value="remove">
+              <button class="button button--secondary" type="submit">관심 해제</button>
+            {% else %}
+              <input type="hidden" name="action" value="add">
+              <button class="button button--secondary" type="submit">관심 등록</button>
+            {% endif %}
+          </form>
+        {% endif %}
         {% if user.is_authenticated and user.pk == product.owner_id %}
           <div class="product-detail__actions">
             <a class="button button--primary" href="{% url 'catalog:update' product.pk %}">상품 수정</a>

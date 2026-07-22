@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}관심 상품 | 주거니 받거니{% endblock %}
+{% block content %}
+<section aria-labelledby="favorite-heading">
+  <h1 id="favorite-heading">내 관심 상품</h1>
+  <ul class="product-grid">
+    {% for product in products %}
+      <li class="product-card">
+        <a href="{% url 'catalog:detail' product.pk %}">
+          {% with image=product.images.all|first %}
+            {% if image %}<img class="card-image" src="{{ image.image.url }}" alt="{{ product.title }} 대표 이미지">
+            {% else %}<img class="card-image" src="{% static 'images/product-default.svg' %}" alt="">{% endif %}
+          {% endwith %}
+          <h2>{{ product.title }}</h2>
+        </a>
+        <p>{{ product.price }}원 · {{ product.effective_state_label }}</p>
+      </li>
+    {% empty %}
+      <li class="empty-state"><p>관심 상품이 없습니다.</p></li>
+    {% endfor %}
+  </ul>
+</section>
+{% endblock %}
