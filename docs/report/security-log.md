@@ -1,6 +1,6 @@
 # 보안 기록 안내
 
-과제 본문에서 다루는 제품 보안 약점, 개선 조치와 검증 상태는 [06. 보안 약점과 개선 계획](06-security-improvements.md)에 통합했습니다. 이 기록에는 추적에 필요한 확인 결과만 남깁니다.
+과제 본문에서 다루는 제품 보안 약점, 개선 조치, 검증 상태는 [06. 보안 약점과 개선 계획](06-security-improvements.md)에 모았습니다. 이 기록에는 추적에 필요한 확인 결과만 남깁니다.
 
 ## 제품 보안 항목
 
@@ -13,4 +13,4 @@
 | `VULN-05` | 신고 조작과 동시 제재 경합 | 원자적 서비스와 독립 동시성 테스트 PASS |
 | `VULN-06` | 오류·로그의 민감정보 노출 | 일반 오류·비밀번호 로그 자동 테스트 PASS; 운영 오류 화면은 미검증 |
 
-환경 검증에서는 `.env` 없는 Compose가 healthy로 시작했고, 정적 채팅 자산은 HTTP 200과 `text/javascript`로 제공됐습니다. 고정 버전 gitleaks 전체 이력 검사와 pytest 9.0.3 업그레이드 후 all-groups `pip-audit`은 모두 clean이었습니다. ngrok은 사용할 수 없어 검증하지 않았습니다.
+환경 검증에서는 `.env` 없이 Compose를 시작해도 healthy 상태가 됐고, 정적 채팅 자산은 HTTP 200과 `text/javascript`로 제공됐습니다. 고정 버전으로 gitleaks 전체 이력을 검사했고, pytest 9.0.3 업그레이드 뒤 all-groups `pip-audit`도 모두 clean이었습니다. ngrok은 사용할 수 없어 검증하지 않았습니다.
