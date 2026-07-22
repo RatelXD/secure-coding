@@ -13,4 +13,5 @@ urlpatterns = [
     path("account/", views.profile, name="profile"),
     path("account/bio/", views.bio_edit, name="bio_edit"),
     path("account/password/", views.password_change, name="password_change"),
+    path("account/withdraw/", views.withdraw, name="withdraw"),
 ]

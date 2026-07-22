@@ -228,5 +228,5 @@ def test_withdrawn_account_public_list_and_detail_render_tombstone_only() -> Non
         assert withdrawn.bio not in content
     assert "사용자 신고" not in detail_response.content.decode()
 
-def test_withdrawal_activation_is_compile_time_hard_off() -> None:
-    assert WITHDRAWAL_ACTIVATION_ENABLED is False
+def test_withdrawal_activation_is_enabled_after_authorities_exist() -> None:
+    assert WITHDRAWAL_ACTIVATION_ENABLED is True

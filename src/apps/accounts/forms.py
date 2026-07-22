@@ -45,3 +45,18 @@ class BioForm(forms.ModelForm):
 
 class OwnPasswordChangeForm(PasswordChangeForm):
     """Django's password validation plus the fixed project-wide bounds."""
+
+
+class WithdrawalForm(forms.Form):
+    password = forms.CharField(
+        max_length=128,
+        label="현재 비밀번호",
+        strip=False,
+        widget=forms.PasswordInput,
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if set(self.data) - {"password", "csrfmiddlewaretoken"}:
+            raise forms.ValidationError("허용되지 않은 입력이 포함되어 있습니다.")
+        return cleaned

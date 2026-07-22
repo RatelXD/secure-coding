@@ -8,10 +8,11 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 
-from .forms import BioForm, LoginForm, OwnPasswordChangeForm, SignupForm
+from .forms import BioForm, LoginForm, OwnPasswordChangeForm, SignupForm, WithdrawalForm
 from .models import User
 from .services import AccountSessionService, authenticate_login, project_account_identity
 from .validators import canonicalize_username
+from .withdrawal import WithdrawalBlocked, WithdrawalUnavailable, withdraw_account
 
 _GENERIC_LOGIN_ERROR = "아이디 또는 비밀번호를 확인해 주세요. 잠시 후 다시 시도할 수 있습니다."
 
@@ -141,3 +142,28 @@ def password_change(request: HttpRequest) -> HttpResponse:
         messages.success(request, "비밀번호를 변경했습니다.")
         return redirect("accounts:profile")
     return render(request, "accounts/password_change.html", {"form": form})
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def withdraw(request: HttpRequest) -> HttpResponse:
+    form = WithdrawalForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            withdraw_account(
+                user_id=request.user.pk,
+                password=form.cleaned_data["password"],
+            )
+        except WithdrawalBlocked as exc:
+            form.add_error(None, str(exc))
+        except WithdrawalUnavailable:
+            return HttpResponse(
+                "회원 탈퇴 권위를 확인할 수 없습니다. 잠시 후 다시 시도해 주세요.",
+                status=503,
+                content_type="text/plain",
+            )
+        else:
+            AccountSessionService.end(request=request)
+            messages.success(request, "회원 탈퇴가 완료되었습니다.")
+            return redirect("home")
+    return render(request, "accounts/withdraw.html", {"form": form})

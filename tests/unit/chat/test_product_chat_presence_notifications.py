@@ -129,6 +129,15 @@ def test_presence_is_relationship_scoped_and_multitab_safe(product_parties):
     assert async_to_sync(service.peer_states)(room_id=conversation.room_id, user_id=buyer.pk)[seller.pk]
     async_to_sync(service.offline)(room_id=conversation.room_id, user_id=seller.pk, connection_id=second)
     assert not async_to_sync(service.peer_states)(room_id=conversation.room_id, user_id=buyer.pk)[seller.pk]
+    User = seller.__class__
+    User.objects.filter(pk=seller.pk).update(
+        is_active=False,
+        withdrawn_at=timezone.now(),
+    )
+    assert async_to_sync(service.peer_states)(
+        room_id=conversation.room_id,
+        user_id=buyer.pk,
+    ) == {seller.pk: False}
     with pytest.raises(ChatAuthorizationError):
         authorized_presence_peers(room_id=conversation.room_id, user_id=outsider.pk)
 
