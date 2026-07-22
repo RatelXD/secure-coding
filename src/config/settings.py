@@ -65,6 +65,7 @@ else:
     ALLOWED_HOSTS = _csv("DJANGO_ALLOWED_HOSTS", default="localhost,127.0.0.1")
 
 CSRF_TRUSTED_ORIGINS = _csv("DJANGO_CSRF_TRUSTED_ORIGINS")
+CSRF_FAILURE_VIEW = "apps.transfers.views.csrf_failure"
 if IS_PRODUCTION and not CSRF_TRUSTED_ORIGINS:
     raise ImproperlyConfigured("production requires explicit DJANGO_CSRF_TRUSTED_ORIGINS")
 if any(not origin.startswith(("http://", "https://")) for origin in CSRF_TRUSTED_ORIGINS):
@@ -96,6 +97,7 @@ INSTALLED_APPS = [
     "apps.accounts",
     "apps.catalog",
     "apps.trades",
+    "apps.transfers",
     "apps.chat",
     "apps.moderation",
     "apps.notifications",

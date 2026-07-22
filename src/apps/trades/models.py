@@ -40,6 +40,7 @@ class Trade(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    version = models.PositiveIntegerField(default=1)
 
     class Meta:
         ordering = ("-created_at", "-pk")
@@ -75,3 +76,23 @@ class Trade(models.Model):
 
     def __str__(self) -> str:
         return f"{self.product_id}:{self.kind}:{self.status}"
+
+
+class TradeStatusHistory(models.Model):
+    """Append-only evidence of every server-authoritative lifecycle transition."""
+
+    trade = models.ForeignKey(Trade, on_delete=models.PROTECT, related_name="status_history")
+    from_status = models.CharField(max_length=16, blank=True)
+    to_status = models.CharField(max_length=16, choices=Trade.Status.choices)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    version = models.PositiveIntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("trade_id", "version")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("trade", "version"),
+                name="trades_history_trade_version_unique",
+            )
+        ]
