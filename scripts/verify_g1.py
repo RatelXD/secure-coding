@@ -18,7 +18,14 @@ TEMPLATE_REPOSITORY = "ChosunUniv2026Capstone/Backend"
 TEMPLATE_COMMIT = "e1e524bcff217999044ca6db3da65eedf990e5e5"
 TEMPLATE_BLOB = "8e4fed1229b1a12d7090c23222230917db738e18"
 TEMPLATE_PATH = ".github/pull_request_template.md"
-DEFAULT_REQUIRED_CHECKS = ("governance-trusted",)
+DEFAULT_REQUIRED_CHECKS = (
+    "governance-title",
+    "unit",
+    "integration-postgres-redis",
+    "security",
+    "migration",
+    "browser-a11y",
+)
 GITHUB_ACTIONS_APP_ID = 15368
 TEMPLATE_SECTIONS = (
     "## Why",
@@ -30,6 +37,16 @@ TEMPLATE_SECTIONS = (
     "## Screenshots (UI only)",
     "## Open questions / follow-ups",
 )
+
+RELEASE_STATES = (
+    "PR7_MERGED_CANDIDATE",
+    "RC_ALLOCATED",
+    "RC_QUALIFYING",
+    "ATTESTED",
+    "FORMAL_PROMOTED",
+    "PUBLIC_VERIFIED",
+)
+TERMINAL_FAILURE_STATE = "RC_FAILED_IMMUTABLE"
 
 
 def sha256(data: bytes) -> str:
@@ -57,6 +74,51 @@ def http_json(url: str) -> Any:
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
     return subprocess.run(command, check=False, capture_output=True, text=True)
+
+
+def check_release_state(receipt: dict[str, Any]) -> dict[str, Any]:
+    """Validate the same-SHA monotonic release state machine without mutating it."""
+    release_sha = receipt.get("release_sha")
+    events = receipt.get("events")
+    valid_sha = (
+        isinstance(release_sha, str)
+        and len(release_sha) == 40
+        and all(character in "0123456789abcdef" for character in release_sha)
+    )
+    errors: list[str] = []
+    if not isinstance(events, list) or not events:
+        errors.append("events must be a non-empty list")
+        events = []
+    states: list[str] = []
+    terminal_seen = False
+    for index, event in enumerate(events):
+        if not isinstance(event, dict):
+            errors.append(f"event {index} is not an object")
+            continue
+        state = event.get("state")
+        states.append(state)
+        if event.get("release_sha") != release_sha:
+            errors.append(f"event {index} SHA mismatch")
+        if terminal_seen:
+            errors.append("events exist after terminal failure")
+        if state == TERMINAL_FAILURE_STATE:
+            terminal_seen = True
+        elif state not in RELEASE_STATES:
+            errors.append(f"event {index} has unknown state")
+    if states:
+        if states[0] != RELEASE_STATES[0]:
+            errors.append("state machine must begin at PR7_MERGED_CANDIDATE")
+        non_failure = [state for state in states if state != TERMINAL_FAILURE_STATE]
+        expected = list(RELEASE_STATES[: len(non_failure)])
+        if non_failure != expected:
+            errors.append("release states are not monotonic")
+    return {
+        "passed": valid_sha and not errors,
+        "release_sha": release_sha,
+        "states": states,
+        "terminal_failure": terminal_seen,
+        "errors": errors,
+    }
 
 
 def check_template() -> dict[str, Any]:
@@ -140,7 +202,6 @@ def check_github(
     ])
     protection, protection_error = gh_json(["api", f"repos/{repository}/branches/main/protection"])
     pages, pages_error = gh_json(["api", f"repos/{repository}/pages"])
-    environment, environment_error = gh_json(["api", f"repos/{repository}/environments/release"])
     actions, actions_error = gh_json(["api", f"repos/{repository}/actions/permissions"])
     actor, actor_error = gh_json(["api", "user"])
     pr: Any | None = None
@@ -172,32 +233,17 @@ def check_github(
         and actor_login.casefold() == repository_owner.casefold()
     )
     collaborator_logins = [item.get("login") for item in collaborators or []]
-    rules = (environment or {}).get("protection_rules", [])
-    reviewer_rules = [rule for rule in rules if rule.get("type") == "required_reviewers"]
-    reviewers = [
-        reviewer.get("reviewer", {}).get("login")
-        for rule in reviewer_rules
-        for reviewer in rule.get("reviewers", [])
-        if reviewer.get("reviewer", {}).get("login")
-    ]
     independent_reviewer_available = bool(actor_login) and any(
         login.casefold() != actor_login.casefold()
         for login in collaborator_logins
         if login
-    )
-    environment_owner_review_required = (
-        actor_is_owner
-        and bool(reviewer_rules)
-        and len(reviewers) == 1
-        and reviewers[0].casefold() == repository_owner.casefold()
-        and all(rule.get("prevent_self_review") is False for rule in reviewer_rules)
-        and (environment or {}).get("can_admins_bypass") is False
     )
     pull_request_reviews = (protection or {}).get("required_pull_request_reviews") or {}
     status_checks = (protection or {}).get("required_status_checks") or {}
     branch_rules_complete = (
         not pull_request_reviews
         and (protection or {}).get("enforce_admins", {}).get("enabled") is True
+        and (protection or {}).get("required_conversation_resolution", {}).get("enabled") is True
         and (protection or {}).get("required_linear_history", {}).get("enabled") is True
         and (protection or {}).get("allow_force_pushes", {}).get("enabled") is False
         and (protection or {}).get("allow_deletions", {}).get("enabled") is False
@@ -283,7 +329,6 @@ def check_github(
         "pr_required_checks_passed": pr_required_checks_passed,
         "pages_public_workflow_https": bool(pages) and pages.get("public") is True
         and pages.get("build_type") == "workflow" and pages.get("https_enforced") is True,
-        "release_environment_owner_review_required": environment_owner_review_required,
         "actions_enabled": bool(actions) and actions.get("enabled") is True,
     }
     return {
@@ -295,8 +340,7 @@ def check_github(
         "authenticated_actor_is_owner": actor_is_owner,
         "collaborators": collaborator_logins,
         "independent_reviewer_available": independent_reviewer_available,
-        "release_reviewers": reviewers,
-        "release_can_admins_bypass": (environment or {}).get("can_admins_bypass"),
+        "required_status_check_app_id": GITHUB_ACTIONS_APP_ID,
         "required_status_checks": {
             "expected": [
                 {"context": context, "app_id": GITHUB_ACTIONS_APP_ID}
@@ -329,7 +373,6 @@ def check_github(
                 "collaborators": collaborators_error,
                 "branch_protection": protection_error,
                 "pages": pages_error,
-                "release_environment": environment_error,
                 "actions": actions_error,
                 "pull_request": pr_error,
                 "pull_request_comments": comments_error,
@@ -350,6 +393,7 @@ def main() -> int:
         help="Exact required Actions check context; repeat for multiple contexts",
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--release-state", type=Path)
     args = parser.parse_args()
 
     receipt: dict[str, Any] = {
@@ -364,10 +408,17 @@ def main() -> int:
             pull_request=args.pull_request,
             expected_required_checks=tuple(args.required_checks or DEFAULT_REQUIRED_CHECKS),
         )
+        if args.release_state:
+            receipt["release_state"] = check_release_state(
+                json.loads(args.release_state.read_text(encoding="utf-8"))
+            )
     except Exception as error:  # fail closed with a serializable receipt
         receipt["verification_error"] = f"{type(error).__name__}: {error}"
     components = [value.get("passed", False) for value in receipt.values() if isinstance(value, dict)]
-    receipt["gate"] = "PASS" if len(components) == 2 and all(components) else "BLOCK"
+    expected_components = 3 if args.release_state else 2
+    receipt["gate"] = (
+        "PASS" if len(components) == expected_components and all(components) else "BLOCK"
+    )
     rendered = json.dumps(receipt, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)

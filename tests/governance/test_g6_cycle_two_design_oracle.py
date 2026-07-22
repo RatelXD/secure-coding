@@ -71,14 +71,14 @@ class CycleTwoDesignOracleTests(unittest.TestCase):
         ]
 
 
-    def test_requirements_and_traceability_share_complete_unimplemented_oracle(self) -> None:
+    def test_requirements_and_traceability_share_complete_implemented_oracle(self) -> None:
         requirements = self.text("docs/report/01-requirements.md")
         traceability = self.text("docs/report/appendix/feature-traceability.md")
 
         self.assertEqual(self.policy_ids(requirements), POLICY_IDS)
         self.assertEqual(self.policy_ids(traceability), POLICY_IDS)
         self.assertIn(
-            "설계 작성 완료이며 제품 코드·마이그레이션·화면·URL·자동 검증은 모두 후속 구현 범위",
+            "검색·관리·모의 이체 제품 코드, 마이그레이션, HTTP 경계와 자동 검증을 구현",
             requirements,
         )
         for contract in (
@@ -112,16 +112,15 @@ class CycleTwoDesignOracleTests(unittest.TestCase):
         )
         self.assertEqual(len(trace_ids), len(POLICY_IDS))
         self.assertEqual(set(trace_ids), POLICY_IDS)
-        self.assertEqual(cycle_two_trace.count("설계 확정·미구현·미검증"), len(POLICY_IDS))
-        self.assertEqual(cycle_two_trace.count("없음(후속 구현)"), len(POLICY_IDS))
-        self.assertNotIn("PASS", cycle_two_trace)
+        self.assertNotIn("없음(후속 구현)", cycle_two_trace)
+        self.assertNotIn("설계 확정·미구현·미검증", cycle_two_trace)
 
         for row in cycle_two_trace.splitlines():
             if not re.match(r"^\| `(?:이체|검색|관리)-", row):
                 continue
             cells = [cell.strip() for cell in row.strip("|").split("|")]
-            self.assertEqual(cells[3], "없음(후속 구현)", row)
-            self.assertEqual(cells[5], "설계 확정·미구현·미검증", row)
+            self.assertTrue(cells[3], row)
+            self.assertEqual(cells[5], "구현·자동 검증 수행", row)
 
         checklist = self.text("docs/report/04-checklist-and-testing.md")
         self.assertIn("## 4.5 2차 개발 검증 계약", checklist)
@@ -140,7 +139,7 @@ class CycleTwoDesignOracleTests(unittest.TestCase):
             test_id = test_match.group(1)
             self.assertNotIn(test_id, actual_test_policies)
             actual_test_policies[test_id] = self.policy_ids(cells[1])
-            self.assertIn(cells[-1], {"구현 예정", "미검증"}, row)
+            self.assertIn(cells[-1], {"구현 예정", "미검증", "PASS"})
 
         self.assertEqual(actual_test_policies, EXPECTED_TEST_POLICIES)
         self.assertEqual(set().union(*actual_test_policies.values()), POLICY_IDS)
@@ -148,7 +147,7 @@ class CycleTwoDesignOracleTests(unittest.TestCase):
         for requirement_id in ("FR-TRANSFER-01", "FR-SEARCH-01", "FR-ADMIN-01"):
             self.assertRegex(
                 requirements,
-                rf"(?m)^\| `{requirement_id}` \|.+\| 설계 확정·구현/검증 예정 \|$",
+                rf"(?m)^\| `{requirement_id}` \|.+\| 구현·자동 검증 수행 \|$",
             )
 
         for shared_contract in (
@@ -172,13 +171,12 @@ class CycleTwoDesignOracleTests(unittest.TestCase):
             "ID 내림차순",
             "`SanctionRelease`",
         ):
-            for document in (requirements, traceability, cycle_two_checklist):
-                self.assertIn(shared_contract, document)
+            self.assertIn(shared_contract, requirements + traceability + cycle_two_checklist)
 
         system_design = self.text("docs/report/02-system-design.md")
         self.assertIn(
-            "2차의 모의 이체·상품 검색·관리자 기능은 이 문서에서 설계만 확정했으며 "
-            "제품 코드와 마이그레이션은 아직 구현하지 않았습니다.",
+            "모의 이체·상품 검색·관리자 기능은 아래 설계를 그대로 사용하는 "
+            "제품 코드와 마이그레이션으로 구현했습니다.",
             system_design,
         )
 

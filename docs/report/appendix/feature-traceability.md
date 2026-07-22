@@ -1,6 +1,6 @@
 # 부록 A. 요구사항-설계-구현-테스트 추적표
 
-첫 표는 구현·검증을 마친 1차 범위를 연결합니다. 두 번째 표는 정책을 확정했지만 제품 코드와 검증은 아직 없는 2차 범위를 연결합니다. `PASS`는 실제 실행 근거가 있는 경우에만 사용하고, `설계 확정·미구현·미검증`은 구현 완료를 뜻하지 않습니다.
+첫 표는 기존 기능을, 두 번째 표는 검색·관리·모의 이체 정책의 구현과 자동 검증 연결을 기록합니다. 상태는 실제 코드와 2026-07-22 통합 matrix 및 실패 범위 보정 검증 근거가 있는 경우에만 갱신합니다.
 
 | 요구사항 ID | 요구사항 | 설계 요소 | 구현 파일·모듈 | 테스트 근거 | 상태 | 비고 |
 |---|---|---|---|---|---|---|
@@ -25,31 +25,31 @@
 
 상위 기능 `FR-TRANSFER-01`, `FR-SEARCH-01`, `FR-ADMIN-01`의 상세 정책 ID와 수락 기준은 [요구사항 분석의 2차 상세 정책](../01-requirements.md)에 있습니다.
 
-| 정책 ID | 요구사항 | 설계 요소 | 구현 파일·모듈 | 예정 검증 | 상태 | 비고 |
+| 정책 ID | 요구사항 | 설계 요소 | 구현 파일·모듈 | 검증 근거 | 상태 | 비고 |
 |---|---|---|---|---|---|---|
-| `이체-범위-01` | 현금과 분리된 `Decimal(12,2)` 모의 계정 | 사용자 계정 +100,000.00·`SEED_RESERVE` -100,000.00의 단일 합계 0 `SEED_ISSUE`·SEED 전용 부분 고유 제약 | 없음(후속 구현) | 계정 단일성·균형 발행·다른 journal 허용·DB 중복 방지 테스트 | 설계 확정·미구현·미검증 | 충전·출금·환불·환전·외부 결제 제외 |
-| `이체-금액-01` | 금액·잔액 경계 | 1회 0.01..99,999,999.99, 잔액 0.00..1,000,000,000.00 | 없음(후속 구현) | 소수 자릿수·0·음수·상하한 테스트 | 설계 확정·미구현·미검증 | `Decimal(12,2)` |
-| `이체-계정-01` | 소유자만 안전하게 계정 종료 | CSRF POST·계정 행 잠금·잔액 0 재검사·종료 뒤 송수신 차단 | 없음(후속 구현) | 비소유자·종료/이체 양방향 경합·원장·감사 보존 테스트 | 설계 확정·미구현·미검증 | 휴면은 종료가 아니라 일시 동결 |
-| `이체-대상-01` | 세션 발신자, 정확한 수신자, 양쪽 활성 | 서버 행위자 결정·DB 현재 시각 제재 상태 조회 | 없음(후속 구현) | 발신자 위조·자기·미존재·휴면 사용자 음성 테스트 | 설계 확정·미구현·미검증 | 발신자·수신자 모두 검사 |
-| `이체-잔액-01` | 부족 잔액 거부 | 잠긴 최신 잔액 검사 | 없음(후속 구현) | 부족 잔액 뒤 계정·원장 불변 테스트 | 설계 확정·미구현·미검증 | 성공 이체 기록도 남기지 않음 |
-| `이체-원자성-01` | 정확히 두 항목·합계 0 journal | deferred INSERT 검증·journal/entry UPDATE/DELETE trigger | 없음(후속 구현) | 0/1/2/3항목·합계 불일치·변경 거부 | 설계 확정·미구현·미검증 | PostgreSQL 커밋 시 검증 |
-| `이체-멱등-01` | 발신자 UUID와 canonical payload | safety shared→stable digest lock·성공/업무 거부 status·body 영구 재사용·새 키만 OPEN 검사 | 없음(후속 구현) | 저장 201·422의 BLOCKED 순차/병렬 재현·동등 금액·payload 차이·롤백 키 재요청 | 설계 확정·미구현·미검증 | 시스템 실패만 같은 키 재처리 |
-| `이체-동시성-01` | 차단 전환과 새 이체 직렬화 | safety shared→멱등→새 키 OPEN 검사→계정 잠금·대사 exclusive lock·`40001`/`40P01` 3회 | 없음(후속 구현) | BLOCKED 경합·저장 결과 재현·병렬 새 이체·총 4회 재시도 | 설계 확정·미구현·미검증 | 전환 뒤 새 이체 커밋 금지 |
-| `이체-보정-01` | 원장·잔액 직접 변경 금지 | 원본 참조 보정 항목·휴면 시 계정 동결 | 없음(후속 구현) | 취소/조정 합계·원본 보존·휴면 복구 테스트 | 설계 확정·미구현·미검증 | 사용자·일반 관리자 보정 진입점 없음 |
-| `이체-대사-01` | 시스템 전체 잔액과 원장 일치 | exclusive safety lock·incident·maintainer 전체 재검증 | 없음(후속 구현) | 전환 barrier·무권한/불완전 복구·재개 경합 | 설계 확정·미구현·미검증 | Redis는 잔액 권위가 아님 |
-| `검색-공개-01` | 공개 상품만 검색 | 기존 DB 시각 상품 공개 정책 재사용 | 없음(후속 구현) | 비노출·만료 경계와 전체 건수 테스트 | 설계 확정·미구현·미검증 | 관리자도 일반 검색 우회 불가 |
-| `검색-입력-01` | 저장값과 검색어 NFC | 기존 데이터 backfill·쓰기 정규화·DB CHECK·q 0..100 | 없음(후속 구현) | 저장/검색 NFC·NFD 조합·raw DB 거부·길이 | 설계 확정·미구현·미검증 | 빈 검색어는 공개 전체 |
-| `검색-필터-01` | 상태·가격 필터 | AVAILABLE/SOLD allowlist·정수 가격 1..999,999,999,999·AND 결합 | 없음(후속 구현) | 잘못된 상태·가격·역전 범위 테스트 | 설계 확정·미구현·미검증 | 현재 상품 모델 경계와 일치 |
-| `검색-정렬-01` | 허용 정렬과 결정적 동률 순서 | 최신/가격 오름/가격 내림 allowlist·ID 내림차순 tie-break | 없음(후속 구현) | 동률 반복 조회·임의 필드 거부 테스트 | 설계 확정·미구현·미검증 | 최신순이 기본 |
-| `검색-페이지-01` | `1..500`의 20건 페이지 | 필터·정렬 뒤 제한된 OFFSET pagination·501 이상 사전 거부 | 없음(후속 구현) | 20/21건·500/501·매우 큰 페이지 테스트 | 설계 확정·미구현·미검증 | 500 이내 마지막 이후는 빈 목록 |
-| `관리-최소권한-01` | 일반 작업 권한과 meta-scope 예외 | staff+codename+`AdminScopeGrant`, scope는 superuser+직접 `moderation.manage_admin_scope` | 없음(후속 구현) | 일반 grant·자동 우회·bootstrap 역할/0명 조건·advisory lock 병렬 실행 | 설계 확정·미구현·미검증 | scope만 대상 grant 예외 |
-| `관리-범위-01` | 대상별 기본 거부와 최소 공개 | USER/PRODUCT FK 하나·grant version·302/403/404·세션 무효화 | 없음(후속 구현) | 무대상/양대상·활성 중복·범위·stale revoke | 설계 확정·미구현·미검증 | 민감 정보·잔액·원장 제외 |
-| `관리-재인증-01` | 제재·scope 변경 공통 보호 | UTC 300초·NFC 10..500 reason·CSRF·staff/grant version | 없음(후속 구현) | 시간·사유·stale·자기 변경·bootstrap | 설계 확정·미구현·미검증 | 모든 관리 상태 변경 |
-| `관리-가역성-01` | 7일 제재와 단일 조기 해제 | DB 시각 경계·원본 불변·별도 `SanctionRelease`·만료 뒤 409 충돌 감사 | 없음(후속 구현) | 병렬 적용/해제·만료 직전/정확/직후·해제 응답·기록 수 | 설계 확정·미구현·미검증 | 자연 만료 자체는 해제 기록 없음 |
-| `관리-감사-01` | 추가 전용·민감값 없는 감사 | 업무와 단일 트랜잭션·SELECT/INSERT 전용 역할·DB trigger·실패 503 | 없음(후속 구현) | 성공/거부/충돌 1건·INSERT 실패 0건·변경 거부 | 설계 확정·미구현·미검증 | grant 변경도 감사 |
-| `관리-중복-01` | 중복 제재·해제의 상태 안전성 | 활성 제재 단일성·기존 결과 반환·만료 뒤 `SanctionRelease` 금지 | 없음(후속 구현) | 순차/병렬 중복 적용·반복 해제·만료 뒤 해제 409 테스트 | 설계 확정·미구현·미검증 | 기간 연장과 성공 감사 중복 금지 |
+| `이체-범위-01` | 현금과 분리된 `Decimal(12,2)` 모의 계정 | +100,000.00·`SEED_RESERVE` -100,000.00 합계 0 `SEED_ISSUE` | `apps/transfers/models.py`, `services.py`, `0001_initial.py` | `tests/unit/trades_transfer/test_authority.py` | 구현·자동 검증 수행 | 외부 결제 제외 |
+| `이체-금액-01` | 0.01..99,999,999.99와 잔액 상한 | `Decimal`, DB CHECK, 서비스 재검사 | `apps/transfers/views.py`, `services.py` | transfer 경계·HTTP 테스트 | 구현·자동 검증 수행 | `Decimal(12,2)` |
+| `이체-계정-01` | 소유자만 잔액 0 계정 종료 | CSRF·safety shared·계정 잠금 | `apps/transfers/views.py`, `services.py` | 계정 종료 권한·상태 테스트 | 구현·자동 검증 수행 | 원장·감사 보존 |
+| `이체-대상-01` | 세션 발신자와 활성 수신자 | 서버 행위자·DB 현재 상태 | `apps/transfers/services.py` | 발신자 위조·자기·미존재 음성 테스트 | 구현·자동 검증 수행 | 양쪽 상태 검사 |
+| `이체-잔액-01` | 부족 잔액 거부 | 잠긴 최신 잔액 검사 | `apps/transfers/services.py` | 거부 뒤 계정·원장 불변 테스트 | 구현·자동 검증 수행 | 성공 row 0 |
+| `이체-원자성-01` | journal 두 항목·합계 0 | deferred trigger·journal/entry 불변 trigger | `apps/transfers/migrations/0001_initial.py` | 비정상 journal·변조 거부 테스트 | 구현·자동 검증 수행 | PostgreSQL 커밋 검증 |
+| `이체-멱등-01` | UUID와 canonical payload | safety shared→stable digest lock·저장 응답 재현 | `apps/transfers/services.py` | 201/422 재현·payload 충돌 테스트 | 구현·자동 검증 수행 | 새 키만 OPEN 검사 |
+| `이체-동시성-01` | 차단과 새 이체 직렬화 | safety shared→멱등→계정 PK 순서·`40001`/`40P01` 재시도 | `apps/transfers/services.py` | BLOCKED·병렬·재시도 테스트 | 구현·자동 검증 수행 | 전환 뒤 늦은 commit 금지 |
+| `이체-보정-01` | 직접 원장 변경 금지 | journal/entry 불변 trigger·보정 원본 참조 | `apps/transfers/models.py`, migration | 직접 변경 음성 테스트 | 구현·자동 검증 수행 | 일반 관리자 진입점 없음 |
+| `이체-대사-01` | 잔액·원장 일치 | exclusive lock·incident·maintainer 재검증 | `reconcile_mock_ledger` command | BLOCKED/재개·backup restore 검증 | 구현·자동 검증 수행 | Redis 비권위 |
+| `검색-공개-01` | 공개 상품만 검색 | DB 시각 가시성 선적용 | `apps/catalog/search.py` | `test_catalog_engagement_search.py` | 구현·자동 검증 수행 | 관리 우회 없음 |
+| `검색-입력-01` | NFC·q 0..100 | migration backfill·DB CHECK·정규화 | catalog model/search/service | NFC/NFD·100/101·C0/C1 테스트 | 구현·자동 검증 수행 | 빈 검색은 공개 전체 |
+| `검색-필터-01` | 상태·가격 allowlist | AVAILABLE/SOLD·정수 가격·AND | `apps/catalog/search.py` | 필터 조합·잘못된 입력 테스트 | 구현·자동 검증 수행 | fail closed |
+| `검색-정렬-01` | 세 정렬·ID 내림차순 동률 | allowlist·결정적 tie-break | `apps/catalog/search.py` | 반복 순서·임의 필드 거부 | 구현·자동 검증 수행 | newest 기본 |
+| `검색-페이지-01` | `1..500`, 페이지당 20건 | count+slice·사전 범위 거부 | `apps/catalog/search.py` | 20/21·500/501·query budget | 구현·자동 검증 수행 | 마지막 이후 빈 목록 |
+| `관리-최소권한-01` | staff+codename+grant | 정확 permission·meta-scope 분리 | `apps/moderation/management.py`, `services.py` | `test_management_review.py` | 구현·자동 검증 수행 | 기본 거부 |
+| `관리-범위-01` | USER/PRODUCT 객체 범위 | `AdminScopeGrant`·version·세션 무효화 | moderation model/service/view | 범위 밖 404·중복 grant 테스트 | 구현·자동 검증 수행 | 민감값·잔액·원장 제외 |
+| `관리-재인증-01` | 300초·NFC reason·CSRF·version | 서버 시각과 stale 검사 | moderation management/service | 299/300/301·10..500 테스트 | 구현·자동 검증 수행 | 모든 관리 write |
+| `관리-가역성-01` | 7일 제재·조기 해제 | DB 시각·`SanctionRelease` | moderation model/service | 만료 경계·hide/restore 테스트 | 구현·자동 검증 수행 | 원본 보존 |
+| `관리-감사-01` | append-only 민감값 없는 감사 | 업무와 단일 transaction·trigger | moderation model/migration/service | 감사 실패 rollback·변조 거부 | 구현·자동 검증 수행 | grant 포함 |
+| `관리-중복-01` | 중복 제재·해제 안전성 | 활성 단일성·기존 결과 반환 | moderation service | 병렬 적용/해제·만료 충돌 테스트 | 구현·자동 검증 수행 | 기간 연장 없음 |
 
-2차 표의 `예정 검증`은 테스트 계약일 뿐 실행 근거가 아닙니다. 후속 구현에서 실제 파일, 명령, 결과를 확인한 뒤에만 구현·테스트 열과 상태를 갱신합니다.
+2차 표는 구현 파일과 실행 테스트를 연결합니다. 새 SHA에서 검증하지 않은 결과를 PASS로 선기재하지 않으며 실패와 보정 명령을 검증 기록에 함께 남깁니다.
 ## G7A-1 상품 권위 구현 추적
 
 이 표는 구현 파일과 검증 시나리오의 연결을 기록합니다. 2026-07-18 UTC에 집중 테스트 53건, 전체 `pytest` 224건과 하위 사례 346건, 데스크톱 브라우저 2건, 거버넌스 55건을 같은 작업 트리에서 확인했습니다.

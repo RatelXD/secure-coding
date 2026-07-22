@@ -132,7 +132,18 @@ Origin·참여자, 재전송·충돌, 10/10초 제한, 전달 장애·이력 수
 
 거래 객체 권한·상태 이력, 이체 합계 보존·멱등 재현·payload 충돌, BLOCKED 재현 경계, 비인증·CSRF·발신자 위조, 비정상·변조 원장 음성 테스트 7개가 통과했습니다. 기존 HTTP 보안 음성 테스트 17개와 하위 사례 18개도 별도 실행해 통과했습니다.
 
-## 3.9 보안 구현 기록 방식
+## 3.9 최종 검증기와 release 상태 검증
+
+- `scripts/verify_g1.py`
+  - branch protection required check를 `governance-title`, `unit`, `integration-postgres-redis`, `security`, `migration`, `browser-a11y` 여섯 개와 GitHub Actions app ID로 정확히 비교합니다.
+  - 관리자 적용, conversation resolution, linear history, force-push·삭제 금지, squash-only와 PR 현재 head의 문서화된 self-review를 fail closed로 확인합니다.
+  - 선택적 `--release-state` 입력은 `PR7_MERGED_CANDIDATE`에서 시작하는 same-SHA 단조 상태와 `RC_FAILED_IMMUTABLE` 뒤 추가 event 금지를 읽기 전용으로 확인합니다.
+- `tests/governance/test_verify_g1.py`
+  - check 누락·추가·중복·잘못된 app, stale/수정 self-review, conversation resolution 누락, SHA 불일치·상태 건너뛰기·terminal 뒤 event를 음성 검증합니다.
+
+실제 GitHub PR head와 exact-main RC를 요구하는 외부 검증은 PR7 branch에서 PASS로 선기재하지 않습니다. 이 단계에서는 verifier 로직의 자동 테스트만 실행했고 tag·release mutation은 수행하지 않았습니다.
+
+## 3.10 보안 구현 기록 방식
 
 보안 기능은 다음 네 가지를 함께 남깁니다.
 

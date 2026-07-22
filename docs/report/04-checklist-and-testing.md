@@ -58,7 +58,7 @@
 
 ## 4.5 2차 개발 검증 계약
 
-2차 검색 제품 코드는 구현되어 변경 경계 집중 테스트를 통과했습니다. 아래 전체 검색 행렬은 최종 release verifier에서 다시 실행하기 전까지 `미검증`으로 유지합니다. 관리·모의 이체는 아직 `구현 예정`입니다. 구현·검증 단계에서는 [요구사항 분석](01-requirements.md)에 정의된 경계값과 [시스템 설계](02-system-design.md)의 권한·트랜잭션 계약을 기대값으로 사용합니다.
+아래 표는 구현 전에 확정한 검증 계약과 당시 기준선 상태를 보존합니다. 2026-07-22 통합 실행과 실패 범위 보정의 현재 결과는 4.6에 별도로 기록하며, 기능 코드·테스트의 존재만으로 PASS를 소급 기재하지 않습니다.
 
 ### 모의 내부 잔액 이체
 
@@ -132,3 +132,18 @@
 | 재시작과 복구 | 앱·DB·Redis 재시작, PostgreSQL 백업·복원 | 재시작 복구 PASS; 복원 뒤 사용자 1명, 상품 1개, 마이그레이션 24개 일치 | 컨테이너와 데이터 복구 |
 
 전체 170개와 하위 사례 217개를 실제 PostgreSQL·Redis 컨테이너에 연결해 실행했습니다. 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·참여자·재전송·휴면 수신 차단, Redis 장애 이력 수렴, 동시 제재·만료, 마이그레이션 일치와 2차 상세 정책 구조를 확인했습니다. `.env` 파일 없이 기본 애플리케이션 Compose와 별도 테스트 Compose 오버레이의 설정 해석, 이미지 빌드, 마이그레이션, 서비스 healthy 상태, loopback 전용 테스트 의존성, 미디어 지속성, 준비 상태 전체 제한 시간·다중 주소 대체, 재시작 복구와 백업·복원을 확인했습니다. 외부 터널 서비스는 실행하지 않았으므로 이 보고서의 검증 근거에 포함하지 않습니다.
+
+
+## 4.7 2026-07-22 통합 최종 검증
+
+검증 대상은 통합 leader head `38a5c87`에서 시작한 작업 트리입니다. 전체 matrix는 한 번 실행했고, 실패는 숨기지 않고 원인 수정 뒤 실패 범위만 다시 실행했습니다.
+
+| 단계 | 최초 실행 결과 | 원인과 보정 | 실패 범위 재실행 |
+|---|---|---|---|
+| 전체 `pytest -q` | 307 PASS, 4 FAIL, subtest 448 PASS | 두 catalog 404 테스트는 공통 navigation의 URL namespace 결합 때문에 오류 화면 렌더링이 실패했습니다. 나머지 두 건은 구현 뒤에도 남은 `미구현` 구조 oracle이었습니다. navigation을 고정 same-origin 경로로 만들고 oracle을 현재 authority app·정책 추적으로 갱신했습니다. | 실패한 정확한 node 4개, 4 PASS |
+| Django·migration | `check` PASS, drift 없음, `migrate --noinput` 적용할 변경 없음 | 보정 없음 | 해당 없음 |
+| PostgreSQL backup→빈 DB restore | dump와 restore는 성공했으나 최초 비교 명령이 설치하지 않은 `dblink` 확장에 의존해 FAIL | 확장 없는 `psql` 비교로 바꾸고 빈 `matrix_restore` DB에 다시 복원 | migration 39개·public table 45개가 원본과 일치, PASS |
+| 고정 browser toolchain | 최초 harness에서 `xz`, 다음 harness에서 `pip` 부재로 제품 테스트 전 FAIL | Playwright digest 고정 container에 필요한 압축·Python 설치 도구를 명시하고 Node 22.23.0, Python 3.12.13, uv 0.11.29를 검증 | toolchain contract PASS, desktop/mobile Playwright·axe 4 PASS |
+| G017 verifier | 변경 전 집중 실행 12 PASS, 전체 pytest에서 포함 실행 | required check를 정확한 6개로 고정하고 conversation resolution, same-SHA 단조 release state와 immutable failure를 검증 | 전체 실패 범위와 별개로 verifier test는 PASS 유지 |
+
+최종적으로 제품·보안 테스트 실패는 남지 않았습니다. 최초 full invocation 자체는 재실행하지 않았으며, `307 PASS / 4 FAIL`과 보정 뒤 `4 PASS`를 한 번의 `311 PASS` 결과로 합쳐 쓰지 않습니다. 실제 tag 생성, RC·formal promotion, Latest 변경, 공개 release 검증과 generic PDF 산출은 이 검증에서 수행하지 않았고 G019의 exact-main qualification 범위로 남깁니다.

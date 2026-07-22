@@ -52,6 +52,8 @@ class TemplateContractTests(unittest.TestCase):
 
 
 class GitHubGovernanceTests(unittest.TestCase):
+    CHECKS = verify_g1.DEFAULT_REQUIRED_CHECKS
+
     @staticmethod
     def response(arguments: list[str]):
         command = " ".join(arguments)
@@ -71,9 +73,13 @@ class GitHubGovernanceTests(unittest.TestCase):
             return ({
                 "required_status_checks": {
                     "strict": True,
-                    "checks": [{"context": "governance-trusted", "app_id": 15368}],
+                    "checks": [
+                        {"context": context, "app_id": 15368}
+                        for context in verify_g1.DEFAULT_REQUIRED_CHECKS
+                    ],
                 },
                 "enforce_admins": {"enabled": True},
+                "required_conversation_resolution": {"enabled": True},
                 "required_linear_history": {"enabled": True},
                 "allow_force_pushes": {"enabled": False},
                 "allow_deletions": {"enabled": False},
@@ -121,14 +127,17 @@ class GitHubGovernanceTests(unittest.TestCase):
             }], None)
         if "commits/abc123/check-runs?" in command:
             return ({
-                "total_count": 1,
-                "check_runs": [{
-                    "name": "governance-trusted",
-                    "head_sha": "abc123",
-                    "status": "completed",
-                    "conclusion": "success",
-                    "app": {"id": 15368},
-                }],
+                "total_count": len(verify_g1.DEFAULT_REQUIRED_CHECKS),
+                "check_runs": [
+                    {
+                        "name": context,
+                        "head_sha": "abc123",
+                        "status": "completed",
+                        "conclusion": "success",
+                        "app": {"id": 15368},
+                    }
+                    for context in verify_g1.DEFAULT_REQUIRED_CHECKS
+                ],
             }, None)
         raise AssertionError(f"unexpected gh invocation: {arguments}")
 
@@ -137,13 +146,16 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance-trusted",),
+            expected_required_checks=self.CHECKS,
         )
 
         self.assertTrue(receipt["passed"])
         self.assertEqual(
             receipt["required_status_checks"]["configured"],
-            [{"context": "governance-trusted", "app_id": 15368}],
+            [
+                {"context": context, "app_id": 15368}
+                for context in sorted(self.CHECKS)
+            ],
         )
         self.assertEqual(receipt["review_mode"], "documented-self-review")
         self.assertEqual(receipt["pull_request"]["self_review_comment_ids"], [77])
@@ -153,7 +165,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance-trusted", "security"),
+            expected_required_checks=(*self.CHECKS, "unexpected"),
         )
 
         self.assertFalse(receipt["passed"])
@@ -176,7 +188,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance-trusted",),
+            expected_required_checks=self.CHECKS,
         )
 
         self.assertFalse(receipt["passed"])
@@ -193,7 +205,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance-trusted",),
+            expected_required_checks=self.CHECKS,
         )
 
         self.assertFalse(receipt["passed"])
@@ -201,26 +213,22 @@ class GitHubGovernanceTests(unittest.TestCase):
         self.assertFalse(receipt["checks"]["documented_self_review"])
 
     @patch.object(verify_g1, "gh_json")
-    def test_blocks_extra_environment_reviewer(self, gh_json) -> None:
-        def extra_reviewer_response(arguments: list[str]):
+    def test_blocks_missing_conversation_resolution(self, gh_json) -> None:
+        def incomplete_response(arguments: list[str]):
             response, error = self.response(arguments)
-            if "environments/release" in " ".join(arguments):
-                response["protection_rules"][0]["reviewers"].append(
-                    {"reviewer": {"login": "RatelAI"}}
-                )
+            if "branches/main/protection" in " ".join(arguments):
+                response["required_conversation_resolution"]["enabled"] = False
             return response, error
 
-        gh_json.side_effect = extra_reviewer_response
+        gh_json.side_effect = incomplete_response
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance-trusted",),
+            expected_required_checks=self.CHECKS,
         )
 
         self.assertFalse(receipt["passed"])
-        self.assertFalse(
-            receipt["checks"]["release_environment_owner_review_required"]
-        )
+        self.assertFalse(receipt["checks"]["branch_rules_complete"])
 
     @patch.object(verify_g1, "gh_json")
     def test_blocks_wrong_app_check_run(self, gh_json) -> None:
@@ -234,7 +242,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance-trusted",),
+            expected_required_checks=self.CHECKS,
         )
 
         self.assertFalse(receipt["passed"])
@@ -252,7 +260,7 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance-trusted",),
+            expected_required_checks=self.CHECKS,
         )
 
         self.assertFalse(receipt["passed"])
@@ -273,13 +281,63 @@ class GitHubGovernanceTests(unittest.TestCase):
         receipt = verify_g1.check_github(
             "example/repo",
             pull_request=7,
-            expected_required_checks=("governance-trusted",),
+            expected_required_checks=self.CHECKS,
         )
 
         self.assertFalse(receipt["passed"])
         self.assertFalse(receipt["checks"]["documented_self_review"])
 
 
+
+class ReleaseStateTests(unittest.TestCase):
+    SHA = "a" * 40
+
+    def event(self, state: str, *, sha: str | None = None) -> dict[str, str]:
+        return {"state": state, "release_sha": sha or self.SHA}
+
+    def test_accepts_monotonic_same_sha_states(self) -> None:
+        receipt = verify_g1.check_release_state(
+            {
+                "release_sha": self.SHA,
+                "events": [
+                    self.event(state)
+                    for state in verify_g1.RELEASE_STATES
+                ],
+            }
+        )
+        self.assertTrue(receipt["passed"])
+        self.assertFalse(receipt["terminal_failure"])
+
+    def test_accepts_immutable_terminal_failure(self) -> None:
+        receipt = verify_g1.check_release_state(
+            {
+                "release_sha": self.SHA,
+                "events": [
+                    self.event("PR7_MERGED_CANDIDATE"),
+                    self.event("RC_ALLOCATED"),
+                    self.event(verify_g1.TERMINAL_FAILURE_STATE),
+                ],
+            }
+        )
+        self.assertTrue(receipt["passed"])
+        self.assertTrue(receipt["terminal_failure"])
+
+    def test_blocks_sha_mismatch_skips_and_events_after_failure(self) -> None:
+        receipt = verify_g1.check_release_state(
+            {
+                "release_sha": self.SHA,
+                "events": [
+                    self.event("PR7_MERGED_CANDIDATE"),
+                    self.event("RC_QUALIFYING", sha="b" * 40),
+                    self.event(verify_g1.TERMINAL_FAILURE_STATE),
+                    self.event("ATTESTED"),
+                ],
+            }
+        )
+        self.assertFalse(receipt["passed"])
+        self.assertIn("event 1 SHA mismatch", receipt["errors"])
+        self.assertIn("release states are not monotonic", receipt["errors"])
+        self.assertIn("events exist after terminal failure", receipt["errors"])
 
 if __name__ == "__main__":
     unittest.main()
