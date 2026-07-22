@@ -17,6 +17,7 @@ urlpatterns = [
     path("reports/", include("apps.moderation.urls")),
     path("transfers/", include("apps.transfers.urls")),
     path("trades/", include("apps.trades.urls")),
+    path("management/", include("apps.moderation.management_urls")),
     path("healthz/", liveness, name="healthz"),
     path("readyz/", readiness, name="readyz"),
 ]

@@ -1,6 +1,9 @@
 from django.conf import settings
 from django.db import models
 
+from django.core.validators import MaxValueValidator, MinValueValidator
+from django.db.models.functions import Now
+
 
 class Trade(models.Model):
     """Typed product lifecycle authority.
@@ -94,5 +97,79 @@ class TradeStatusHistory(models.Model):
             models.UniqueConstraint(
                 fields=("trade", "version"),
                 name="trades_history_trade_version_unique",
+            )
+        ]
+
+
+class Review(models.Model):
+    """An immutable review authored by one party to a completed standard trade."""
+
+    trade = models.ForeignKey(Trade, on_delete=models.PROTECT, related_name="reviews")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="authored_reviews",
+    )
+    subject = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="received_reviews",
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=(MinValueValidator(1), MaxValueValidator(5))
+    )
+    body = models.TextField(max_length=1_000)
+    created_at = models.DateTimeField(db_default=Now(), editable=False)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("trade", "author"),
+                name="trades_review_direction_unique",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(author=models.F("subject")),
+                name="trades_review_distinct_parties",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(rating__gte=1, rating__lte=5),
+                name="trades_review_rating_1_5",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(body=""),
+                name="trades_review_body_required",
+            ),
+        ]
+
+
+class ReviewVisibilityAction(models.Model):
+    """Append-only moderation decision; effective visibility is the latest decision."""
+
+    class Kind(models.TextChoices):
+        HIDE = "HIDE", "Hide"
+        RESTORE = "RESTORE", "Restore"
+
+    review = models.ForeignKey(
+        Review,
+        on_delete=models.PROTECT,
+        related_name="visibility_actions",
+    )
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="review_visibility_actions",
+    )
+    kind = models.CharField(max_length=8, choices=Kind.choices)
+    reason = models.TextField(max_length=500)
+    idempotency_key = models.UUIDField(unique=True)
+    created_at = models.DateTimeField(db_default=Now(), editable=False)
+
+    class Meta:
+        ordering = ("created_at", "pk")
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(reason=""),
+                name="trades_review_visibility_reason_required",
             )
         ]

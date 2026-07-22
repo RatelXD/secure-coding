@@ -13,6 +13,7 @@ from django.db.models.functions import Now
 from django.utils import timezone
 
 from apps.catalog.models import Product
+from apps.trades.models import Review
 
 from .models import AbuseReport, AuditEvent, ModerationAction
 from .policies import (
@@ -65,7 +66,11 @@ _QuerySetT = TypeVar("_QuerySetT", bound=QuerySet)
 
 
 def _active_actions() -> QuerySet[ModerationAction]:
-    return ModerationAction.objects.filter(starts_at__lte=Now(), expires_at__gt=Now())
+    return ModerationAction.objects.filter(
+        starts_at__lte=Now(),
+        expires_at__gt=Now(),
+        release__isnull=True,
+    )
 
 
 def effective_user_status(*, user_id: int) -> EffectiveUserStatus:
@@ -288,6 +293,41 @@ def submit_report(
             return ReportSubmission(report=report, action=action)
     except IntegrityError as exc:
         raise DuplicateReportError("report cannot be accepted") from exc
+
+
+def submit_review_report(*, reporter, review_id: int, reason: str) -> AbuseReport:
+    """Record a review report without fabricating an automatic visibility decision."""
+    normalized_reason = _normalize_reason(reason)
+    if (
+        isinstance(review_id, bool)
+        or not isinstance(review_id, int)
+        or review_id <= 0
+        or not getattr(reporter, "is_authenticated", False)
+    ):
+        raise ReportSubmissionError("report cannot be accepted")
+    try:
+        with transaction.atomic():
+            locked_reporter = get_user_model().objects.select_for_update().get(pk=reporter.pk)
+            review = Review.objects.select_for_update().get(pk=review_id)
+            database_now = _database_now()
+            if (
+                review.author_id == locked_reporter.pk
+                or not _reporter_can_contribute(
+                    reporter=locked_reporter,
+                    database_now=database_now,
+                )
+            ):
+                raise ReportSubmissionError("report cannot be accepted")
+            return AbuseReport.objects.create(
+                reporter=locked_reporter,
+                target_type=AbuseReport.TargetType.REVIEW,
+                target_review=review,
+                context=AbuseReport.Context.REVIEW,
+                reason=normalized_reason,
+                created_at=database_now,
+            )
+    except (get_user_model().DoesNotExist, Review.DoesNotExist, IntegrityError) as exc:
+        raise ReportSubmissionError("report cannot be accepted") from exc
 
 
 def evaluate_threshold(*, target_type: TargetType | str, target_id: int) -> ModerationAction | None:

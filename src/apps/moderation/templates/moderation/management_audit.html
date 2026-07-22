@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>관리 감사</title></head>
+<body>
+<main>
+  <h1>관리 감사</h1>
+  <table>
+    <thead><tr><th>작업</th><th>대상 유형</th><th>대상 번호</th><th>결과</th><th>시각</th></tr></thead>
+    <tbody>
+    {% for audit in audits %}
+      <tr><td>{{ audit.action }}</td><td>{{ audit.target_type }}</td><td>{{ audit.target_id }}</td><td>{{ audit.result }}</td><td>{{ audit.created_at }}</td></tr>
+    {% empty %}<tr><td colspan="5">감사 기록이 없습니다.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</main>
+</body>
+</html>

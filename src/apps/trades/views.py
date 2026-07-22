@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import json
 
-from django.http import HttpRequest, JsonResponse
-from django.views.decorators.http import require_POST
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.shortcuts import redirect, render
+from django.views.decorators.http import require_http_methods, require_POST
 
-from .services import TradeConflict, TradeError, TradeService
+from .forms import ReviewForm
+from .services import (
+    ReviewAuthorityError,
+    TradeConflict,
+    TradeError,
+    TradeService,
+    create_review,
+)
 
 
 def _error(code: str, status: int) -> JsonResponse:
@@ -82,3 +91,27 @@ def complete(request: HttpRequest, trade_id: int) -> JsonResponse:
         return _error("TRADE_CONFLICT", 409)
     except TradeError:
         return _error("TRADE_NOT_ALLOWED", 422)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def review_create(request: HttpRequest, trade_id: int) -> HttpResponse:
+    form = ReviewForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            create_review(
+                actor=request.user,
+                trade_id=trade_id,
+                rating=form.cleaned_data["rating"],
+                body=form.cleaned_data["body"],
+            )
+        except ReviewAuthorityError:
+            form.add_error(None, "후기를 작성할 수 없습니다.")
+        else:
+            return redirect("/")
+    return render(
+        request,
+        "trades/review_form.html",
+        {"form": form},
+        status=400 if request.method == "POST" else 200,
+    )
