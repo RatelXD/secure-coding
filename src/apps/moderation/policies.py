@@ -14,6 +14,7 @@ INDEPENDENT_REPORTER_THRESHOLD = 5
 class TargetType(StrEnum):
     USER = "USER"
     PRODUCT = "PRODUCT"
+    REVIEW = "REVIEW"
 
 
 class ReportContext(StrEnum):
@@ -22,6 +23,7 @@ class ReportContext(StrEnum):
     PRODUCT_INTERACTION = "PRODUCT_INTERACTION"
     GLOBAL_CHAT = "GLOBAL_CHAT"
     DIRECT_CHAT = "DIRECT_CHAT"
+    REVIEW = "REVIEW"
 
 
 USER_CONTEXTS = frozenset(
@@ -43,6 +45,8 @@ def validate_report_context(*, target_type: TargetType, context: ReportContext) 
         allowed = {ReportContext.PRODUCT}
     elif target_type is TargetType.USER:
         allowed = USER_CONTEXTS
+    elif target_type is TargetType.REVIEW:
+        allowed = {ReportContext.REVIEW}
     else:
         raise ModerationPolicyError("unknown report target type")
     if context not in allowed:
@@ -73,6 +77,8 @@ def qualifies_for_action(
             raise ModerationPolicyError("a reporter cannot contribute in multiple contexts")
         seen_reporters.update(reporter_ids)
 
+    if target_type is TargetType.REVIEW:
+        return False
     if target_type is TargetType.PRODUCT:
         return (
             len(independent_reporters_by_context.get(ReportContext.PRODUCT, set()))

@@ -11,7 +11,7 @@ from apps.catalog.models import Product
 
 from .forms import ReportReasonForm, UserReportForm
 from .policies import ReportContext, TargetType
-from .services import ReportSubmissionError, submit_report, visible_products
+from .services import ReportSubmissionError, submit_report, submit_review_report, visible_products
 
 
 _GENERIC_ERROR = "신고를 처리할 수 없습니다. 입력 내용을 확인해 주세요."
@@ -89,4 +89,27 @@ def report_product(request: HttpRequest, target_id: int) -> HttpResponse:
         form=form,
         target_label=target.title,
         status=status,
+    )
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def report_review(request: HttpRequest, target_id: int) -> HttpResponse:
+    form = ReportReasonForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        try:
+            submit_review_report(
+                reporter=request.user,
+                review_id=target_id,
+                reason=form.cleaned_data["reason"],
+            )
+        except ReportSubmissionError:
+            form.add_error(None, _GENERIC_ERROR)
+        else:
+            return redirect("/")
+    return _render_report_form(
+        request,
+        form=form,
+        target_label="거래 후기",
+        status=400 if request.method == "POST" else 200,
     )

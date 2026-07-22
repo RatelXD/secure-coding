@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
+from django.db.models import OuterRef, QuerySet, Subquery
 from django.db.models.functions import Now
 from django.utils import timezone
 
 from apps.catalog.models import Product
 from apps.moderation.models import ModerationAction
 
-from .models import Trade, TradeStatusHistory
+from .models import Review, ReviewVisibilityAction, Trade, TradeStatusHistory
 
 
 class TradeError(Exception):
@@ -42,6 +44,7 @@ def _lock_active_users(*user_ids: int):
         target_user_id__in=users,
         starts_at__lte=Now(),
         expires_at__gt=Now(),
+        release__isnull=True,
     ).exists()
     if dormant:
         raise TradeError("TRADE_NOT_ALLOWED")
@@ -54,6 +57,7 @@ def _product_is_hidden(product_id: int) -> bool:
         target_product_id=product_id,
         starts_at__lte=Now(),
         expires_at__gt=Now(),
+        release__isnull=True,
     ).exists()
 
 
@@ -148,3 +152,86 @@ class TradeService:
         trade.save(update_fields=("status", "completed_at", "version", "updated_at"))
         _record(trade, old_status=old_status, actor_id=actor.pk)
         return TradeResult(trade)
+
+
+class ReviewAuthorityError(ValueError):
+    """A review command failed without disclosing trade-party state."""
+
+
+@dataclass(frozen=True)
+class ReviewCreation:
+    review: Review
+    created: bool
+
+
+def _normalize_review_body(body: str) -> str:
+    if not isinstance(body, str):
+        raise ReviewAuthorityError("review cannot be accepted")
+    normalized = unicodedata.normalize("NFC", body.strip())
+    if not 1 <= len(normalized) <= 1_000:
+        raise ReviewAuthorityError("review cannot be accepted")
+    if any(ord(character) < 32 or 127 <= ord(character) <= 159 for character in normalized):
+        raise ReviewAuthorityError("review cannot be accepted")
+    return normalized
+
+
+def create_review(*, actor, trade_id: int, rating: int, body: str) -> ReviewCreation:
+    """Create one immutable directional review from authoritative completed-trade facts."""
+    if (
+        isinstance(trade_id, bool)
+        or not isinstance(trade_id, int)
+        or trade_id <= 0
+        or isinstance(rating, bool)
+        or not isinstance(rating, int)
+        or not 1 <= rating <= 5
+        or not getattr(actor, "is_authenticated", False)
+        or not actor.is_active
+    ):
+        raise ReviewAuthorityError("review cannot be accepted")
+    normalized_body = _normalize_review_body(body)
+
+    with transaction.atomic():
+        try:
+            trade = Trade.objects.select_for_update().get(pk=trade_id)
+        except Trade.DoesNotExist as exc:
+            raise ReviewAuthorityError("review cannot be accepted") from exc
+        if (
+            trade.kind != Trade.Kind.STANDARD
+            or trade.status != Trade.Status.COMPLETED
+            or trade.buyer_id is None
+            or actor.pk not in {trade.seller_id, trade.buyer_id}
+        ):
+            raise ReviewAuthorityError("review cannot be accepted")
+        subject_id = trade.buyer_id if actor.pk == trade.seller_id else trade.seller_id
+        try:
+            review, created = Review.objects.get_or_create(
+                trade=trade,
+                author_id=actor.pk,
+                defaults={
+                    "subject_id": subject_id,
+                    "rating": rating,
+                    "body": normalized_body,
+                },
+            )
+        except IntegrityError as exc:
+            raise ReviewAuthorityError("review cannot be accepted") from exc
+        if not created and (
+            review.subject_id != subject_id
+            or review.rating != rating
+            or review.body != normalized_body
+        ):
+            raise ReviewAuthorityError("review replay does not match")
+        return ReviewCreation(review=review, created=created)
+
+
+def public_reviews(queryset: QuerySet[Review] | None = None) -> QuerySet[Review]:
+    """Exclude reviews whose latest append-only visibility decision is HIDE."""
+    queryset = queryset if queryset is not None else Review.objects.all()
+    latest_kind = (
+        ReviewVisibilityAction.objects.filter(review_id=OuterRef("pk"))
+        .order_by("-created_at", "-pk")
+        .values("kind")[:1]
+    )
+    return queryset.annotate(_latest_visibility=Subquery(latest_kind)).exclude(
+        _latest_visibility=ReviewVisibilityAction.Kind.HIDE
+    )

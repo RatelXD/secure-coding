@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>신고 관리</title></head>
+<body>
+<main>
+  <h1>신고 관리</h1>
+  <table>
+    <thead><tr><th>유형</th><th>대상 번호</th><th>접수 시각</th></tr></thead>
+    <tbody>
+    {% for report in reports %}
+      <tr><td>{{ report.target_type }}</td><td>{% firstof report.target_user_id report.target_product_id report.target_review_id %}</td><td>{{ report.created_at }}</td></tr>
+    {% empty %}<tr><td colspan="3">접수된 신고가 없습니다.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</main>
+</body>
+</html>
