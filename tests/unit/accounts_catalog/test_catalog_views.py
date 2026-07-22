@@ -87,17 +87,12 @@ def test_product_list_region_filter_is_exact_and_fails_closed() -> None:
     assert selected_response.context["selected_region_code"] == region.code
 
     invalid = client.get(reverse("catalog:list"), {"region": "owner__username"})
-    assert invalid.status_code == 200
-    assert invalid.context["products"] == []
-    assert len(invalid.context["products"]) == 0
-    assert invalid.context["region_error"] is True
-    assert "선택할 수 없는 지역입니다" in invalid.content.decode()
+    assert invalid.status_code == 400
+    assert "지역이 올바르지 않습니다" in invalid.content.decode()
 
     multiple = client.get(reverse("catalog:list"), [("region", region.code), ("region", region.code)])
-    assert multiple.status_code == 200
-    assert multiple.context["products"] == []
-    assert len(multiple.context["products"]) == 0
-    assert multiple.context["region_error"] is True
+    assert multiple.status_code == 400
+    assert "중복된 검색 조건" in multiple.content.decode()
 
 
 def test_create_requires_authentication_and_csrf() -> None:

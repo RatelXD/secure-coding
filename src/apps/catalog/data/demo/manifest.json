@@ -1,0 +1,266 @@
+{
+  "schema_version": 1,
+  "generator": {
+    "name": "agy",
+    "version": "1.1.4",
+    "mode": "sequential",
+    "generated_on": "2026-07-22",
+    "usage": "secure-coding local demo only"
+  },
+  "products": [
+    {
+      "key": "compact-laptop",
+      "title": "휴대용 노트북",
+      "description": "휴대용 노트북 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "DIGITAL_APPLIANCES",
+      "region": "KR-11-680",
+      "price": 780000,
+      "images": [
+        {
+          "file": "compact-laptop-1.png",
+          "sha256": "aee6ccdb4da440334154d6d9fbfe1b406f5dd52a27764a0f4dbfee1643535599"
+        },
+        {
+          "file": "compact-laptop-2.png",
+          "sha256": "cc3c443e176167138638900ddb5d3292ed6c3552b04c184caa383cc959b8b4ed"
+        }
+      ]
+    },
+    {
+      "key": "wireless-speaker",
+      "title": "무선 스피커",
+      "description": "무선 스피커 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "DIGITAL_APPLIANCES",
+      "region": "KR-41-110",
+      "price": 85000,
+      "images": [
+        {
+          "file": "wireless-speaker-1.png",
+          "sha256": "3ab3ac395960595d12e3ec2402e028f3f399aa315fe795877776b84d87b55276"
+        },
+        {
+          "file": "wireless-speaker-2.png",
+          "sha256": "132f54142c80c7bf4ad7c9eb9f0283392bb73425f5e0c30a1885c08cbb332a9b"
+        }
+      ]
+    },
+    {
+      "key": "coffee-grinder",
+      "title": "원두 그라인더",
+      "description": "원두 그라인더 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "LIVING_KITCHEN",
+      "region": "KR-41-830",
+      "price": 42000,
+      "images": [
+        {
+          "file": "coffee-grinder-1.png",
+          "sha256": "4f6a55b3c6063ba4d12846aa35b3b2e9423b97a780f2bdaa2cb360dff61806f9"
+        },
+        {
+          "file": "coffee-grinder-2.png",
+          "sha256": "4176a7847778b0d4e4f3b635ea25d7e82012dd6ca9b55c0cc841d9bc21481201"
+        }
+      ]
+    },
+    {
+      "key": "cast-iron-pan",
+      "title": "무쇠 프라이팬",
+      "description": "무쇠 프라이팬 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "LIVING_KITCHEN",
+      "region": "KR-11-680",
+      "price": 39000,
+      "images": [
+        {
+          "file": "cast-iron-pan-1.png",
+          "sha256": "3c7f1e9c4a677bc6b8ebc674ae061f68d1048c731d8b5311fed2114da6c5fcb8"
+        },
+        {
+          "file": "cast-iron-pan-2.png",
+          "sha256": "9259958f4107d2dbf05768f3d7933b1f9de69f368a125fd5680326f017d01110"
+        }
+      ]
+    },
+    {
+      "key": "oak-side-table",
+      "title": "오크 협탁",
+      "description": "오크 협탁 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "FURNITURE_INTERIOR",
+      "region": "KR-41-110",
+      "price": 120000,
+      "images": [
+        {
+          "file": "oak-side-table-1.png",
+          "sha256": "ec1949a8311d21d30813a7095c5ca9fd2e2fbd6c3bb6f3e3a1fb56b8846e2acf"
+        }
+      ]
+    },
+    {
+      "key": "reading-lamp",
+      "title": "독서 스탠드",
+      "description": "독서 스탠드 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "FURNITURE_INTERIOR",
+      "region": "KR-41-830",
+      "price": 28000,
+      "images": [
+        {
+          "file": "reading-lamp-1.png",
+          "sha256": "be1bf5bddc220a1c17d0346b283a20878bf9d0d5ed4e834ad3f529264a531c23"
+        }
+      ]
+    },
+    {
+      "key": "linen-jacket",
+      "title": "리넨 재킷",
+      "description": "리넨 재킷 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "FASHION_GOODS",
+      "region": "KR-11-680",
+      "price": 67000,
+      "images": [
+        {
+          "file": "linen-jacket-1.png",
+          "sha256": "3833395d094695392ed32bfd12ffff065848d7957a7a0590c146f88532580e79"
+        }
+      ]
+    },
+    {
+      "key": "leather-backpack",
+      "title": "가죽 백팩",
+      "description": "가죽 백팩 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "FASHION_GOODS",
+      "region": "KR-41-110",
+      "price": 93000,
+      "images": [
+        {
+          "file": "leather-backpack-1.png",
+          "sha256": "128bbe3def7e37d0ab11a541e13abeaed31fe7258a5a5caea3a055923b64f219"
+        }
+      ]
+    },
+    {
+      "key": "camping-chair",
+      "title": "캠핑 의자",
+      "description": "캠핑 의자 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "SPORTS_HOBBIES",
+      "region": "KR-41-830",
+      "price": 36000,
+      "images": [
+        {
+          "file": "camping-chair-1.png",
+          "sha256": "90226ae6cfd6714dbc9fea629e6328a8b264886744d447898912265a9383e669"
+        }
+      ]
+    },
+    {
+      "key": "yoga-mat",
+      "title": "요가 매트",
+      "description": "요가 매트 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "SPORTS_HOBBIES",
+      "region": "KR-11-680",
+      "price": 22000,
+      "images": [
+        {
+          "file": "yoga-mat-1.png",
+          "sha256": "d085bd232130e2a1b787bba9b68516ff231ad43796b0784b1450e0d39f2f1dfb"
+        }
+      ]
+    },
+    {
+      "key": "classic-novel-set",
+      "title": "고전 소설 세트",
+      "description": "고전 소설 세트 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "BOOKS",
+      "region": "KR-41-110",
+      "price": 31000,
+      "images": [
+        {
+          "file": "classic-novel-set-1.png",
+          "sha256": "782d07519f93a4297f99d3ee64a1651767668f84253165ef4053793be44a42ae"
+        }
+      ]
+    },
+    {
+      "key": "coding-book",
+      "title": "파이썬 코딩 책",
+      "description": "파이썬 코딩 책 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "BOOKS",
+      "region": "KR-41-830",
+      "price": 18000,
+      "images": [
+        {
+          "file": "coding-book-1.png",
+          "sha256": "a671c41663bf8283f5059a73234d0d84bfe6c1c7996bfb9b5fd92ddd90df3df3"
+        }
+      ]
+    },
+    {
+      "key": "plant-pot",
+      "title": "도자기 화분",
+      "description": "도자기 화분 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "OTHER",
+      "region": "KR-11-680",
+      "price": 15000,
+      "images": [
+        {
+          "file": "plant-pot-1.png",
+          "sha256": "49aa737566953a2f777eb95c78c11d7fc43f9f44a10dcdeef878dfb1b70ff7b6"
+        }
+      ]
+    },
+    {
+      "key": "tool-box",
+      "title": "가정용 공구함",
+      "description": "가정용 공구함 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "OTHER",
+      "region": "KR-41-110",
+      "price": 49000,
+      "images": [
+        {
+          "file": "tool-box-1.png",
+          "sha256": "727ef43a819a13a674e0fd02225747fe3e65ab19ecfa3e2226986a5f57935ee5"
+        }
+      ]
+    },
+    {
+      "key": "mechanical-keyboard",
+      "title": "기계식 키보드",
+      "description": "기계식 키보드 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "DIGITAL_APPLIANCES",
+      "region": "KR-41-830",
+      "price": 74000,
+      "images": [
+        {
+          "file": "mechanical-keyboard-1.png",
+          "sha256": "eb080ea971fc5f6c3fa03b1d60bbaa693abb6727182e36b13be2c5712919ca11"
+        }
+      ]
+    },
+    {
+      "key": "wool-blanket",
+      "title": "울 담요",
+      "description": "울 담요 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "LIVING_KITCHEN",
+      "region": "KR-11-680",
+      "price": 55000,
+      "images": [
+        {
+          "file": "wool-blanket-1.png",
+          "sha256": "483b2dd6e4258e5db8df14b5b0706d35ba3545873f03bf7e856fa0aca7ef032d"
+        }
+      ]
+    },
+    {
+      "key": "road-bicycle",
+      "title": "로드 자전거",
+      "description": "로드 자전거 데모 상품입니다. 실제 개인정보나 외부 링크를 포함하지 않습니다.",
+      "category": "SPORTS_HOBBIES",
+      "region": "KR-41-110",
+      "price": 450000,
+      "images": [
+        {
+          "file": "road-bicycle-1.png",
+          "sha256": "aace9c524984f26958cde85da420da4d8774ddfa567aa16363f0edd48df748ae"
+        }
+      ]
+    }
+  ]
+}

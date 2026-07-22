@@ -41,6 +41,14 @@ CATALOG_RESEED_CATEGORIES_FOR_TESTS = APP_ENV == "test"
 DEBUG = _boolean("DJANGO_DEBUG", default=False)
 if IS_PRODUCTION and DEBUG:
     raise ImproperlyConfigured("DJANGO_DEBUG cannot be enabled in production")
+DEMO_CATALOG_BOOTSTRAP_ENABLED = _boolean(
+    "DEMO_CATALOG_BOOTSTRAP_ENABLED",
+    default=APP_ENV == "development",
+)
+if APP_ENV != "development" and DEMO_CATALOG_BOOTSTRAP_ENABLED:
+    raise ImproperlyConfigured(
+        "DEMO_CATALOG_BOOTSTRAP_ENABLED is allowed only in development"
+    )
 
 if IS_PRODUCTION:
     SECRET_KEY = _required("DJANGO_SECRET_KEY")

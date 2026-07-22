@@ -62,14 +62,20 @@ src/
 - `src/apps/catalog/models.py`, `forms.py`, `views.py`
   - 가격·판매 상태·버전을 포함한 상품을 정의하고 소유자만 등록·수정·삭제합니다.
   - 공개 목록·상세는 DB 시각 기반 제재 가시성을 사용하며 활성 비노출 상품은 404를 반환합니다.
+  - 검색은 `q/status/min_price/max_price/sort/page/category/region` allowlist를 먼저 검증하고 공개 범위 안에서만 count와 20개 slice를 조회합니다. 예약은 판매 중 결과에 배지로 표시하고 지역 필터는 `LEGACY_UNSET` 상품을 제외합니다.
+  - `Favorite`와 product/day 비연결 digest 방식 `ProductView`를 원본 권위로 저장하며, 공개 지표는 원본 관계에서 언제든 재계산합니다. IP·원 세션 키·최근 접속 시각은 저장하지 않습니다.
 - `src/apps/catalog/services.py`
   - JPEG·PNG·WebP만 5 MiB·4096×4096 안에서 완전 디코딩합니다.
   - 새 이미지로 인코딩해 메타데이터를 제거하고 UUIDv4 저장 이름을 생성합니다.
   - SVG, MIME·서명 불일치, polyglot, 손상·과대·경로 입력을 거부합니다.
+- `src/apps/catalog/data/demo/`, `management/commands/bootstrap_demo_catalog.py`
+  - `agy` 1.1.4 순차 생성 정보와 checksum을 가진 로컬 이미지 21장·상품 17개 manifest를 제공합니다.
+  - 개발 환경에서만 PostgreSQL advisory lock과 고정 owner를 사용해 설치하며 재실행은 행·파일을 복구하고 checksum 충돌은 덮어쓰지 않고 중단합니다.
 
 ### 검증 상태
 
 소유자 IDOR·CSRF, 공개 XSS·판매자 필드, 활성·만료 비노출, 메타데이터·UUID와 우회 입력 테스트를 통합 스위트에서 실행해 통과했습니다.
+2026-07-22 변경 경계 게이트에서 `tests/unit/accounts_catalog`와 catalog migration/gallery integration 118개, `tests/security/catalog`을 포함한 집중 게이트 19개가 PostgreSQL에서 통과했습니다. 관심 멱등성·타인 목록 차단, 조회 중복 제거·판매자 제외, 지표 재계산, 검색 AND/예약/완료/지역 미설정, 중복·추가·악성 query의 상품 쿼리 전 400, 데모 17개 재실행을 확인했습니다.
 
 ## 3.6 채팅 기능
 

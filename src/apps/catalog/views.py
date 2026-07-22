@@ -5,6 +5,7 @@ from __future__ import annotations
 from django.contrib.auth.decorators import login_required
 from django.db import connection, transaction
 from django.db.models import Prefetch
+from django.views.decorators.http import require_POST
 
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -16,7 +17,9 @@ from apps.moderation.services import visible_products
 
 from .projectors import ProductState, effective_product_state
 from .forms import ProductCreateForm, ProductUpdateForm
-from .models import Product, ProductImage, Region
+from .models import Category, Favorite, Product, ProductImage, Region
+from .engagement import record_product_view, set_favorite
+from .search import InvalidProductSearch, parse_product_search, search_products
 from .services import (
     _persist_exception_cleanup_failures,
     _record_cleanup_failures,
@@ -26,30 +29,12 @@ from .services import (
 
 
 def product_list(request: HttpRequest) -> HttpResponse:
-    region_codes = request.GET.getlist("region")
-    selected_region = None
-    region_error = False
+    try:
+        search = parse_product_search(request.GET)
+    except InvalidProductSearch as exc:
+        return HttpResponse(str(exc), status=400)
 
-    if region_codes not in ([], [""]):
-        if len(region_codes) == 1:
-            selected_region = Region.objects.filter(code=region_codes[0]).first()
-        if selected_region is None or selected_region.code != region_codes[0]:
-            region_error = True
-
-    queryset = Product.objects.filter(archived_at__isnull=True).select_related(
-        "owner", "category", "region"
-    ).prefetch_related(
-        Prefetch(
-            "images",
-            queryset=ProductImage.objects.filter(promotion_state="PROMOTED"),
-        )
-    )
-    if region_error:
-        queryset = queryset.none()
-    elif selected_region is not None:
-        queryset = queryset.filter(region=selected_region)
-
-    products = list(visible_products(queryset).order_by("-created_at", "-pk"))
+    products, total_count = search_products(search)
     db_now = _database_now()
     for product in products:
         _attach_effective_state(product=product, db_now=db_now)
@@ -59,8 +44,15 @@ def product_list(request: HttpRequest) -> HttpResponse:
         {
             "products": products,
             "regions": Region.objects.all(),
-            "selected_region_code": selected_region.code if selected_region else "",
-            "region_error": region_error,
+            "categories": Category.objects.all(),
+            "search": search,
+            "total_count": total_count,
+            "has_previous": search.page > 1,
+            "has_next": search.page * 20 < total_count,
+            "previous_page": search.page - 1,
+            "next_page": search.page + 1,
+            "selected_region_code": search.region,
+            "region_error": False,
         },
     )
 
@@ -80,12 +72,19 @@ def product_detail(request: HttpRequest, pk: int) -> HttpResponse:
     if not is_product_public(product_id=product.pk):
         raise Http404
     _attach_effective_state(product=product, db_now=_database_now())
+    metric = record_product_view(request=request, product=product)
+    is_favorite = (
+        request.user.is_authenticated
+        and Favorite.objects.filter(user=request.user, product=product).exists()
+    )
     return render(
         request,
         "catalog/product_detail.html",
         {
             "product": product,
             "seller_identity": project_account_identity(user=product.owner),
+            "metric": metric,
+            "is_favorite": is_favorite,
         },
     )
 
@@ -225,6 +224,45 @@ def product_delete(request: HttpRequest, pk: int) -> HttpResponse:
     return redirect("catalog:list")
 
 
+@login_required
+@require_POST
+def product_favorite(request: HttpRequest, pk: int) -> HttpResponse:
+    product = get_object_or_404(Product, pk=pk, archived_at__isnull=True)
+    if not is_product_public(product_id=product.pk):
+        raise Http404
+    action = request.POST.get("action")
+    if set(request.POST) != {"action"} or action not in {"add", "remove"}:
+        return HttpResponse("관심 명령이 올바르지 않습니다.", status=400)
+    set_favorite(user_id=request.user.pk, product_id=product.pk, active=action == "add")
+    return redirect("catalog:detail", pk=product.pk)
+
+
+@login_required
+def favorite_list(request: HttpRequest) -> HttpResponse:
+    queryset = (
+        Product.objects.filter(
+            favorites__user=request.user,
+            archived_at__isnull=True,
+        )
+        .select_related("owner", "category", "region")
+        .prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.filter(promotion_state="PROMOTED"),
+            )
+        )
+    )
+    products = list(visible_products(queryset).order_by("-favorites__created_at", "-pk"))
+    db_now = _database_now()
+    for product in products:
+        _attach_effective_state(product=product, db_now=db_now)
+    return render(
+        request,
+        "catalog/favorite_list.html",
+        {"products": products},
+    )
+
+
 _PRODUCT_STATE_LABELS = {
     ProductState.AVAILABLE: "판매 중",
     ProductState.RESERVED: "예약 중",
@@ -233,7 +271,13 @@ _PRODUCT_STATE_LABELS = {
 
 
 def _attach_effective_state(*, product: Product, db_now) -> None:
-    state = effective_product_state(product=product, db_now=db_now)
+    if hasattr(product, "lifecycle_status"):
+        state = {
+            "RESERVED": ProductState.RESERVED,
+            "COMPLETED": ProductState.SOLD,
+        }.get(product.lifecycle_status, ProductState.AVAILABLE)
+    else:
+        state = effective_product_state(product=product, db_now=db_now)
     product.effective_state = state.value
     product.effective_state_label = _PRODUCT_STATE_LABELS[state]
 

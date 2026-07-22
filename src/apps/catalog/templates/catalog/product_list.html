@@ -12,34 +12,53 @@
     {% endif %}
   </header>
 
-  <form class="filter-bar" method="get" aria-label="지역으로 상품 필터링">
-    <div class="filter-bar__region">
-      <label for="region-filter">거래 지역</label>
-      <select id="region-filter" name="region"{% if region_error %} aria-describedby="region-filter-error" aria-invalid="true"{% endif %}>
-        <option value=""{% if not selected_region_code %} selected{% endif %}>전체 지역</option>
-        {% for region in regions %}
-          <option value="{{ region.code }}"{% if selected_region_code == region.code %} selected{% endif %}>{{ region.label }}</option>
-        {% endfor %}
-      </select>
-      <button class="button button--secondary" type="submit">적용</button>
-    </div>
+  <form class="filter-bar" method="get" aria-label="상품 검색과 필터">
+    <label for="product-search">검색</label>
+    <input id="product-search" name="q" maxlength="100" value="{{ search.q }}" placeholder="상품명 또는 설명">
+    <label for="category-filter">카테고리</label>
+    <select id="category-filter" name="category">
+      <option value="">전체 카테고리</option>
+      {% for category in categories %}
+        <option value="{{ category.code }}"{% if search.category == category.code %} selected{% endif %}>{{ category.label }}</option>
+      {% endfor %}
+    </select>
+    <label for="region-filter">거래 지역</label>
+    <select id="region-filter" name="region">
+      <option value="">전체 지역</option>
+      {% for region in regions %}
+        <option value="{{ region.code }}"{% if search.region == region.code %} selected{% endif %}>{{ region.label }}</option>
+      {% endfor %}
+    </select>
+    <label for="status-filter">거래 상태</label>
+    <select id="status-filter" name="status">
+      <option value="">전체 상태</option>
+      <option value="available"{% if search.status == "available" %} selected{% endif %}>판매 중·예약 중</option>
+      <option value="sold"{% if search.status == "sold" %} selected{% endif %}>판매 완료</option>
+    </select>
+    <label for="minimum-price">최소 가격</label>
+    <input id="minimum-price" name="min_price" inputmode="numeric" value="{% if search.min_price != None %}{{ search.min_price }}{% endif %}">
+    <label for="maximum-price">최대 가격</label>
+    <input id="maximum-price" name="max_price" inputmode="numeric" value="{% if search.max_price != None %}{{ search.max_price }}{% endif %}">
+    <label for="sort-filter">정렬</label>
+    <select id="sort-filter" name="sort">
+      <option value="newest"{% if search.sort == "newest" %} selected{% endif %}>최신순</option>
+      <option value="price_asc"{% if search.sort == "price_asc" %} selected{% endif %}>낮은 가격순</option>
+      <option value="price_desc"{% if search.sort == "price_desc" %} selected{% endif %}>높은 가격순</option>
+    </select>
+    <button class="button button--secondary" type="submit">검색</button>
   </form>
-  {% if region_error %}
-    <p id="region-filter-error" class="alert alert-error" role="alert">선택할 수 없는 지역입니다. 목록을 다시 선택해 주세요.</p>
-  {% endif %}
+  <p aria-live="polite">검색 결과 {{ total_count }}개</p>
 
   <ul class="product-grid">
     {% for product in products %}
       <li class="product-card{% if product.effective_state_label == '판매 완료' %} product-card--sold{% endif %}">
         <a class="product-card__image-link" href="{% url 'catalog:detail' product.pk %}">
-          {% with image=product.images.all|first %}
-            {% if image %}
-              <img class="card-image" src="{{ image.image.url }}" alt="{{ product.title }} 대표 이미지">
-            {% else %}
-              <img class="card-image" src="{% static 'images/product-default.svg' %}" alt="">
-            {% endif %}
-          {% endwith %}
-          {% if product.effective_state_label == '판매 완료' %}
+          {% if product.search_image_url %}
+            <img class="card-image" src="{{ product.search_image_url }}" alt="{{ product.title }} 대표 이미지">
+          {% else %}
+            <img class="card-image" src="{% static 'images/product-default.svg' %}" alt="">
+          {% endif %}
+          {% if product.effective_state != "AVAILABLE" %}
             <span class="badge">{{ product.effective_state_label }}</span>
           {% endif %}
         </a>
@@ -57,5 +76,34 @@
       </li>
     {% endfor %}
   </ul>
+  <nav aria-label="검색 결과 페이지">
+    {% if has_previous %}
+      <form method="get" class="pagination-form">
+        <input type="hidden" name="q" value="{{ search.q }}">
+        <input type="hidden" name="category" value="{{ search.category }}">
+        <input type="hidden" name="region" value="{{ search.region }}">
+        <input type="hidden" name="status" value="{{ search.status }}">
+        {% if search.min_price != None %}<input type="hidden" name="min_price" value="{{ search.min_price }}">{% endif %}
+        {% if search.max_price != None %}<input type="hidden" name="max_price" value="{{ search.max_price }}">{% endif %}
+        <input type="hidden" name="sort" value="{{ search.sort }}">
+        <input type="hidden" name="page" value="{{ previous_page }}">
+        <button type="submit">이전</button>
+      </form>
+    {% endif %}
+    <span>{{ search.page }}쪽</span>
+    {% if has_next %}
+      <form method="get" class="pagination-form">
+        <input type="hidden" name="q" value="{{ search.q }}">
+        <input type="hidden" name="category" value="{{ search.category }}">
+        <input type="hidden" name="region" value="{{ search.region }}">
+        <input type="hidden" name="status" value="{{ search.status }}">
+        {% if search.min_price != None %}<input type="hidden" name="min_price" value="{{ search.min_price }}">{% endif %}
+        {% if search.max_price != None %}<input type="hidden" name="max_price" value="{{ search.max_price }}">{% endif %}
+        <input type="hidden" name="sort" value="{{ search.sort }}">
+        <input type="hidden" name="page" value="{{ next_page }}">
+        <button type="submit">다음</button>
+      </form>
+    {% endif %}
+  </nav>
 </section>
 {% endblock %}

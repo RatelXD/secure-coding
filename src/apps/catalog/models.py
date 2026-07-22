@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import unicodedata
 from pathlib import PurePosixPath
 from uuid import uuid4
 
@@ -103,6 +104,7 @@ class Product(models.Model):
     archived_at = models.DateTimeField(null=True, blank=True, editable=False)
     version = models.PositiveBigIntegerField(default=1, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    demo_key = models.CharField(max_length=64, null=True, blank=True, unique=True, editable=False)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
@@ -128,6 +130,11 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return self.title
+
+    def save(self, *args: object, **kwargs: object) -> None:
+        self.title = unicodedata.normalize("NFC", self.title)
+        self.description = unicodedata.normalize("NFC", self.description)
+        super().save(*args, **kwargs)
 
 
 def product_image_upload_to(instance: ProductImage, filename: str) -> str:
@@ -210,3 +217,57 @@ class ProductImageDeletionIntent(models.Model):
 
     def __str__(self) -> str:
         return self.storage_key
+
+
+class Favorite(models.Model):
+    """Private, user-owned interest relation; absence represents the inactive state."""
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="favorite_products",
+    )
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="favorites")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at", "-pk")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "product"),
+                name="catalog_favorite_user_product_unique",
+            )
+        ]
+
+
+class ProductView(models.Model):
+    """One unlinkable product/day view token; raw session and network data are never stored."""
+
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="views")
+    viewed_on = models.DateField()
+    viewer_digest = models.CharField(max_length=64)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("product", "viewed_on", "viewer_digest"),
+                name="catalog_view_product_day_digest_unique",
+            )
+        ]
+        indexes = [
+            models.Index(
+                fields=("product", "viewed_on"),
+                name="catalog_view_product_day_idx",
+            )
+        ]
+
+
+class ProductMetric(models.Model):
+    """Rebuildable public projection; source relations remain authoritative."""
+
+    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name="metric")
+    favorite_count = models.PositiveBigIntegerField(default=0)
+    view_count = models.PositiveBigIntegerField(default=0)
+    product_chat_count = models.PositiveBigIntegerField(default=0)
+    completed_trade_count = models.PositiveBigIntegerField(default=0)
+    recomputed_at = models.DateTimeField(auto_now=True)
