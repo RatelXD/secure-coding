@@ -5,6 +5,16 @@
   <h1 id="chat-title">채팅</h1>
   <p><a href="{% url 'chat:room-detail' global_room.id %}">전체 채팅 입장</a></p>
 </section>
+<section aria-labelledby="product-chat-title">
+  <h2 id="product-chat-title">상품 대화</h2>
+  <ul>
+    {% for conversation in product_rooms %}
+      <li><a href="{% url 'chat:room-detail' conversation.room_id %}">{{ conversation.product.title }}</a></li>
+    {% empty %}
+      <li>아직 상품 대화가 없습니다.</li>
+    {% endfor %}
+  </ul>
+</section>
 <section aria-labelledby="direct-title">
   <h2 id="direct-title">1대1 채팅</h2>
   <form method="post">

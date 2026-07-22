@@ -6,6 +6,7 @@ from uuid import UUID, uuid4
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
+from .presence import PresenceService
 from .policies import ChatPolicyError
 from .services import (
     ChatAuthorizationError,
@@ -123,6 +124,8 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         self.user_close_group = user_close_group_name(user.pk)
         self.group_joined = False
         self.user_close_group_joined = False
+        self.presence = PresenceService()
+        self.presence_online = False
         try:
             await self.channel_layer.group_add(self.room_group, self.channel_name)
             self.group_joined = True
@@ -134,10 +137,28 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         except Exception:
             pass
         await self.accept()
+        try:
+            await self.presence.online(
+                room_id=self.room_id,
+                user_id=user.pk,
+                connection_id=self.connection_id,
+            )
+            self.presence_online = True
+        except Exception:
+            pass
         if not self.group_joined or not self.user_close_group_joined:
             await self.send_json({"type": "delivery_status", "delivery": "degraded"})
 
     async def disconnect(self, close_code: int) -> None:
+        if getattr(self, "presence_online", False):
+            try:
+                await self.presence.offline(
+                    room_id=self.room_id,
+                    user_id=self.scope["user"].pk,
+                    connection_id=self.connection_id,
+                )
+            except Exception:
+                pass
         for group, joined in (
             (getattr(self, "room_group", ""), getattr(self, "group_joined", False)),
             (
@@ -168,8 +189,34 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self._send_history(content)
         elif operation == "send":
             await self._send_message(content)
+        elif operation == "presence":
+            await self._send_presence()
         else:
             await self._send_error("invalid_request")
+
+    async def _send_presence(self) -> None:
+        try:
+            await self.presence.online(
+                room_id=self.room_id,
+                user_id=self.scope["user"].pk,
+                connection_id=self.connection_id,
+            )
+            states = await self.presence.peer_states(
+                room_id=self.room_id,
+                user_id=self.scope["user"].pk,
+            )
+        except Exception:
+            await self._send_error("presence_unavailable")
+            return
+        await self.send_json(
+            {
+                "type": "presence",
+                "users": [
+                    {"user_id": user_id, "online": online}
+                    for user_id, online in states.items()
+                ],
+            }
+        )
 
     async def _send_message(self, content: dict[str, object]) -> None:
         try:

@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     "apps.trades",
     "apps.chat",
     "apps.moderation",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [

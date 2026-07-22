@@ -12,6 +12,7 @@ class Room(models.Model):
     class Kind(models.TextChoices):
         GLOBAL = "GLOBAL", "Global"
         DIRECT = "DIRECT", "Direct"
+        PRODUCT = "PRODUCT", "Product"
 
     kind = models.CharField(max_length=16, choices=Kind.choices)
     direct_user_low = models.ForeignKey(
@@ -45,7 +46,7 @@ class Room(models.Model):
             models.CheckConstraint(
                 condition=(
                     Q(
-                        kind="GLOBAL",
+                        kind__in=("GLOBAL", "PRODUCT"),
                         direct_user_low__isnull=True,
                         direct_user_high__isnull=True,
                     )
@@ -62,9 +63,9 @@ class Room(models.Model):
 
     def clean(self) -> None:
         super().clean()
-        if self.kind == self.Kind.GLOBAL:
+        if self.kind in {self.Kind.GLOBAL, self.Kind.PRODUCT}:
             if self.direct_user_low_id is not None or self.direct_user_high_id is not None:
-                raise ValidationError("A global room cannot have direct participants.")
+                raise ValidationError("This room kind cannot have direct participants.")
         elif (
             self.direct_user_low_id is None
             or self.direct_user_high_id is None
@@ -73,7 +74,11 @@ class Room(models.Model):
             raise ValidationError("A direct room requires two distinct ordered participants.")
 
     def contains_user(self, user_id: int) -> bool:
-        return self.kind == self.Kind.GLOBAL or user_id in {
+        if self.kind == self.Kind.GLOBAL:
+            return True
+        if self.kind == self.Kind.PRODUCT:
+            return self.participants.filter(user_id=user_id).exists()
+        return user_id in {
             self.direct_user_low_id,
             self.direct_user_high_id,
         }
@@ -89,6 +94,44 @@ class RoomParticipant(models.Model):
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=("room", "user"), name="chat_unique_room_participant"),
+        ]
+
+
+class ProductConversation(models.Model):
+    """Product metadata over the existing authoritative room/message pipeline."""
+
+    room = models.OneToOneField(
+        Room,
+        on_delete=models.PROTECT,
+        related_name="product_conversation",
+    )
+    product = models.ForeignKey(
+        "catalog.Product",
+        on_delete=models.PROTECT,
+        related_name="conversations",
+    )
+    seller = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="product_conversations_as_seller",
+    )
+    buyer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="product_conversations_as_buyer",
+    )
+    created_at = models.DateTimeField(db_default=Now(), editable=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("product", "seller", "buyer"),
+                name="chat_unique_product_conversation",
+            ),
+            models.CheckConstraint(
+                condition=~Q(seller=F("buyer")),
+                name="chat_product_parties_distinct",
+            ),
         ]
 
 

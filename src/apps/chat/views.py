@@ -5,11 +5,11 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_POST, require_http_methods
 
 from apps.accounts.services import project_account_identity
 from .forms import DirectRoomForm
-from .models import ChatMessage, Room
+from .models import ChatMessage, ProductConversation, Room
 from .services import (
     ChatAuthorizationError,
     DefaultChatService,
@@ -17,6 +17,7 @@ from .services import (
     _require_room_access,
     get_or_create_direct_room,
     get_or_create_global_room,
+    get_or_create_product_conversation,
 )
 
 
@@ -43,6 +44,13 @@ def room_list(request: HttpRequest) -> HttpResponse:
         .select_related("direct_user_low", "direct_user_high")
         .order_by("-created_at")
     )
+    product_rooms = (
+        ProductConversation.objects.filter(
+            Q(seller=request.user) | Q(buyer=request.user)
+        )
+        .select_related("room", "product", "seller", "buyer")
+        .order_by("-created_at")
+    )
     room_rows = []
     for room in direct_rooms:
         other_user = (
@@ -59,8 +67,26 @@ def room_list(request: HttpRequest) -> HttpResponse:
     return render(
         request,
         "chat/room_list.html",
-        {"global_room": global_room, "direct_rooms": room_rows, "form": form},
+        {
+            "global_room": global_room,
+            "direct_rooms": room_rows,
+            "product_rooms": product_rooms,
+            "form": form,
+        },
     )
+
+
+@login_required
+@require_POST
+def product_room(request: HttpRequest, product_id: int) -> HttpResponse:
+    try:
+        conversation = get_or_create_product_conversation(
+            product_id=product_id,
+            actor_id=request.user.pk,
+        )
+    except ChatAuthorizationError as exc:
+        raise Http404 from exc
+    return redirect("chat:room-detail", room_id=conversation.room_id)
 
 
 @login_required
