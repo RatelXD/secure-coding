@@ -167,3 +167,65 @@ input[type="checkbox"] { width: auto; min-height: auto; margin-right: 8px; }
 
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; } }
 @media (forced-colors: active) { :where(a, button, input, select, textarea, [tabindex]):focus-visible { outline: 3px solid CanvasText; box-shadow: none; } }
+.header-search,
+form.header-search {
+  display: flex;
+  width: min(100%, 320px);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.header-search input { min-width: 0; border-radius: var(--radius-lg) 0 0 var(--radius-lg); }
+.header-search button { min-height: 44px; padding: 8px 14px; border-radius: 0 var(--radius-lg) var(--radius-lg) 0; }
+.profile-page { display: grid; gap: 32px; }
+.profile-card { display: flex; align-items: center; gap: 20px; padding: 24px; border: 1px solid var(--color-outline-variant); border-radius: var(--radius-xl); background: #fff; }
+.profile-card p:last-child { margin-bottom: 0; }
+.profile-actions, .profile-action-grid { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.profile-action-grid a { display: inline-flex; align-items: center; min-height: 48px; padding: 10px 18px; border-radius: var(--radius-lg); text-decoration: none; }
+.room-filter { margin-top: 16px; }
+.system-state { width: min(100%, 680px); margin: 8vh auto 0; padding: 48px; border: 1px solid var(--color-outline-variant); border-radius: var(--radius-xl); background: #fff; text-align: center; }
+.product-gallery__item { position: relative; }
+.product-gallery__item [data-gallery-thumbnail] { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; padding: 0; border: 3px solid transparent; border-radius: var(--radius-lg); background: transparent; }
+.product-gallery__item [data-gallery-thumbnail]:hover { border-color: var(--color-primary); background: transparent; box-shadow: none; }
+.product-gallery__item [data-gallery-thumbnail][aria-pressed="true"] { border-color: var(--color-primary); }
+.product-card h3 { margin: 0; font-size: 16px; line-height: 26px; }
+.product-card h3 a { color: var(--color-on-surface); text-decoration: none; }
+.latest-products .product-grid { min-height: 420px; }
+.latest-products .empty-state { display: grid; min-height: 420px; place-content: center; }
+
+@media (min-width: 901px) {
+  .site-header__inner { grid-template-columns: auto 1fr minmax(180px, 320px) auto; gap: 20px; }
+  .primary-nav__list { justify-content: flex-end; gap: 12px; }
+}
+
+@media (max-width: 900px) {
+  :root { --header-height: 132px; --page-gutter: 16px; }
+  .site-header__inner { grid-template-columns: minmax(0, 1fr) minmax(140px, 1fr); gap: 8px; width: calc(100% - 24px); }
+  .brand__logo { height: 40px; }
+  .header-search { justify-self: end; }
+  .header-search { grid-column: 2; grid-row: 1; }
+  .primary-nav { grid-column: 1 / -1; grid-row: 2; width: 100%; min-width: 0; overflow-x: auto; }
+  .primary-nav__list { justify-content: flex-start; gap: 8px; }
+  .primary-nav__list a { min-height: 60px; padding: 0 6px; }
+  .site-header__inner > span { display: none; }
+  .site-main { width: calc(100% - 32px); padding-bottom: 40px; }
+  .hero { min-height: 0; padding: 24px; }
+  .hero__content { width: 100%; }
+  .hero__image { width: min(42%, 220px); margin: 0; }
+  .cards, .card-grid, .product-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .product-detail__layout { grid-template-columns: 1fr; }
+  .product-detail__content { position: static; }
+}
+
+@media (max-width: 560px) {
+  h1 { font-size: 28px; line-height: 38px; }
+  .brand__name { display: none; }
+  .hero { align-items: flex-start; flex-direction: column; gap: 24px; }
+  .hero__image { width: min(80%, 260px); margin: auto; }
+  .cards, .card-grid, .product-grid, .home-guide__list { grid-template-columns: 1fr; }
+  .catalog-heading, .home-feed__heading { align-items: flex-start; flex-direction: column; }
+  .filter-bar { padding: 16px; }
+  .system-state { padding: 32px 20px; }
+}

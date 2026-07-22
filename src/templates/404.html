@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}페이지 없음 | 주거니 받거니{% endblock %}
+{% block content %}
+<section class="system-state" aria-labelledby="not-found-heading">
+  <p class="hero__eyebrow">404</p>
+  <h1 id="not-found-heading">페이지를 찾을 수 없습니다</h1>
+  <p>주소가 바뀌었거나 볼 수 없는 항목입니다. 존재 여부나 비공개 정보는 따로 표시하지 않습니다.</p>
+  <a class="button button--primary" href="{% url 'catalog:list' %}">상품 둘러보기</a>
+</section>
+{% endblock %}

@@ -52,7 +52,7 @@
   <ul class="product-grid">
     {% for product in products %}
       <li class="product-card{% if product.effective_state_label == '판매 완료' %} product-card--sold{% endif %}">
-        <a class="product-card__image-link" href="{% url 'catalog:detail' product.pk %}">
+        <a class="product-card__image-link" href="{% url 'catalog:detail' product.pk %}" aria-label="{{ product.title }} 상세 보기">
           {% if product.search_image_url %}
             <img class="card-image" src="{{ product.search_image_url }}" alt="{{ product.title }} 대표 이미지">
           {% else %}
@@ -71,8 +71,9 @@
     {% empty %}
       <li class="empty-state">
         <img src="{% static 'images/product-default.svg' %}" alt="" width="160" height="160">
-        <h2>아직 등록된 상품이 없습니다</h2>
-        <p>이웃에게 건넬 물건을 가장 먼저 등록해 보세요.</p>
+        <h2>조건에 맞는 상품이 없습니다</h2>
+        <p>검색어나 필터를 바꾸거나 전체 상품으로 돌아가세요.</p>
+        <a class="secondary-button" href="{% url 'catalog:list' %}">필터 초기화</a>
       </li>
     {% endfor %}
   </ul>

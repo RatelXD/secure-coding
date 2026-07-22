@@ -1,12 +1,22 @@
 {% extends "base.html" %}
 {% block title %}마이페이지{% endblock %}
 {% block content %}
-<h1>마이페이지</h1>
-<dl>
-  <dt>아이디</dt><dd>{{ request.user.username }}</dd>
-  <dt>소개글</dt><dd>{{ request.user.bio|default:"등록된 소개글이 없습니다." }}</dd>
-</dl>
-<p><a href="{% url 'accounts:bio_edit' %}">소개글 변경</a></p>
-<p><a href="{% url 'accounts:password_change' %}">비밀번호 변경</a></p>
-<p><a href="{% url 'accounts:withdraw' %}">회원 탈퇴</a></p>
+<section class="profile-page" aria-labelledby="profile-heading">
+  <header class="profile-card">
+    <div class="product-seller-card__avatar" aria-hidden="true">{{ request.user.username|first }}</div>
+    <div>
+      <h1 id="profile-heading">마이페이지</h1>
+      <p>{{ request.user.username }}</p>
+      <p>{{ request.user.bio|default:"등록된 소개글이 없습니다." }}</p>
+    </div>
+  </header>
+  <nav class="profile-action-grid" aria-label="계정과 거래 메뉴">
+    <a class="secondary-button" href="{% url 'accounts:bio_edit' %}">소개글 변경</a>
+    <a class="secondary-button" href="{% url 'accounts:password_change' %}">비밀번호 변경</a>
+    <a class="secondary-button" href="{% url 'catalog:favorites' %}">관심 상품</a>
+    <a class="secondary-button" href="{% url 'notifications:inbox' %}">알림함</a>
+    <a class="secondary-button" href="{% url 'chat:room-list' %}">대화 목록</a>
+    <a class="report-link" href="{% url 'accounts:withdraw' %}">회원 탈퇴</a>
+  </nav>
+</section>
 {% endblock %}
