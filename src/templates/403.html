@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}요청 거부 | 주거니 받거니{% endblock %}
+{% block content %}
+<section class="system-state" aria-labelledby="forbidden-heading">
+  <p class="hero__eyebrow">403</p>
+  <h1 id="forbidden-heading">이 요청을 처리할 권한이 없습니다</h1>
+  <p>로그인 상태와 접근 권한을 확인해 주세요. 허용되지 않은 정보는 화면에 표시하지 않습니다.</p>
+  <a class="button button--primary" href="{% url 'home' %}">홈으로 돌아가기</a>
+</section>
+{% endblock %}

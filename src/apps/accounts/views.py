@@ -8,6 +8,8 @@ from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 
+from apps.catalog.models import Category, Product
+from apps.moderation.services import visible_products
 from .forms import BioForm, LoginForm, OwnPasswordChangeForm, SignupForm, WithdrawalForm
 from .models import User
 from .services import AccountSessionService, authenticate_login, project_account_identity
@@ -18,7 +20,17 @@ _GENERIC_LOGIN_ERROR = "아이디 또는 비밀번호를 확인해 주세요. �
 
 
 def home(request: HttpRequest) -> HttpResponse:
-    return render(request, "home.html")
+    latest_products = visible_products(
+        Product.objects.select_related("category", "region")
+    ).order_by("-created_at", "-pk")[:4]
+    return render(
+        request,
+        "home.html",
+        {
+            "categories": Category.objects.order_by("display_order", "code"),
+            "latest_products": latest_products,
+        },
+    )
 
 
 @require_http_methods(["GET", "POST"])
@@ -99,6 +111,15 @@ def user_detail(request: HttpRequest, username: str) -> HttpResponse:
         username=canonical_username,
     )
     identity = project_account_identity(user=profile_user)
+    products = (
+        visible_products(
+            Product.objects.filter(owner=profile_user)
+            .select_related("category", "region")
+            .prefetch_related("images")
+        ).order_by("-created_at", "-pk")[:12]
+        if not identity.is_tombstone
+        else ()
+    )
     return render(
         request,
         "accounts/user_detail.html",
@@ -106,6 +127,7 @@ def user_detail(request: HttpRequest, username: str) -> HttpResponse:
             "profile_user": profile_user,
             "profile_identity": identity,
             "profile_bio": None if identity.is_tombstone else profile_user.bio,
+            "products": products,
             "show_report": (
                 request.user.is_authenticated
                 and request.user.pk != profile_user.pk

@@ -1,11 +1,49 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{{ profile_identity.display_name }} | 사용자{% endblock %}
 {% block content %}
-<h1>{{ profile_identity.display_name }}</h1>
-<section aria-label="사용자 소개">
-  {% if profile_bio %}<p>{{ profile_bio }}</p>{% else %}<p>등록된 소개글이 없습니다.</p>{% endif %}
-</section>
-{% if show_report %}
-  <p><a href="{% url 'moderation:report-user' profile_user.pk %}">사용자 신고</a></p>
-{% endif %}
+<article class="profile-page">
+  <header class="profile-card">
+    <div class="product-seller-card__avatar" aria-hidden="true">{{ profile_identity.display_name|first }}</div>
+    <div>
+      <h1>{{ profile_identity.display_name }}</h1>
+      {% if profile_bio %}<p>{{ profile_bio }}</p>{% else %}<p>등록된 소개글이 없습니다.</p>{% endif %}
+    </div>
+  </header>
+  {% if show_report %}
+    <div class="profile-actions">
+      <form method="post" action="{% url 'chat:room-list' %}">
+        {% csrf_token %}
+        <input type="hidden" name="username" value="{{ profile_user.username }}">
+        <button class="button button--primary" type="submit">1대1 대화 시작</button>
+      </form>
+      <a class="report-link" href="{% url 'moderation:report-user' profile_user.pk %}">사용자 신고</a>
+    </div>
+  {% endif %}
+
+  <section aria-labelledby="profile-products-heading">
+    <h2 id="profile-products-heading">판매 상품</h2>
+    <ul class="product-grid">
+      {% for product in products %}
+        <li class="product-card">
+          <a class="product-card__image-link" href="{% url 'catalog:detail' product.pk %}" aria-label="{{ product.title }} 상세 보기">
+            {% with image=product.images.all|first %}
+              {% if image %}
+                <img class="card-image" src="{{ image.image.url }}" alt="{{ product.title }} 대표 이미지">
+              {% else %}
+                <img class="card-image" src="{% static 'images/product-default.svg' %}" alt="">
+              {% endif %}
+            {% endwith %}
+          </a>
+          <div class="product-card__body">
+            <h3><a href="{% url 'catalog:detail' product.pk %}">{{ product.title }}</a></h3>
+            <p class="product-card__price">{{ product.price }}원</p>
+          </div>
+        </li>
+      {% empty %}
+        <li class="empty-state"><h3>공개 중인 상품이 없습니다</h3></li>
+      {% endfor %}
+    </ul>
+  </section>
+</article>
 {% endblock %}

@@ -10,7 +10,7 @@
       {% with primary_image=product.images.all|first %}
         <figure class="gallery-grid__primary">
           {% if primary_image %}
-            <img src="{{ primary_image.image.url }}" alt="{{ product.title }} 이미지 1">
+            <img id="product-gallery-primary" src="{{ primary_image.image.url }}" alt="{{ product.title }} 이미지 1">
           {% else %}
             <img src="{% static 'images/product-default.svg' %}" alt="">
             <figcaption>등록된 상품 이미지가 없습니다.</figcaption>
@@ -19,9 +19,12 @@
         </figure>
       {% endwith %}
       {% if product.images.all %}
-        <ol class="gallery-grid__thumbnails" aria-label="상품 이미지 목록">
+        <ol class="gallery-grid__thumbnails" aria-label="상품 이미지 선택">
           {% for item in product.images.all %}
-            <li class="product-gallery__item" id="product-image-{{ forloop.counter }}"><img src="{{ item.image.url }}" alt="{{ product.title }} 이미지 {{ forloop.counter }}"></li>
+            <li class="product-gallery__item" id="product-image-{{ forloop.counter }}">
+              <img src="{{ item.image.url }}" alt="{{ product.title }} 이미지 {{ forloop.counter }}">
+              <button type="button" data-gallery-thumbnail data-image-src="{{ item.image.url }}" data-image-alt="{{ product.title }} 이미지 {{ forloop.counter }}" aria-label="{{ forloop.counter }}번 이미지 크게 보기"></button>
+            </li>
           {% endfor %}
         </ol>
       {% endif %}

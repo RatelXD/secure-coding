@@ -4,12 +4,17 @@
 <section aria-labelledby="chat-title">
   <h1 id="chat-title">채팅</h1>
   <p><a href="{% url 'chat:room-detail' global_room.id %}">전체 채팅 입장</a></p>
+  <div class="room-filter">
+    <label for="room-search">대화방 검색</label>
+    <input id="room-search" type="search" data-room-filter autocomplete="off" placeholder="상품명 또는 이웃 이름">
+    <p data-room-filter-status aria-live="polite"></p>
+  </div>
 </section>
 <section aria-labelledby="product-chat-title">
   <h2 id="product-chat-title">상품 대화</h2>
   <ul>
     {% for conversation in product_rooms %}
-      <li><a href="{% url 'chat:room-detail' conversation.room_id %}">{{ conversation.product.title }}</a></li>
+      <li data-room-entry data-room-label="{{ conversation.product.title }}"><a href="{% url 'chat:room-detail' conversation.room_id %}">{{ conversation.product.title }}</a></li>
     {% empty %}
       <li>아직 상품 대화가 없습니다.</li>
     {% endfor %}
@@ -24,7 +29,7 @@
   </form>
   <ul>
     {% for item in direct_rooms %}
-      <li><a href="{% url 'chat:room-detail' item.room.id %}">{{ item.other_identity.display_name }}</a></li>
+      <li data-room-entry data-room-label="{{ item.other_identity.display_name }}"><a href="{% url 'chat:room-detail' item.room.id %}">{{ item.other_identity.display_name }}</a></li>
     {% empty %}
       <li>아직 1대1 대화가 없습니다.</li>
     {% endfor %}

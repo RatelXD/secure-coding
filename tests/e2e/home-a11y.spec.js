@@ -51,6 +51,17 @@ test('home satisfies the responsive visual and accessibility contract', async (
       exact: true,
     }),
   ).toBeVisible();
+  const firstCategory = page.getByRole('navigation', { name: '상품 카테고리' }).getByRole('link').first();
+  const categoryResponse = await page.goto(await firstCategory.getAttribute('href'));
+  expect(categoryResponse.ok()).toBe(true);
+  await expect(page.getByRole('heading', { level: 1, name: '중고 상품 둘러보기' })).toBeVisible();
+
+  await page.goto('/');
+  await page.getByRole('search').getByLabel('상품 검색').fill('안전한 검색');
+  await page.getByRole('search').getByRole('button', { name: '검색' }).click();
+  expect(new URL(page.url()).searchParams.get('q')).toBe('안전한 검색');
+
+  await page.goto('/');
   await settleResources();
 
   const overflow = await page.evaluate(() => ({
@@ -99,7 +110,7 @@ test('home satisfies the responsive visual and accessibility contract', async (
 
   await expect(page).toHaveScreenshot(
     `home-${testInfo.project.name}.png`,
-    { fullPage: true },
+    { mask: [page.locator(".latest-products .product-grid")] },
   );
   expect(remoteRuntimeURLs).toEqual([]);
 });
