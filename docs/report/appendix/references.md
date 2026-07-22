@@ -29,7 +29,7 @@
 - [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
 - [OWASP WebSocket Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html)
 
-보안 자료는 프로젝트의 실제 입력·권한·상태 흐름과 연결되는 항목만 사용합니다.
+보안 자료는 프로젝트의 실제 입력·권한·상태 흐름과 관련된 항목만 사용합니다.
 
 ## C.4 문서 작성 도구
 
@@ -40,4 +40,4 @@
 | GitHub Pages | 공개 문서 탐색 | 사용 중, 최종 링크 점검 필요 |
 | 선택적 로컬 PDF 보조 도구 | Markdown·Mermaid 렌더링 보조 | 선택 사항, 사용자가 최종 PDF를 직접 편집 |
 
-최종 제출 문서에는 실제로 사용한 도구와 버전만 남기고, 사용하지 않은 도구는 삭제하거나 `사용하지 않음`으로 표시합니다.
+최종 제출 문서에는 실제로 사용한 도구와 버전만 남깁니다. 사용하지 않은 도구는 삭제하거나 `사용하지 않음`으로 표시합니다.
