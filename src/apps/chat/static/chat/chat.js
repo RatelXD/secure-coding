@@ -37,6 +37,8 @@
   let cursor = 0;
   let socket;
   let reconnectTimer;
+  let reconnectAttempts = 0;
+  const MAX_RECONNECT_ATTEMPTS = 5;
 
   for (const item of list.querySelectorAll("[data-message-id]")) {
     const id = Number(item.dataset.messageId);
@@ -84,6 +86,8 @@
     const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
     socket = new WebSocket(`${scheme}//${window.location.host}/ws/chat/rooms/${roomId}/`);
     socket.addEventListener("open", () => {
+      reconnectAttempts = 0;
+      if (presence) presence.textContent = "상품 대화 · 연결됨";
       setStatus("연결됨");
       requestHistory();
       requestPresence();
@@ -109,13 +113,30 @@
       }
     });
     socket.addEventListener("close", (event) => {
+      window.clearTimeout(reconnectTimer);
+      if (event.code === 4400) {
+        if (presence) presence.textContent = "상품 대화 · 이용 불가";
+        setStatus("채팅 정책에 따라 연결할 수 없습니다.");
+        return;
+      }
       if (event.code === 4403) {
+        if (presence) presence.textContent = "상품 대화 · 이용 불가";
         setStatus("계정 또는 채팅방을 사용할 수 없습니다.");
         return;
       }
-      setStatus("연결이 끊어져 다시 연결합니다.");
-      window.clearTimeout(reconnectTimer);
-      reconnectTimer = window.setTimeout(connect, 1500);
+      if (event.code === 1000) {
+        setStatus("채팅 연결이 종료되었습니다.");
+        return;
+      }
+      if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+        if (presence) presence.textContent = "상품 대화 · 이용 불가";
+        setStatus("연결에 실패했습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+      const delay = Math.min(1000 * 2 ** reconnectAttempts, 30000);
+      reconnectAttempts += 1;
+      setStatus(`${Math.ceil(delay / 1000)}초 뒤 다시 연결합니다.`);
+      reconnectTimer = window.setTimeout(connect, delay);
     });
   }
 
@@ -178,8 +199,8 @@
   transferForm?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const amount = transferAmount?.value.trim() || "";
-    if (!/^(0|[1-9][0-9]{0,7})(\.[0-9]{1,2})?$/.test(amount)) {
-      setTransferFeedback("0.01원 이상, 소수점 둘째 자리까지 입력해 주세요.", "error");
+    if (!/^[1-9][0-9]{0,7}$/.test(amount)) {
+      setTransferFeedback("1원 이상 99,999,999원 이하의 정수 금액으로 입력해 주세요.", "error");
       transferAmount?.focus();
       return;
     }
@@ -197,7 +218,11 @@
       });
       const body = await response.json().catch(() => ({}));
       if (response.status === 201) {
-        setTransferFeedback(`${body.amount || amount}원 송금 요청이 완료되었습니다.`, "success");
+        const serverAmount = Number(body.amount);
+        const displayAmount = Number.isFinite(serverAmount)
+          ? serverAmount.toLocaleString("ko-KR")
+          : String(body.amount);
+        setTransferFeedback(`${displayAmount}원 송금 요청이 완료되었습니다.`, "success");
         window.setTimeout(closeTransferDialog, 700);
         return;
       }

@@ -113,7 +113,7 @@ class NotificationInboxTests(TestCase):
                 sender_id=self.sender.pk,
                 recipient_id=self.recipient.pk,
                 transfer_id=transfer_id,
-                amount=Decimal("25.00"),
+                amount=Decimal("25000.00"),
             )
         )
         client = Client()
@@ -125,7 +125,7 @@ class NotificationInboxTests(TestCase):
         # Then: the message uses the server-derived amount and no untrusted payload URL.
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "notice_sender님에게")
-        self.assertContains(response, "25.00")
+        self.assertContains(response, "25,000")
         self.assertNotContains(response, str(transfer_id))
         self.assertNotContains(response, "https://")
 
@@ -228,7 +228,7 @@ class NotificationInboxTests(TestCase):
         # Then: each party sees only their own notice and the recipient can clear theirs.
         self.assertEqual(result.status, 201)
         self.assertContains(sender_home, 'aria-label="알림 1개"')
-        self.assertContains(recipient_inbox, "notice_sender님에게 25.00원을 받았습니다")
+        self.assertContains(recipient_inbox, "notice_sender님에게 25원을 받았습니다")
         received = Notification.objects.get(recipient=self.recipient, kind="TRANSFER_RECEIVED")
         read = recipient_client.post(reverse("notifications:read", args=(received.pk,)), follow=True)
         self.assertEqual(read.status_code, 200)

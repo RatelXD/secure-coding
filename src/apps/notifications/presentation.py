@@ -7,7 +7,7 @@ from datetime import datetime
 
 from .models import Notification
 
-_AMOUNT = re.compile(r"[1-9][0-9]{0,9}\.[0-9]{2}")
+_AMOUNT = re.compile(r"[1-9][0-9]{0,7}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +52,7 @@ def _transfer_detail(payload, action: str) -> str:
     counterparty_name = payload.get("counterparty_name")
     if not isinstance(amount, str) or _AMOUNT.fullmatch(amount) is None:
         return "송금 알림이 도착했습니다."
+    display_amount = f"{int(amount):,}"
     if not isinstance(counterparty_name, str) or not counterparty_name.strip():
-        return f"{amount}원을 {action}"
-    return f"{counterparty_name.strip()}님에게 {amount}원을 {action}"
+        return f"{display_amount}원을 {action}"
+    return f"{counterparty_name.strip()}님에게 {display_amount}원을 {action}"

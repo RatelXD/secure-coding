@@ -184,8 +184,8 @@ def _execute_once(*, sender_user, recipient_name: str, amount: Decimal, key: UUI
         "transfer_id": str(transfer.pk),
         "status": "completed",
         "recipient": recipient_name,
-        "amount": f"{amount:.2f}",
-        "sender_balance": f"{sender.balance:.2f}",
+        "amount": f"{amount:.0f}",
+        "sender_balance": f"{sender.balance:.0f}",
     }
     TransferRequest.objects.create(
         sender=sender,

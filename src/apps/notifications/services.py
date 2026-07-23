@@ -63,7 +63,7 @@ def create_transfer_notifications(
 ) -> tuple[Notification, Notification]:
     """Create the durable sender and recipient events for one completed transfer."""
     transfer_id = str(transfer_notification.transfer_id)
-    amount = f"{transfer_notification.amount:.2f}"
+    amount = f"{transfer_notification.amount:.0f}"
     counterparty_names = {
         user_id: username
         for user_id, username in get_user_model()

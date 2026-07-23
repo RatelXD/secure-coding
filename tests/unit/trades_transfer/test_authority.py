@@ -151,7 +151,7 @@ def test_http_boundary_rejects_unauthenticated_csrf_and_forged_fields():
     recipient = user("receive03")
     payload = {
         "recipient": recipient.username,
-        "amount": "1.00",
+        "amount": "1",
         "idempotency_key": str(uuid4()),
     }
     anonymous = Client()
@@ -178,7 +178,7 @@ def test_room_transfer_derives_product_counterparty_and_creates_two_notices():
     room = product_room(seller, buyer)
     response = authenticated_client(seller).post(
         f"/transfers/rooms/{room.pk}/",
-        {"amount": "25.00", "idempotency_key": str(uuid4())},
+        {"amount": "25", "idempotency_key": str(uuid4())},
         content_type="application/json",
     )
 
@@ -199,12 +199,12 @@ def test_room_transfer_replay_reuses_original_response_without_duplicate_side_ef
     room = product_room(seller, buyer)
     key = uuid4()
     client = authenticated_client(seller)
-    payload = {"amount": "25.00", "idempotency_key": str(key)}
+    payload = {"amount": "25", "idempotency_key": str(key)}
     first = client.post(f"/transfers/rooms/{room.pk}/", payload, content_type="application/json")
     before = (Transfer.objects.count(), LedgerEntry.objects.count(), Notification.objects.count())
     replay = client.post(
         f"/transfers/rooms/{room.pk}/",
-        {"amount": "25.0", "idempotency_key": str(key)},
+        {"amount": "25", "idempotency_key": str(key)},
         content_type="application/json",
     )
 
@@ -220,7 +220,7 @@ def test_room_transfer_rejects_client_supplied_recipient_without_mutation():
     room = product_room(seller, buyer)
     response = authenticated_client(seller).post(
         f"/transfers/rooms/{room.pk}/",
-        {"amount": "25.00", "idempotency_key": str(uuid4()), "recipient": outsider.username},
+        {"amount": "25", "idempotency_key": str(uuid4()), "recipient": outsider.username},
         content_type="application/json",
     )
 
@@ -237,7 +237,7 @@ def test_room_transfer_rejects_nonproduct_room_without_mutation():
     client = authenticated_client(seller)
     response = client.post(
         f"/transfers/rooms/{direct_room.pk}/",
-        {"amount": "25.00", "idempotency_key": str(uuid4())},
+        {"amount": "25", "idempotency_key": str(uuid4())},
         content_type="application/json",
     )
 
@@ -254,12 +254,12 @@ def test_room_transfer_rejects_changed_idempotency_payload_without_mutation():
     client = authenticated_client(seller)
     first = client.post(
         f"/transfers/rooms/{room.pk}/",
-        {"amount": "25.00", "idempotency_key": str(key)},
+        {"amount": "25", "idempotency_key": str(key)},
         content_type="application/json",
     )
     changed = client.post(
         f"/transfers/rooms/{room.pk}/",
-        {"amount": "26.00", "idempotency_key": str(key)},
+        {"amount": "26", "idempotency_key": str(key)},
         content_type="application/json",
     )
 
@@ -273,7 +273,7 @@ def test_room_transfer_auth_csrf_and_invalid_amount_do_not_mutate():
     seller = user("boundary_seller")
     buyer = user("boundary_buyer")
     room = product_room(seller, buyer)
-    payload = {"amount": "zero", "idempotency_key": str(uuid4())}
+    payload = {"amount": "0", "idempotency_key": str(uuid4())}
 
     assert Client().post(f"/transfers/rooms/{room.pk}/", payload, content_type="application/json").status_code == 401
     csrf_client = Client(enforce_csrf_checks=True)
@@ -286,6 +286,12 @@ def test_room_transfer_auth_csrf_and_invalid_amount_do_not_mutate():
     )
 
     assert response.status_code == 400
+    fractional_response = authenticated_client(seller).post(
+        f"/transfers/rooms/{room.pk}/",
+        {"amount": "1.5", "idempotency_key": str(uuid4())},
+        content_type="application/json",
+    )
+    assert fractional_response.status_code == 400
     assert not Transfer.objects.exists()
     assert not Notification.objects.exists()
 
