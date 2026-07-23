@@ -1,15 +1,23 @@
+from enum import StrEnum
+from typing import assert_never
+
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
+from django.core.paginator import Page, Paginator
+from django.db.models import OuterRef, Prefetch, Q, Subquery
 from django.http import Http404, HttpRequest, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 
-from apps.catalog.models import Category, Product
+from apps.catalog.models import Category, Favorite, Product, ProductImage
 from apps.moderation.services import visible_products
+from apps.trades.models import Trade
+from apps.trades.services import public_reviews
+
 from .forms import BioForm, LoginForm, OwnPasswordChangeForm, SignupForm, WithdrawalForm
 from .models import User
 from .services import AccountSessionService, authenticate_login, project_account_identity
@@ -17,11 +25,76 @@ from .validators import canonicalize_username
 from .withdrawal import WithdrawalBlocked, WithdrawalUnavailable, withdraw_account
 
 _GENERIC_LOGIN_ERROR = "아이디 또는 비밀번호를 확인해 주세요. 잠시 후 다시 시도할 수 있습니다."
+_PROFILE_PAGE_SIZE = 8
+
+
+class _ProfileProductFilter(StrEnum):
+    ALL = "all"
+    AVAILABLE = "available"
+    SOLD = "sold"
+
+
+def _profile_product_page(
+    *,
+    request: HttpRequest,
+    owner_id: int,
+) -> tuple[Page[Product], _ProfileProductFilter]:
+    try:
+        selected_filter = _ProfileProductFilter(request.GET.get("status", "all"))
+    except ValueError:
+        selected_filter = _ProfileProductFilter.ALL
+
+    lifecycle_status = (
+        Trade.objects.filter(
+            product_id=OuterRef("pk"),
+            status__in=(Trade.Status.RESERVED, Trade.Status.COMPLETED),
+        )
+        .values("status")[:1]
+    )
+    promoted_images = ProductImage.objects.filter(promotion_state="PROMOTED").order_by(
+        "position", "pk"
+    )
+    products = visible_products(
+        Product.objects.filter(owner_id=owner_id)
+        .select_related("category", "region")
+        .prefetch_related(
+            Prefetch("images", queryset=promoted_images, to_attr="profile_images")
+        )
+    ).annotate(lifecycle_status=Subquery(lifecycle_status))
+    match selected_filter:
+        case _ProfileProductFilter.ALL:
+            pass
+        case _ProfileProductFilter.AVAILABLE:
+            products = products.filter(
+                Q(lifecycle_status__isnull=True)
+                | ~Q(lifecycle_status=Trade.Status.COMPLETED)
+            )
+        case _ProfileProductFilter.SOLD:
+            products = products.filter(lifecycle_status=Trade.Status.COMPLETED)
+        case unreachable:
+            assert_never(unreachable)
+    paginator = Paginator(products.order_by("-created_at", "-pk"), _PROFILE_PAGE_SIZE)
+    page = paginator.get_page(request.GET.get("page", "1"))
+    return page, selected_filter
+
+
+def _completed_trade_count(*, user_id: int) -> int:
+    return (
+        Trade.objects.filter(status=Trade.Status.COMPLETED)
+        .filter(Q(seller_id=user_id) | Q(buyer_id=user_id))
+        .distinct()
+        .count()
+    )
 
 
 def home(request: HttpRequest) -> HttpResponse:
     latest_products = visible_products(
-        Product.objects.select_related("category", "region")
+        Product.objects.select_related("category", "region").prefetch_related(
+            Prefetch(
+                "images",
+                queryset=ProductImage.objects.filter(promotion_state="PROMOTED"),
+            )
+        )
     ).order_by("-created_at", "-pk")[:4]
     return render(
         request,
@@ -111,15 +184,17 @@ def user_detail(request: HttpRequest, username: str) -> HttpResponse:
         username=canonical_username,
     )
     identity = project_account_identity(user=profile_user)
-    products = (
-        visible_products(
-            Product.objects.filter(owner=profile_user)
-            .select_related("category", "region")
-            .prefetch_related("images")
-        ).order_by("-created_at", "-pk")[:12]
-        if not identity.is_tombstone
-        else ()
-    )
+    product_page = None
+    selected_filter = _ProfileProductFilter.ALL
+    activity_trade_count = None
+    activity_review_count = None
+    if not identity.is_tombstone:
+        product_page, selected_filter = _profile_product_page(
+            request=request,
+            owner_id=profile_user.pk,
+        )
+        activity_trade_count = _completed_trade_count(user_id=profile_user.pk)
+        activity_review_count = public_reviews().filter(subject_id=profile_user.pk).count()
     return render(
         request,
         "accounts/user_detail.html",
@@ -127,7 +202,10 @@ def user_detail(request: HttpRequest, username: str) -> HttpResponse:
             "profile_user": profile_user,
             "profile_identity": identity,
             "profile_bio": None if identity.is_tombstone else profile_user.bio,
-            "products": products,
+            "product_page": product_page,
+            "profile_filter": selected_filter.value,
+            "activity_trade_count": activity_trade_count,
+            "activity_review_count": activity_review_count,
             "show_report": (
                 request.user.is_authenticated
                 and request.user.pk != profile_user.pk
@@ -140,7 +218,20 @@ def user_detail(request: HttpRequest, username: str) -> HttpResponse:
 @login_required
 @require_http_methods(["GET"])
 def profile(request: HttpRequest) -> HttpResponse:
-    return render(request, "accounts/profile.html")
+    product_page, selected_filter = _profile_product_page(
+        request=request,
+        owner_id=request.user.pk,
+    )
+    return render(
+        request,
+        "accounts/profile.html",
+        {
+            "product_page": product_page,
+            "profile_filter": selected_filter.value,
+            "transaction_count": _completed_trade_count(user_id=request.user.pk),
+            "favorite_count": Favorite.objects.filter(user_id=request.user.pk).count(),
+        },
+    )
 
 
 @login_required

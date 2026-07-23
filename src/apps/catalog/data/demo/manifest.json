@@ -18,11 +18,35 @@
       "images": [
         {
           "file": "compact-laptop-1.png",
-          "sha256": "aee6ccdb4da440334154d6d9fbfe1b406f5dd52a27764a0f4dbfee1643535599"
+          "sha256": "52cb2eb8033b0834e307addd02d81db08d7617fb12f1c8178ce6f62df832f8df",
+          "byte_size": 2006517,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         },
         {
           "file": "compact-laptop-2.png",
-          "sha256": "cc3c443e176167138638900ddb5d3292ed6c3552b04c184caa383cc959b8b4ed"
+          "sha256": "be6d25c1c99d226bf43492189c379cf12381d060e9084e7f5d0b8ea79b1995e9",
+          "byte_size": 1888448,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "compact-laptop-3.png",
+          "sha256": "66ac6383542baea3abb4acf8494da084f9d1794d9eac8f712537a5e99cf49306",
+          "byte_size": 2191110,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "compact-laptop-4.png",
+          "sha256": "caa93b80c294a5e4db9cf41ed97895f9fede412493ba2997f1aa18f99027390d",
+          "byte_size": 2136150,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -36,11 +60,27 @@
       "images": [
         {
           "file": "wireless-speaker-1.png",
-          "sha256": "3ab3ac395960595d12e3ec2402e028f3f399aa315fe795877776b84d87b55276"
+          "sha256": "9e6152ba9304827bf91a920098a848173ec85325b033dd267d376b9f59e166e2",
+          "byte_size": 1444365,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         },
         {
           "file": "wireless-speaker-2.png",
-          "sha256": "132f54142c80c7bf4ad7c9eb9f0283392bb73425f5e0c30a1885c08cbb332a9b"
+          "sha256": "41d0b32a4219bbc69e80a371f6434645c6ae795a2058c4b51004f2196227b53b",
+          "byte_size": 1323557,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "wireless-speaker-4.png",
+          "sha256": "1ad45e568cccd51fe21705be8f26bdf75ce7bfdfa327a853d83992ce40915790",
+          "byte_size": 1598587,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -53,12 +93,20 @@
       "price": 42000,
       "images": [
         {
-          "file": "coffee-grinder-1.png",
-          "sha256": "4f6a55b3c6063ba4d12846aa35b3b2e9423b97a780f2bdaa2cb360dff61806f9"
+          "file": "coffee-grinder-2.png",
+          "sha256": "d1f3c0656ce489edf7d976390b6297b5b308de58117900e29d639729e3a998d1",
+          "byte_size": 1124539,
+          "content_type": "image/png",
+          "width": 699,
+          "height": 768
         },
         {
-          "file": "coffee-grinder-2.png",
-          "sha256": "4176a7847778b0d4e4f3b635ea25d7e82012dd6ca9b55c0cc841d9bc21481201"
+          "file": "coffee-grinder-3.png",
+          "sha256": "fceb18fe2a64746235c9af8a2c344d2107c547542317f47ca4e0ac2e422be548",
+          "byte_size": 1064132,
+          "content_type": "image/png",
+          "width": 699,
+          "height": 768
         }
       ]
     },
@@ -72,11 +120,35 @@
       "images": [
         {
           "file": "cast-iron-pan-1.png",
-          "sha256": "3c7f1e9c4a677bc6b8ebc674ae061f68d1048c731d8b5311fed2114da6c5fcb8"
+          "sha256": "c6508b08bdcdcce292b51447fa2b90de355b1886f1b2244b7e1ed47ee7a67be1",
+          "byte_size": 2626009,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         },
         {
           "file": "cast-iron-pan-2.png",
-          "sha256": "9259958f4107d2dbf05768f3d7933b1f9de69f368a125fd5680326f017d01110"
+          "sha256": "f339fad31bf3428624f7d385a26f0672f231f05cf8655babf4d16fa54706e661",
+          "byte_size": 1805205,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "cast-iron-pan-3.png",
+          "sha256": "87239a19da0f46aae2e6e90ca81f9e1f1aecc9eb93eccb9c528f617490d9139c",
+          "byte_size": 2678434,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "cast-iron-pan-4.png",
+          "sha256": "0efd0531a9c3010c5e27a6e238ad965911ea462238cf4b90aa063a128dae629b",
+          "byte_size": 2405002,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -90,7 +162,27 @@
       "images": [
         {
           "file": "oak-side-table-1.png",
-          "sha256": "ec1949a8311d21d30813a7095c5ca9fd2e2fbd6c3bb6f3e3a1fb56b8846e2acf"
+          "sha256": "7c4ba4ba91be504f49b8a2b6005925747af4d1f31826a0ed70b060cc91c79f69",
+          "byte_size": 1972177,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "oak-side-table-3.png",
+          "sha256": "b545b62dcec4d20dfc7ea88f9e68a1c002f22f34b107c359f9e12afc3661fbd7",
+          "byte_size": 2057734,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "oak-side-table-4.png",
+          "sha256": "110133d9b9d55e1dc046205203993b1d6cc2c62eb1727fac8ede809421f2654d",
+          "byte_size": 1884403,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -103,8 +195,20 @@
       "price": 28000,
       "images": [
         {
-          "file": "reading-lamp-1.png",
-          "sha256": "be1bf5bddc220a1c17d0346b283a20878bf9d0d5ed4e834ad3f529264a531c23"
+          "file": "reading-lamp-2.png",
+          "sha256": "642f825e5e5b4dac5266de49fb682bf41a187d03a0eb520657acf1034f2c804d",
+          "byte_size": 2125716,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "reading-lamp-4.png",
+          "sha256": "b889fe65eaf78c51a2a71d369f7f064b2e55a060cdf6899a8016d34769ceed3f",
+          "byte_size": 1919511,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -118,7 +222,27 @@
       "images": [
         {
           "file": "linen-jacket-1.png",
-          "sha256": "3833395d094695392ed32bfd12ffff065848d7957a7a0590c146f88532580e79"
+          "sha256": "b83e7a13e3aa61070034d236a0993ad35a1e2c658a18b7696f92ba6806f929c8",
+          "byte_size": 1699022,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "linen-jacket-2.png",
+          "sha256": "dd8d29771536f6f65ba95eb737ec7647ea41c5ef74e5c23dcd61b6a52ed96b1b",
+          "byte_size": 1491641,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "linen-jacket-4.png",
+          "sha256": "f3fb503764e2a93108ab706c973f14ef0e15073889e786f8a4e55477cee2c2dd",
+          "byte_size": 2202663,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -132,7 +256,35 @@
       "images": [
         {
           "file": "leather-backpack-1.png",
-          "sha256": "128bbe3def7e37d0ab11a541e13abeaed31fe7258a5a5caea3a055923b64f219"
+          "sha256": "36a6a4a2e3c137d6db21e3f9f8982449e65ba3f6fa54f079325324b768fe042f",
+          "byte_size": 2685822,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "leather-backpack-2.png",
+          "sha256": "e2c83fb6f46fe9c2f50e7006042bb5cbeb191aa9cc42b3fbf8da463e274139ed",
+          "byte_size": 2709528,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "leather-backpack-3.png",
+          "sha256": "4fb9450d407620757375dc728e3d5eab4ebcf4af6fffc9dcbc73cbe55b942e3a",
+          "byte_size": 2759214,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "leather-backpack-4.png",
+          "sha256": "bc373182dc077d22aba14717dbecdb6e24e37d15af9852e9e7fad965d910b08c",
+          "byte_size": 2467361,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -146,7 +298,19 @@
       "images": [
         {
           "file": "camping-chair-1.png",
-          "sha256": "90226ae6cfd6714dbc9fea629e6328a8b264886744d447898912265a9383e669"
+          "sha256": "8c9373fe06092098c642ed411262a341604924e4e99953dc94404cfae4fdbdee",
+          "byte_size": 2161622,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "camping-chair-3.png",
+          "sha256": "2e392d2d6ffa06cda39cab48e89385f5e5f0ecf188531f52759502dbfb1c417a",
+          "byte_size": 2170597,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -159,8 +323,28 @@
       "price": 22000,
       "images": [
         {
-          "file": "yoga-mat-1.png",
-          "sha256": "d085bd232130e2a1b787bba9b68516ff231ad43796b0784b1450e0d39f2f1dfb"
+          "file": "yoga-mat-2.png",
+          "sha256": "9752727bcef39919a815ff8cd269769c164d1f236a0f0a528470fbbd53deafd3",
+          "byte_size": 2244721,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "yoga-mat-3.png",
+          "sha256": "31bfb0b894dc5e7640792d6f5d839b720168228c2cfa7af2c8b53f1740bddfe4",
+          "byte_size": 2038212,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "yoga-mat-4.png",
+          "sha256": "dbb7e7466aeee917d4aea9ac125788a8f0e6880e9018da0a01d1bcb9a878c8fa",
+          "byte_size": 2279772,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -174,7 +358,19 @@
       "images": [
         {
           "file": "classic-novel-set-1.png",
-          "sha256": "782d07519f93a4297f99d3ee64a1651767668f84253165ef4053793be44a42ae"
+          "sha256": "25ede09e1dcb9aa57dbd799292ea0855a3eb9870f9b5bf8316521bc88a93c029",
+          "byte_size": 2361009,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "classic-novel-set-4.png",
+          "sha256": "cb1b187ebf3b83630659b0b24ceee371007d5fcfa41554d6e5400c8a70055240",
+          "byte_size": 2390232,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -188,7 +384,35 @@
       "images": [
         {
           "file": "coding-book-1.png",
-          "sha256": "a671c41663bf8283f5059a73234d0d84bfe6c1c7996bfb9b5fd92ddd90df3df3"
+          "sha256": "f49280823dc0033c3740a47623256a3e91521763c115053765afbc53a550d880",
+          "byte_size": 1959111,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "coding-book-2.png",
+          "sha256": "4b55a226c415d1837570d1b1ef7f692c5569eb8e7199446888d80a41aab5ad3c",
+          "byte_size": 2247483,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "coding-book-3.png",
+          "sha256": "07ef1d52e544993f3efa721387c8a835af4b27b1931e7526dda397926bf4e33b",
+          "byte_size": 2182233,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "coding-book-4.png",
+          "sha256": "a0878ab6dd7c41a26df8a6588a90599c5bc1608d9c5e6fbfb1d96b230f38aa2a",
+          "byte_size": 1884177,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -202,7 +426,27 @@
       "images": [
         {
           "file": "plant-pot-1.png",
-          "sha256": "49aa737566953a2f777eb95c78c11d7fc43f9f44a10dcdeef878dfb1b70ff7b6"
+          "sha256": "2d20b3289d9f2e91033f1b83622a5b3d75df39599d0013a1b9fe9d2e069201ef",
+          "byte_size": 2273598,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "plant-pot-2.png",
+          "sha256": "dd679a8da008fa95944e62f2b0767b669b9cfeae611b045ef121f9bec4cc0177",
+          "byte_size": 2014537,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "plant-pot-3.png",
+          "sha256": "c1e17b32fabd8782769bd1a7afe3e3d96b587ef59da7776be1cfab218297b836",
+          "byte_size": 2241426,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -215,8 +459,20 @@
       "price": 49000,
       "images": [
         {
-          "file": "tool-box-1.png",
-          "sha256": "727ef43a819a13a674e0fd02225747fe3e65ab19ecfa3e2226986a5f57935ee5"
+          "file": "tool-box-2.png",
+          "sha256": "297adb96e64d9bc373d2196d5fb6d39e314ea9098a71676eafddfb021a5fa9e2",
+          "byte_size": 1760046,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "tool-box-4.png",
+          "sha256": "0d1bf30bcc9ff77c75c2261d460946d8668f8d8df7a0037813975e4e3d0c4028",
+          "byte_size": 2144688,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -230,7 +486,35 @@
       "images": [
         {
           "file": "mechanical-keyboard-1.png",
-          "sha256": "eb080ea971fc5f6c3fa03b1d60bbaa693abb6727182e36b13be2c5712919ca11"
+          "sha256": "07be773be55a90b7416451a5938ab2048589d69a1afab96911e23a564d1781d3",
+          "byte_size": 1329295,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "mechanical-keyboard-2.png",
+          "sha256": "e77c4cc8fd0e3a6efbb0a99cc9b73442eb41a38289b725e5ed9840fe7fe7d09c",
+          "byte_size": 1255433,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "mechanical-keyboard-3.png",
+          "sha256": "0153d604ddace0003346fa7d0e14240528eafdbec0f5e1152c0d64296a95e1a4",
+          "byte_size": 1181417,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "mechanical-keyboard-4.png",
+          "sha256": "71526c92d9ecaefa2a8f60b54b295c11628e85b78303e5fa4998cf89350bd84e",
+          "byte_size": 1628403,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -244,7 +528,27 @@
       "images": [
         {
           "file": "wool-blanket-1.png",
-          "sha256": "483b2dd6e4258e5db8df14b5b0706d35ba3545873f03bf7e856fa0aca7ef032d"
+          "sha256": "c8468a5ae7447a7185c364004517a8511c0cd4633c6f5b591574f9a0cbc7ccc0",
+          "byte_size": 2025689,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "wool-blanket-3.png",
+          "sha256": "df8fb77bc0915c306b821112e2c12faea65ce1f59eae074fe743d9bf82b65919",
+          "byte_size": 2103586,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "wool-blanket-4.png",
+          "sha256": "1f11ce52f7e781cb96ffc6513ad9599c691e84206071c68bd357715c0a1dffd5",
+          "byte_size": 2364938,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     },
@@ -258,7 +562,19 @@
       "images": [
         {
           "file": "road-bicycle-1.png",
-          "sha256": "aace9c524984f26958cde85da420da4d8774ddfa567aa16363f0edd48df748ae"
+          "sha256": "170af9de8d8e8237f503abf859e4380766991593288a0c5ee1fd1405bce308e9",
+          "byte_size": 2117062,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
+        },
+        {
+          "file": "road-bicycle-2.png",
+          "sha256": "051de82ec0d416657a4872cb2e2cf55e94cc72edb9e34af50a1c48d25ed04ccd",
+          "byte_size": 2404320,
+          "content_type": "image/png",
+          "width": 1408,
+          "height": 768
         }
       ]
     }

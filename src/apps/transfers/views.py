@@ -9,7 +9,13 @@ from django.http import HttpRequest, JsonResponse, HttpResponse
 from django.views.decorators.http import require_POST
 from django.views.csrf import csrf_failure as default_csrf_failure
 
-from .services import IdempotencyConflict, TransferUnavailable, close_account, transfer
+from .services import (
+    IdempotencyConflict,
+    TransferUnavailable,
+    close_account,
+    transfer,
+    transfer_for_product_room,
+)
 
 _AMOUNT = re.compile(r"^(0|[1-9][0-9]{0,7})(\.[0-9]{1,2})?$")
 
@@ -62,6 +68,44 @@ def create_transfer(request: HttpRequest) -> JsonResponse:
         return _error("INVALID_REQUEST", 400)
     try:
         result = transfer(sender_user=request.user, recipient_name=recipient, amount=amount, key=key)
+    except IdempotencyConflict:
+        return _error("IDEMPOTENCY_CONFLICT", 409)
+    except TransferUnavailable:
+        return _error("TRANSFER_UNAVAILABLE", 503)
+    return JsonResponse(result.body, status=result.status)
+
+
+@require_POST
+def create_room_transfer(request: HttpRequest, room_id: int) -> JsonResponse:
+    if not request.user.is_authenticated:
+        return _error("AUTH_REQUIRED", 401)
+    if request.content_type != "application/json":
+        return _error("INVALID_REQUEST", 400)
+    try:
+        data = json.loads(request.body, object_pairs_hook=_pairs_no_duplicates)
+        if not isinstance(data, dict) or set(data) != {"amount", "idempotency_key"}:
+            raise ValueError
+        raw_amount = data["amount"]
+        raw_key = data["idempotency_key"]
+        if not isinstance(raw_amount, str) or not _AMOUNT.fullmatch(raw_amount):
+            raise ValueError
+        amount = Decimal(raw_amount)
+        if not Decimal("0.01") <= amount <= Decimal("99999999.99"):
+            raise ValueError
+        if not isinstance(raw_key, str):
+            raise ValueError
+        key = UUID(raw_key)
+        if str(key) != raw_key:
+            raise ValueError
+    except (json.JSONDecodeError, UnicodeDecodeError, ValueError, ArithmeticError):
+        return _error("INVALID_REQUEST", 400)
+    try:
+        result = transfer_for_product_room(
+            sender_user=request.user,
+            room_id=room_id,
+            amount=amount,
+            key=key,
+        )
     except IdempotencyConflict:
         return _error("IDEMPOTENCY_CONFLICT", 409)
     except TransferUnavailable:

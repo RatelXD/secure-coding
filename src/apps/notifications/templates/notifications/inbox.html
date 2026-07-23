@@ -1,18 +1,23 @@
 {% extends "base.html" %}
 {% block title %}알림{% endblock %}
 {% block content %}
-<h1>알림</h1>
-<ul>
+<section class="notifications-inbox" aria-labelledby="notifications-heading">
+<h1 id="notifications-heading">알림</h1>
+<ul aria-label="알림 목록">
   {% for notification in notifications %}
-    <li>
-      <p>{{ notification.payload.message|default:notification.kind }}</p>
+    <li{% if notification.is_unread %} aria-label="읽지 않은 알림"{% endif %}>
+      <article>
+      <h2>{{ notification.title }}</h2>
+      <p>{{ notification.detail }}</p>
       <time datetime="{{ notification.created_at|date:'c' }}">{{ notification.created_at }}</time>
-      {% if not notification.read_at %}
-        <form method="post" action="{% url 'notifications:read' notification.pk %}">
+      {% if notification.is_unread %}
+        <form method="post" action="{% url 'notifications:read' notification.id %}">
           {% csrf_token %}<button type="submit">읽음</button>
         </form>
       {% endif %}
+      </article>
     </li>
   {% empty %}<li>새 알림이 없습니다.</li>{% endfor %}
 </ul>
+</section>
 {% endblock %}

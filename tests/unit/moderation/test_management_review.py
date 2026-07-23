@@ -114,6 +114,19 @@ def test_review_rows_are_database_immutable() -> None:
     assert review.rating == 4
 
 
+def test_review_without_visibility_action_remains_public() -> None:
+    seller = _user("public_review_seller")
+    buyer = _user("public_review_buyer")
+    review = create_review(
+        actor=buyer,
+        trade_id=_completed_trade(seller, buyer).pk,
+        rating=5,
+        body="별도 조치가 없는 공개 후기",
+    ).review
+
+    assert public_reviews().filter(pk=review.pk).exists()
+
+
 def test_review_hide_requires_report_permission_and_exact_scope() -> None:
     seller = _user("visibility_seller")
     buyer = _user("visibility_buyer")

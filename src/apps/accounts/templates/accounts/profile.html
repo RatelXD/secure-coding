@@ -1,22 +1,75 @@
 {% extends "base.html" %}
-{% block title %}마이페이지{% endblock %}
+{% load static %}
+{% block title %}마이페이지 | 주거니 받거니{% endblock %}
 {% block content %}
-<section class="profile-page" aria-labelledby="profile-heading">
-  <header class="profile-card">
-    <div class="product-seller-card__avatar" aria-hidden="true">{{ request.user.username|first }}</div>
-    <div>
-      <h1 id="profile-heading">마이페이지</h1>
-      <p>{{ request.user.username }}</p>
-      <p>{{ request.user.bio|default:"등록된 소개글이 없습니다." }}</p>
+<section class="account-profile account-profile--own" aria-labelledby="profile-heading">
+  <section class="account-profile__own-overview" aria-label="내 계정 요약">
+    <div class="account-profile__identity">
+      <div class="account-profile__avatar" aria-hidden="true">{{ request.user.username|first }}</div>
+      <div class="account-profile__identity-copy">
+        <p class="account-profile__kicker">내 프로필</p>
+        <h1 id="profile-heading">{{ request.user.username }}</h1>
+        <p class="account-profile__bio">{{ request.user.bio|default:"등록된 소개글이 없습니다." }}</p>
+        <div class="account-profile__primary-actions">
+          <a class="account-profile__button account-profile__button--quiet" href="{% url 'accounts:bio_edit' %}">프로필 수정</a>
+          <a class="account-profile__button account-profile__button--danger" href="{% url 'accounts:withdraw' %}">회원 탈퇴</a>
+        </div>
+      </div>
     </div>
-  </header>
-  <nav class="profile-action-grid" aria-label="계정과 거래 메뉴">
-    <a class="secondary-button" href="{% url 'accounts:bio_edit' %}">소개글 변경</a>
-    <a class="secondary-button" href="{% url 'accounts:password_change' %}">비밀번호 변경</a>
-    <a class="secondary-button" href="{% url 'catalog:favorites' %}">관심 상품</a>
-    <a class="secondary-button" href="{% url 'notifications:inbox' %}">알림함</a>
-    <a class="secondary-button" href="{% url 'chat:room-list' %}">대화 목록</a>
-    <a class="report-link" href="{% url 'accounts:withdraw' %}">회원 탈퇴</a>
-  </nav>
+
+    <dl class="account-profile__stats" aria-label="신뢰와 활동 지표">
+      <div>
+        <dt>완료 거래</dt>
+        <dd>{{ transaction_count }}<span>건</span></dd>
+      </div>
+      <a href="{% url 'catalog:favorites' %}">
+        <dt>관심 목록</dt>
+        <dd>{{ favorite_count }}<span>개</span></dd>
+      </a>
+    </dl>
+
+    <section class="account-profile__settings" aria-labelledby="account-settings-heading">
+      <h2 id="account-settings-heading">계정 설정</h2>
+      <a href="{% url 'accounts:password_change' %}">
+        <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#lock"></use></svg>
+        <span>비밀번호 변경</span>
+        <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+      </a>
+      <a href="{% url 'notifications:inbox' %}">
+        <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#notifications"></use></svg>
+        <span>알림함</span>
+        <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+      </a>
+      <a href="{% url 'chat:room-list' %}">
+        <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chat"></use></svg>
+        <span>대화 목록</span>
+        <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+      </a>
+      <form class="account-profile__logout inline" method="post" action="{% url 'accounts:logout' %}">
+        {% csrf_token %}
+        <button type="submit">
+          <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#logout"></use></svg>
+          <span>로그아웃</span>
+        </button>
+      </form>
+    </section>
+  </section>
+
+  <section class="account-profile__products" aria-labelledby="my-products-heading">
+    <header class="account-profile__section-heading">
+      <div>
+        <p class="account-profile__kicker">내가 등록한 공개 상품</p>
+        <h2 id="my-products-heading">나의 상품 <span>{{ product_page.paginator.count }}</span></h2>
+      </div>
+      <nav class="account-profile__filters" aria-label="나의 상품 상태">
+        <a href="?status=all"{% if profile_filter == "all" %} aria-current="page"{% endif %}>전체</a>
+        <a href="?status=available"{% if profile_filter == "available" %} aria-current="page"{% endif %}>판매 중</a>
+        <a href="?status=sold"{% if profile_filter == "sold" %} aria-current="page"{% endif %}>판매 완료</a>
+      </nav>
+    </header>
+
+    {% include "accounts/_profile_product_grid.html" with grid_owner="own" %}
+  </section>
 </section>
+<link rel="stylesheet" href="{% static 'accounts/profile.css' %}">
 {% endblock %}

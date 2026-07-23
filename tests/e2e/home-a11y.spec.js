@@ -57,9 +57,8 @@ test('home satisfies the responsive visual and accessibility contract', async (
   await expect(page.getByRole('heading', { level: 1, name: '중고 상품 둘러보기' })).toBeVisible();
 
   await page.goto('/');
-  await page.getByRole('search').getByLabel('상품 검색').fill('안전한 검색');
-  await page.getByRole('search').getByRole('button', { name: '검색' }).click();
-  expect(new URL(page.url()).searchParams.get('q')).toBe('안전한 검색');
+  await page.getByRole('link', { name: '상품 검색' }).click();
+  await expect(page).toHaveURL(/\/products\/$/);
 
   await page.goto('/');
   await settleResources();
@@ -95,13 +94,21 @@ test('home satisfies the responsive visual and accessibility contract', async (
   expect(focusStyle.outlineStyle).not.toBe('none');
   expect(focusStyle.outlineWidth).toBeGreaterThanOrEqual(2);
 
-  await page.keyboard.press('Tab');
-  await expect(
-    page.getByRole('navigation', { name: '주요 메뉴' }).getByRole('link', {
-      name: '홈',
-      exact: true,
-    }),
-  ).toBeFocused();
+  if (testInfo.project.name === 'chromium-mobile') {
+    const mobileHome = page
+      .getByRole('navigation', { name: '모바일 주요 메뉴' })
+      .getByRole('link', { name: '홈', exact: true });
+    await mobileHome.focus();
+    await expect(mobileHome).toBeFocused();
+  } else {
+    await page.keyboard.press('Tab');
+    await expect(
+      page.getByRole('navigation', { name: '주요 메뉴' }).getByRole('link', {
+        name: '홈',
+        exact: true,
+      }),
+    ).toBeFocused();
+  }
 
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])

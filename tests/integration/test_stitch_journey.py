@@ -33,26 +33,26 @@ class StitchJourneyTests(TestCase):
             price=12000,
         )
 
-    def test_home_connects_categories_latest_products_and_global_search(self) -> None:
+    def test_home_connects_categories_latest_products_and_icon_search(self) -> None:
         response = self.client.get(reverse("home"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("catalog:detail", args=(self.product.pk,)))
-        self.assertContains(response, 'role="search"')
+        self.assertContains(response, 'aria-label="상품 검색"')
         for code in Category.objects.values_list("code", flat=True):
             self.assertContains(response, f"?category={code}")
         self.assertNotContains(response, "https://")
         self.assertNotContains(response, "http://")
 
-    def test_public_profile_connects_authorized_chat_and_product_cards(self) -> None:
+    def test_public_profile_exposes_reports_and_product_cards(self) -> None:
         force_login_with_epoch(self.client, self.buyer)
 
         response = self.client.get(
             reverse("accounts:user_detail", kwargs={"username": self.seller.username})
         )
 
-        self.assertContains(response, reverse("chat:room-list"))
-        self.assertContains(response, f'value="{self.seller.username}"')
+        self.assertNotContains(response, 'action="/chat/"')
+        self.assertNotContains(response, f'value="{self.seller.username}"')
         self.assertContains(response, reverse("catalog:detail", args=(self.product.pk,)))
         self.assertContains(
             response,

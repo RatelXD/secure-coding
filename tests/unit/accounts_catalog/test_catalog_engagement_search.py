@@ -14,7 +14,7 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.catalog.engagement import metric_recompute_delta
-from apps.catalog.models import Favorite, Product, ProductMetric, ProductView, Region
+from apps.catalog.models import Favorite, Product, ProductImage, ProductMetric, ProductView, Region
 from apps.catalog.search import parse_product_search, search_products
 from apps.trades.models import Trade
 
@@ -78,7 +78,7 @@ def test_view_is_once_per_session_product_utc_date_and_owner_is_excluded(monkeyp
 
     monkeypatch.setattr(
         "apps.catalog.engagement.timezone.now",
-        lambda: datetime(2026, 7, 23, 0, 0, tzinfo=UTC),
+        lambda: datetime(2099, 1, 1, 0, 0, tzinfo=UTC),
     )
     assert client.get(detail).status_code == 200
     assert ProductView.objects.filter(product=item).count() == 2
@@ -179,7 +179,19 @@ def test_demo_bootstrap_is_guarded_exact_and_repairable(tmp_path: Path):
     assert not owner.has_usable_password()
     assert Product.objects.filter(owner=owner).count() == 17
     assert Product.objects.filter(owner=owner, demo_key__isnull=False).count() == 17
-    assert sum(item.images.count() for item in Product.objects.filter(owner=owner)) == 21
+    assert sum(item.images.count() for item in Product.objects.filter(owner=owner)) == 50
+    for item in Product.objects.filter(owner=owner):
+        images = list(ProductImage.objects.filter(product=item).order_by("position"))
+        assert 2 <= len(images) <= 4
+        assert [image.position for image in images] == list(range(len(images)))
+        assert all(
+            image.image.name == image.owned_key
+            and image.promotion_state == "PROMOTED"
+            and image.byte_size > 0
+            and image.width > 0
+            and image.height > 0
+            for image in images
+        )
 
     with override_settings(APP_ENV="production", DEMO_CATALOG_BOOTSTRAP_ENABLED=False):
         with pytest.raises(CommandError):

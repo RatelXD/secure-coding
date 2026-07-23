@@ -3,18 +3,32 @@
 
   const primaryImage = document.getElementById("product-gallery-primary");
   if (primaryImage) {
-    for (const button of document.querySelectorAll("[data-gallery-thumbnail]")) {
-      button.addEventListener("click", () => {
-        const source = button.dataset.imageSrc;
-        const alternative = button.dataset.imageAlt;
-        if (!source || !alternative) return;
-        primaryImage.src = source;
-        primaryImage.alt = alternative;
-        for (const item of document.querySelectorAll("[data-gallery-thumbnail]")) {
-          item.removeAttribute("aria-pressed");
-        }
-        button.setAttribute("aria-pressed", "true");
-      });
+    const thumbnails = [...document.querySelectorAll("[data-gallery-thumbnail]")];
+    const selectThumbnail = (button) => {
+      const source = button.dataset.imageSrc;
+      const alternative = button.dataset.imageAlt;
+      if (!source || !alternative) return;
+      primaryImage.src = source;
+      primaryImage.alt = alternative;
+      for (const item of thumbnails) {
+        item.removeAttribute("aria-pressed");
+      }
+      button.setAttribute("aria-pressed", "true");
+    };
+    for (const button of thumbnails) {
+      button.addEventListener("click", () => selectThumbnail(button));
+    }
+    const selectNeighbor = (offset) => {
+      const selected = thumbnails.findIndex((button) => button.getAttribute("aria-pressed") === "true");
+      const current = selected === -1 ? 0 : selected;
+      const target = (current + offset + thumbnails.length) % thumbnails.length;
+      selectThumbnail(thumbnails[target]);
+    };
+    const previous = document.querySelector("[data-gallery-previous]");
+    const next = document.querySelector("[data-gallery-next]");
+    if (thumbnails.length > 1 && previous && next) {
+      previous.addEventListener("click", () => selectNeighbor(-1));
+      next.addEventListener("click", () => selectNeighbor(1));
     }
   }
 

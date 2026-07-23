@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load humanize static %}
 {% block title %}상품 목록 | 주거니 받거니{% endblock %}
 {% block content %}
 <section class="catalog-page" aria-labelledby="catalog-heading">
@@ -65,7 +65,7 @@
         <div class="product-card__body">
           <h2><a href="{% url 'catalog:detail' product.pk %}">{{ product.title }}</a></h2>
           <p class="product-card__location">{% if product.region %}{{ product.region.label }}{% else %}지역 미설정{% endif %}</p>
-          <p class="product-card__price">{{ product.price }}원</p>
+          <p class="product-card__price">{{ product.price|intcomma }}원</p>
         </div>
       </li>
     {% empty %}

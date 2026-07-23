@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from decimal import Decimal
 from typing import Any
+from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.db import connection, transaction
@@ -26,6 +28,14 @@ class PurgeResult:
     lock_acquired: bool
 
 
+@dataclass(frozen=True, slots=True)
+class TransferNotification:
+    sender_id: int
+    recipient_id: int
+    transfer_id: UUID
+    amount: Decimal
+
+
 @transaction.atomic
 def create_notification(
     *, recipient_id: int, event_key: str, kind: str, payload: dict[str, Any]
@@ -46,6 +56,43 @@ def create_notification(
         event_key=event_key,
         defaults={"kind": kind, "payload": payload},
     )
+
+
+def create_transfer_notifications(
+    *, transfer_notification: TransferNotification
+) -> tuple[Notification, Notification]:
+    """Create the durable sender and recipient events for one completed transfer."""
+    transfer_id = str(transfer_notification.transfer_id)
+    amount = f"{transfer_notification.amount:.2f}"
+    counterparty_names = {
+        user_id: username
+        for user_id, username in get_user_model()
+        .objects.filter(
+            pk__in=(transfer_notification.sender_id, transfer_notification.recipient_id)
+        )
+        .values_list("pk", "username")
+    }
+    sender_notice, _ = create_notification(
+        recipient_id=transfer_notification.sender_id,
+        event_key=f"transfer.sender:{transfer_id}",
+        kind="TRANSFER_SENT",
+        payload={
+            "transfer_id": transfer_id,
+            "amount": amount,
+            "counterparty_name": counterparty_names.get(transfer_notification.recipient_id, ""),
+        },
+    )
+    recipient_notice, _ = create_notification(
+        recipient_id=transfer_notification.recipient_id,
+        event_key=f"transfer.recipient:{transfer_id}",
+        kind="TRANSFER_RECEIVED",
+        payload={
+            "transfer_id": transfer_id,
+            "amount": amount,
+            "counterparty_name": counterparty_names.get(transfer_notification.sender_id, ""),
+        },
+    )
+    return sender_notice, recipient_notice
 
 
 def notifications_for_user(*, user_id: int):

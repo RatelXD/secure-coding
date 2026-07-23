@@ -310,10 +310,10 @@
       "control_map": [
         {"group": "logo, desktop navigation and product cards", "count": 11, "resolution": "django-route", "targets": ["/", "/products/", "/products/<pk>/", "/products/new/", "/chat/", "/account/"]},
         {"group": "search and notification actions", "count": 2, "resolution": "phase-gated-route", "targets": ["G7D search form", "G7C Notification inbox"]},
-        {"group": "direct chat", "count": 1, "resolution": "existing-pipeline", "targets": ["DIRECT Room using Room and ChatMessage"]},
         {"group": "user report", "count": 1, "resolution": "django-route", "targets": ["/reports/users/<target_id>/", "AbuseReport"]},
         {"group": "product state filters", "count": 3, "resolution": "phase-gated-query", "targets": ["G7B effective_product_state"]},
         {"group": "favorite toggles", "count": 3, "resolution": "phase-gated-route", "targets": ["G7C Favorite"]},
+        {"group": "public-profile direct chat", "count": 1, "resolution": "remove", "targets": ["New 1:1 chat starts only from the seller on a product detail"]},
         {"group": "pagination", "count": 1, "resolution": "django-query", "targets": ["server-owned page parameter"]}
       ],
       "non_semantic_interactions": [

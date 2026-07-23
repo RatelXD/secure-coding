@@ -17,12 +17,12 @@ def force_login_with_epoch(client: Client, user) -> None:
 class FeatureNavigationTests(TestCase):
     password = "Correct-Horse-Battery-47!"
 
-    def test_home_exposes_public_feature_navigation(self) -> None:
+    def test_home_exposes_product_navigation_without_global_neighbor_menu(self) -> None:
         response = self.client.get(reverse("home"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, reverse("catalog:list"))
-        self.assertContains(response, reverse("accounts:user_list"))
+        self.assertNotContains(response, reverse("accounts:user_list"))
         self.assertNotContains(response, reverse("chat:room-list"))
 
     def test_authenticated_navigation_exposes_chat(self) -> None:

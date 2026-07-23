@@ -10,13 +10,16 @@ from .services import (
     mark_notification_read,
     notifications_for_user,
 )
+from .presentation import inbox_notifications
 
 
 @login_required
 @require_GET
 def inbox(request: HttpRequest) -> HttpResponse:
     try:
-        notifications = notifications_for_user(user_id=request.user.pk)[:100]
+        notifications = inbox_notifications(
+            notifications_for_user(user_id=request.user.pk)[:100]
+        )
     except NotificationAuthorizationError as exc:
         raise Http404 from exc
     return render(request, "notifications/inbox.html", {"notifications": notifications})

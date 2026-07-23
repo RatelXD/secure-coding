@@ -1,11 +1,33 @@
 (() => {
   "use strict";
 
+  function installRoomFilter() {
+    const input = document.querySelector("[data-room-filter]");
+    const entries = [...document.querySelectorAll("[data-room-entry]")];
+    const status = document.querySelector("[data-room-filter-status]");
+    if (!input || !status) return;
+
+    input.addEventListener("input", () => {
+      const query = input.value.trim().toLocaleLowerCase("ko-KR");
+      let visibleCount = 0;
+      for (const entry of entries) {
+        const matches = entry.dataset.roomLabel.toLocaleLowerCase("ko-KR").includes(query);
+        entry.hidden = !matches;
+        if (matches) visibleCount += 1;
+      }
+      status.textContent = query ? `${visibleCount}개의 대화를 찾았습니다.` : "";
+    });
+  }
+
+  installRoomFilter();
+
   const app = document.getElementById("chat-app");
   if (!app) return;
 
   const roomId = app.dataset.roomId;
   const roomKind = app.dataset.roomKind;
+  const writable = app.dataset.chatWritable === "true";
+  const currentUserId = app.dataset.currentUserId;
   const list = document.getElementById("chat-messages");
   const form = document.getElementById("chat-form");
   const bodyInput = document.getElementById("chat-body");
@@ -34,12 +56,16 @@
 
     const item = document.createElement("li");
     item.dataset.messageId = String(id);
-    const sender = document.createElement("strong");
+    item.className = "chat-message";
+    if (String(message.sender_id) === currentUserId) item.classList.add("chat-message--mine");
+    const sender = document.createElement("span");
+    sender.className = "chat-message__sender";
     sender.textContent = String(message.sender_username);
-    const text = document.createElement("span");
+    const text = document.createElement("p");
     text.textContent = String(message.body);
-    item.append(sender, document.createTextNode(" "), text);
+    item.append(sender, text);
     list.append(item);
+    list.scrollTop = list.scrollHeight;
   }
 
   function requestHistory() {
@@ -49,7 +75,7 @@
   }
 
   function requestPresence() {
-    if (roomKind !== "GLOBAL" && socket && socket.readyState === WebSocket.OPEN) {
+    if (writable && roomKind !== "GLOBAL" && socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({ type: "presence" }));
     }
   }
@@ -93,7 +119,7 @@
     });
   }
 
-  form.addEventListener("submit", (event) => {
+  if (writable && form && bodyInput) form.addEventListener("submit", (event) => {
     event.preventDefault();
     if (!socket || socket.readyState !== WebSocket.OPEN) {
       setStatus("연결 뒤 다시 보내 주세요.");
@@ -109,12 +135,96 @@
     bodyInput.value = "";
   });
 
+  if (bodyInput) bodyInput.addEventListener("input", () => {
+    bodyInput.style.height = "auto";
+    bodyInput.style.height = `${Math.min(bodyInput.scrollHeight, 120)}px`;
+  });
+
+  function csrfToken() {
+    return document.querySelector("[data-transfer-form] input[name='csrfmiddlewaretoken']")?.value || "";
+  }
+
+  const transferDialog = document.querySelector("[data-transfer-dialog]");
+  const transferForm = document.querySelector("[data-transfer-form]");
+  const transferAmount = document.getElementById("transfer-amount");
+  const transferFeedback = document.querySelector("[data-transfer-feedback]");
+  const transferSubmit = document.querySelector("[data-transfer-submit]");
+  let transferAttempt = null;
+
+  function setTransferFeedback(message, state = "") {
+    if (!transferFeedback) return;
+    transferFeedback.textContent = message;
+    transferFeedback.className = `transfer-feedback${state ? ` is-${state}` : ""}`;
+  }
+
+  function closeTransferDialog() {
+    if (transferDialog?.open) transferDialog.close();
+  }
+
+  document.querySelector("[data-transfer-open]")?.addEventListener("click", () => {
+    transferAttempt = null;
+    setTransferFeedback("");
+    transferDialog?.showModal();
+    transferAmount?.focus();
+  });
+  for (const closeButton of document.querySelectorAll("[data-transfer-close]")) {
+    closeButton.addEventListener("click", closeTransferDialog);
+  }
+  transferAmount?.addEventListener("input", () => {
+    transferAttempt = null;
+    setTransferFeedback("");
+  });
+
+  transferForm?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const amount = transferAmount?.value.trim() || "";
+    if (!/^(0|[1-9][0-9]{0,7})(\.[0-9]{1,2})?$/.test(amount)) {
+      setTransferFeedback("0.01원 이상, 소수점 둘째 자리까지 입력해 주세요.", "error");
+      transferAmount?.focus();
+      return;
+    }
+    if (!transferAttempt || transferAttempt.amount !== amount) {
+      transferAttempt = { amount, key: crypto.randomUUID() };
+    }
+    if (transferSubmit) transferSubmit.disabled = true;
+    setTransferFeedback("송금 요청을 확인하고 있습니다.");
+    try {
+      const response = await fetch(`/transfers/rooms/${roomId}/`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json", "X-CSRFToken": csrfToken() },
+        body: JSON.stringify({ amount, idempotency_key: transferAttempt.key }),
+      });
+      const body = await response.json().catch(() => ({}));
+      if (response.status === 201) {
+        setTransferFeedback(`${body.amount || amount}원 송금 요청이 완료되었습니다.`, "success");
+        window.setTimeout(closeTransferDialog, 700);
+        return;
+      }
+      const errors = {
+        AUTH_REQUIRED: "로그인 상태를 확인한 뒤 다시 시도해 주세요.",
+        CSRF_FAILED: "보안 확인이 만료되었습니다. 페이지를 새로고침해 주세요.",
+        IDEMPOTENCY_CONFLICT: "금액을 변경한 뒤 새 송금 요청을 시작해 주세요.",
+        TRANSFER_NOT_ALLOWED: "이 상품 대화에서는 송금할 수 없습니다.",
+        TRANSFER_UNAVAILABLE: "송금 서비스를 잠시 이용할 수 없습니다. 같은 요청을 다시 시도할 수 있습니다.",
+        INVALID_REQUEST: "송금 금액을 다시 확인해 주세요.",
+      };
+      setTransferFeedback(errors[body.error_code] || "송금 요청을 처리하지 못했습니다. 같은 요청을 다시 시도해 주세요.", "error");
+    } catch {
+      setTransferFeedback("네트워크 연결을 확인한 뒤 같은 요청을 다시 시도해 주세요.", "error");
+    } finally {
+      if (transferSubmit) transferSubmit.disabled = false;
+    }
+  });
+
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden) {
       requestHistory();
       requestPresence();
     }
   });
-  connect();
-  window.setInterval(requestPresence, 45000);
+  if (writable) {
+    connect();
+    window.setInterval(requestPresence, 45000);
+  }
 })();
