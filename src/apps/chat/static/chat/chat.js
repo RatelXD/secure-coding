@@ -37,8 +37,10 @@
   let cursor = 0;
   let socket;
   let reconnectTimer;
+  let stableConnectionTimer;
   let reconnectAttempts = 0;
   const MAX_RECONNECT_ATTEMPTS = 5;
+  const STABLE_CONNECTION_MS = 10000;
 
   for (const item of list.querySelectorAll("[data-message-id]")) {
     const id = Number(item.dataset.messageId);
@@ -86,7 +88,10 @@
     const scheme = window.location.protocol === "https:" ? "wss:" : "ws:";
     socket = new WebSocket(`${scheme}//${window.location.host}/ws/chat/rooms/${roomId}/`);
     socket.addEventListener("open", () => {
-      reconnectAttempts = 0;
+      window.clearTimeout(stableConnectionTimer);
+      stableConnectionTimer = window.setTimeout(() => {
+        reconnectAttempts = 0;
+      }, STABLE_CONNECTION_MS);
       if (presence) presence.textContent = "상품 대화 · 연결됨";
       setStatus("연결됨");
       requestHistory();
@@ -114,6 +119,7 @@
     });
     socket.addEventListener("close", (event) => {
       window.clearTimeout(reconnectTimer);
+      window.clearTimeout(stableConnectionTimer);
       if (event.code === 4400) {
         if (presence) presence.textContent = "상품 대화 · 이용 불가";
         setStatus("채팅 정책에 따라 연결할 수 없습니다.");
