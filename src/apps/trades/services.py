@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.db.models import OuterRef, QuerySet, Subquery
+from django.db.models import OuterRef, Q, QuerySet, Subquery
 from django.db.models.functions import Now
 from django.utils import timezone
 
@@ -232,6 +232,7 @@ def public_reviews(queryset: QuerySet[Review] | None = None) -> QuerySet[Review]
         .order_by("-created_at", "-pk")
         .values("kind")[:1]
     )
-    return queryset.annotate(_latest_visibility=Subquery(latest_kind)).exclude(
-        _latest_visibility=ReviewVisibilityAction.Kind.HIDE
+    return queryset.annotate(_latest_visibility=Subquery(latest_kind)).filter(
+        Q(_latest_visibility__isnull=True)
+        | ~Q(_latest_visibility=ReviewVisibilityAction.Kind.HIDE)
     )

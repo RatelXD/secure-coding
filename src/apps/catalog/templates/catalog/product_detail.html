@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load humanize static %}
 {% block title %}{{ product.title }} | 주거니 받거니{% endblock %}
 {% block content %}
 <article class="product-detail">
@@ -14,6 +14,16 @@
           {% else %}
             <img src="{% static 'images/product-default.svg' %}" alt="">
             <figcaption>등록된 상품 이미지가 없습니다.</figcaption>
+          {% endif %}
+          {% if product.images.all|length > 1 %}
+            <div class="gallery-grid__neighbors" aria-label="이미지 다음/이전 이동">
+              <button class="gallery-grid__neighbor" type="button" data-gallery-previous aria-label="이전 이미지">
+                <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_left"></use></svg>
+              </button>
+              <button class="gallery-grid__neighbor" type="button" data-gallery-next aria-label="다음 이미지">
+                <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+              </button>
+            </div>
           {% endif %}
           <span class="badge badge-primary">{{ product.effective_state_label }}</span>
         </figure>
@@ -38,7 +48,7 @@
             <span class="badge">{{ product.category.label }}</span>
           </div>
           <h1>{{ product.title }}</h1>
-          <p class="product-detail__price">{{ product.price }}원</p>
+          <p class="product-detail__price">{{ product.price|intcomma }}원</p>
         </div>
       </header>
 

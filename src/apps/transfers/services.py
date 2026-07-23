@@ -12,7 +12,9 @@ from django.db.models import Count, Sum
 from django.db.models.functions import Now
 from django.utils import timezone
 
+from apps.chat.models import ProductConversation, Room
 from apps.moderation.models import ModerationAction
+from apps.notifications.services import TransferNotification, create_transfer_notifications
 
 from .models import (
     LedgerAccount,
@@ -64,6 +66,13 @@ def canonical_payload(recipient: str, amount: Decimal) -> str:
         ensure_ascii=False,
         separators=(",", ":"),
         sort_keys=True,
+    )
+
+
+def canonical_room_payload(room_id: int, amount: Decimal) -> str:
+    return json.dumps(
+        {"amount": f"{amount:.2f}", "room_id": room_id, "version": 2}, ensure_ascii=False,
+        separators=(",", ":"), sort_keys=True,
     )
 
 
@@ -121,12 +130,12 @@ def _store_denial(*, sender: MockAccount, key: UUID, payload: str) -> TransferRe
 
 
 @transaction.atomic
-def _execute_once(*, sender_user, recipient_name: str, amount: Decimal, key: UUID) -> TransferResult:
+def _execute_once(*, sender_user, recipient_name: str, amount: Decimal, key: UUID, request_payload: str | None = None) -> TransferResult:
     sender = MockAccount.objects.get(user=sender_user)
     _advisory_lock(SAFETY_LOCK_KEY, shared=True)
     _idempotency_lock(sender.pk, key)
     previous = TransferRequest.objects.select_for_update().filter(sender=sender, idempotency_key=key).first()
-    payload = canonical_payload(recipient_name, amount)
+    payload = request_payload or canonical_payload(recipient_name, amount)
     if previous:
         if previous.canonical_payload != payload:
             raise IdempotencyConflict
@@ -190,10 +199,16 @@ def _execute_once(*, sender_user, recipient_name: str, amount: Decimal, key: UUI
     return TransferResult(201, body)
 
 
-def transfer(*, sender_user, recipient_name: str, amount: Decimal, key: UUID) -> TransferResult:
+def transfer(*, sender_user, recipient_name: str, amount: Decimal, key: UUID, request_payload: str | None = None) -> TransferResult:
     for attempt in range(4):
         try:
-            return _execute_once(sender_user=sender_user, recipient_name=recipient_name, amount=amount, key=key)
+            return _execute_once(
+                sender_user=sender_user,
+                recipient_name=recipient_name,
+                amount=amount,
+                key=key,
+                request_payload=request_payload,
+            )
         except OperationalError as exc:
             sqlstate = getattr(exc.__cause__, "sqlstate", None)
             if sqlstate not in {"40001", "40P01"} or attempt == 3:
@@ -201,6 +216,41 @@ def transfer(*, sender_user, recipient_name: str, amount: Decimal, key: UUID) ->
                     raise TransferUnavailable from exc
                 raise
     raise TransferUnavailable
+
+
+@transaction.atomic
+def transfer_for_product_room(*, sender_user, room_id: int, amount: Decimal, key: UUID) -> TransferResult:
+    sender = MockAccount.objects.get(user=sender_user)
+    _idempotency_lock(sender.pk, key)
+    payload = canonical_room_payload(room_id, amount)
+    previous = TransferRequest.objects.select_for_update().filter(sender=sender, idempotency_key=key).first()
+    if previous:
+        if previous.canonical_payload != payload:
+            raise IdempotencyConflict
+        return TransferResult(previous.response_status, previous.response_body, replayed=True)
+    try:
+        conversation = ProductConversation.objects.select_for_update().select_related("room", "seller", "buyer").get(room_id=room_id)
+    except ProductConversation.DoesNotExist:
+        return _store_denial(sender=sender, key=key, payload=payload)
+    if conversation.room.kind != Room.Kind.PRODUCT:
+        return _store_denial(sender=sender, key=key, payload=payload)
+    if sender_user.pk == conversation.seller_id:
+        recipient = conversation.buyer
+    elif sender_user.pk == conversation.buyer_id:
+        recipient = conversation.seller
+    else:
+        return _store_denial(sender=sender, key=key, payload=payload)
+    result = transfer(sender_user=sender_user, recipient_name=recipient.username, amount=amount, key=key, request_payload=payload)
+    if result.status == 201 and not result.replayed:
+        create_transfer_notifications(
+            transfer_notification=TransferNotification(
+                sender_id=sender_user.pk,
+                recipient_id=recipient.pk,
+                transfer_id=UUID(result.body["transfer_id"]),
+                amount=amount,
+            )
+        )
+    return result
 
 
 @transaction.atomic

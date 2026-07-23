@@ -1,24 +1,118 @@
 {% extends "base.html" %}
-{% load static %}
+{% load humanize static %}
 {% block title %}채팅방{% endblock %}
 {% block content %}
-<section id="chat-app" data-room-id="{{ room.id }}" data-room-kind="{{ room.kind }}" aria-labelledby="room-title">
-  <h1 id="room-title">{% if room.kind == "GLOBAL" %}전체 채팅{% elif room.kind == "PRODUCT" %}상품 대화{% else %}1대1 채팅{% endif %}</h1>
-  <p id="chat-status" role="status" aria-live="polite"></p>
-  {% if room.kind != "GLOBAL" %}<p id="chat-presence" aria-live="polite"></p>{% endif %}
-  <ol id="chat-messages">
-    {% for chat_message in chat_messages %}
-      <li data-message-id="{{ chat_message.message.id }}">
-        <strong>{{ chat_message.sender_identity.display_name }}</strong>
-        <span>{{ chat_message.message.body }}</span>
-      </li>
-    {% endfor %}
-  </ol>
-  <form id="chat-form">
-    <label for="chat-body">메시지</label>
-    <textarea id="chat-body" maxlength="2000" required></textarea>
-    <button type="submit">보내기</button>
-  </form>
+<section class="chat-page chat-page--detail" id="chat-app" data-room-id="{{ room.id }}" data-room-kind="{{ room.kind }}" data-current-user-id="{{ request.user.id }}" data-chat-writable="{% if conversation and room.kind == 'PRODUCT' %}true{% else %}false{% endif %}" aria-labelledby="room-title">
+  <aside class="chat-sidebar" aria-label="대화 목록">
+    <div class="chat-sidebar__heading">
+      <div>
+        <p class="chat-kicker">내 대화</p>
+        <h1>채팅</h1>
+      </div>
+      <a class="chat-sidebar__back" href="{% url 'chat:room-list' %}">목록</a>
+    </div>
+    <div class="chat-search">
+      <label class="visually-hidden" for="room-search">대화방 검색</label>
+      <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#search"></use></svg>
+      <input id="room-search" type="search" data-room-filter autocomplete="off" placeholder="상품명 또는 이웃 이름">
+    </div>
+    <p class="chat-filter-status" data-room-filter-status aria-live="polite"></p>
+    <nav class="chat-room-list" aria-label="대화방">
+      {% if global_room %}
+        <a class="chat-room-row{% if room.id == global_room.id %} is-current{% endif %} chat-room-row--readonly" data-room-entry data-room-label="전체 채팅" href="{% url 'chat:room-detail' global_room.id %}"{% if room.id == global_room.id %} aria-current="page"{% endif %}>
+          <span class="chat-avatar chat-avatar--system"><svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chat"></use></svg></span>
+          <span class="chat-room-row__body"><strong>전체 채팅</strong><span>읽기 전용 보관함</span></span>
+        </a>
+      {% endif %}
+      {% for item in product_rooms %}
+        <a class="chat-room-row{% if room.id == item.room_id %} is-current{% endif %}" data-room-entry data-room-label="{{ item.product.title }}" href="{% url 'chat:room-detail' item.room_id %}"{% if room.id == item.room_id %} aria-current="page"{% endif %}>
+          <span class="chat-avatar">{{ item.product.title|first }}</span>
+          <span class="chat-room-row__body"><strong>{{ item.product.title }}</strong><span>상품 대화</span></span>
+          <svg class="chat-room-row__chevron" aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+        </a>
+      {% endfor %}
+      {% for item in direct_rooms %}
+        <a class="chat-room-row{% if room.id == item.room.id %} is-current{% endif %} chat-room-row--readonly" data-room-entry data-room-label="{{ item.other_identity.display_name }}" href="{% url 'chat:room-detail' item.room.id %}"{% if room.id == item.room.id %} aria-current="page"{% endif %}>
+          <span class="chat-avatar">{{ item.other_identity.display_name|first }}</span>
+          <span class="chat-room-row__body"><strong>{{ item.other_identity.display_name }}</strong><span>읽기 전용 보관함</span></span>
+          <svg class="chat-room-row__chevron" aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+        </a>
+      {% endfor %}
+    </nav>
+  </aside>
+
+  <section class="chat-detail" aria-label="대화 내용">
+    <header class="chat-detail__header">
+      <a class="chat-detail__back" href="{% url 'chat:room-list' %}" aria-label="대화 목록으로 돌아가기"><svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#arrow_back"></use></svg></a>
+      <span class="chat-avatar chat-avatar--large">
+        {% if conversation %}
+          {% with product_image=conversation.product.images.all|first %}
+            {% if product_image %}<img src="{{ product_image.image.url }}" alt="">{% else %}{{ conversation.product.title|first }}{% endif %}
+          {% endwith %}
+        {% elif room.kind == "GLOBAL" %}<svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chat"></use></svg>{% else %}대{% endif %}
+      </span>
+      <div class="chat-detail__title">
+        <h1 id="room-title">{% if conversation %}{{ conversation.product.title }}{% elif room.kind == "GLOBAL" %}전체 채팅{% else %}읽기 전용 대화{% endif %}</h1>
+        {% if conversation %}<p id="chat-presence" aria-live="polite">상품 대화 · 연결 중</p>{% else %}<p>기존 대화 기록을 읽을 수 있습니다.</p>{% endif %}
+      </div>
+      {% if conversation and room.kind == "PRODUCT" %}
+        <button class="chat-transfer-trigger" type="button" data-transfer-open><svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#shield"></use></svg> 안전 송금</button>
+      {% endif %}
+    </header>
+
+    <p id="chat-status" class="chat-status" role="status" aria-live="polite"></p>
+    {% if conversation %}
+      <a class="chat-product-context" href="{% url 'catalog:detail' conversation.product.id %}">
+        <span class="chat-product-context__mark">
+          {% with product_image=conversation.product.images.all|first %}
+            {% if product_image %}<img src="{{ product_image.image.url }}" alt="">{% else %}<svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#checkroom"></use></svg>{% endif %}
+          {% endwith %}
+        </span>
+        <span><strong>{{ conversation.product.title }}</strong><small>{{ conversation.product.price|intcomma }}원</small></span>
+        <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+      </a>
+    {% endif %}
+    <ol id="chat-messages" class="chat-thread" aria-label="메시지">
+      {% for chat_message in chat_messages %}
+        <li class="chat-message{% if chat_message.message.sender_id == request.user.id %} chat-message--mine{% endif %}" data-message-id="{{ chat_message.message.id }}">
+          <span class="chat-message__sender">{{ chat_message.sender_identity.display_name }}</span>
+          <p>{{ chat_message.message.body }}</p>
+          <time datetime="{{ chat_message.message.accepted_at|date:'c' }}">{{ chat_message.message.accepted_at|date:"H:i" }}</time>
+        </li>
+      {% empty %}
+        <li class="chat-thread__empty">아직 메시지가 없습니다. 상품에 대해 편하게 문의해 보세요.</li>
+      {% endfor %}
+    </ol>
+
+    {% if conversation and room.kind == "PRODUCT" %}
+      <form id="chat-form" class="chat-composer">
+        <label class="visually-hidden" for="chat-body">메시지</label>
+        <textarea id="chat-body" rows="1" maxlength="2000" required placeholder="메시지를 입력하세요"></textarea>
+        <button type="submit"><svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#send"></use></svg><span class="visually-hidden">보내기</span></button>
+      </form>
+    {% else %}
+      <p class="chat-readonly">이 대화는 기존 기록만 확인할 수 있습니다.</p>
+    {% endif %}
+  </section>
 </section>
+
+{% if conversation and room.kind == "PRODUCT" %}
+  <dialog class="transfer-dialog" data-transfer-dialog aria-labelledby="transfer-title">
+    <form class="transfer-dialog__form" data-transfer-form method="dialog" novalidate>
+      {% csrf_token %}
+      <div class="transfer-dialog__heading">
+        <div><p class="chat-kicker">상품 대화 전용</p><h2 id="transfer-title">안전 송금</h2></div>
+        <button class="transfer-dialog__close" type="button" data-transfer-close aria-label="송금 창 닫기">×</button>
+      </div>
+      <p class="transfer-dialog__description"><strong>{{ conversation.product.title }}</strong> 대화 상대에게만 송금됩니다. 받는 사람은 서버가 대화 참여자로 확인합니다.</p>
+      <label for="transfer-amount">송금 금액</label>
+      <div class="transfer-amount"><input id="transfer-amount" name="amount" type="text" inputmode="decimal" autocomplete="off" placeholder="예: 35000" required aria-describedby="transfer-feedback"><span>원</span></div>
+      <p id="transfer-feedback" class="transfer-feedback" data-transfer-feedback aria-live="polite"></p>
+      <div class="transfer-dialog__actions"><button class="button-outline" type="button" data-transfer-close>취소</button><button type="submit" data-transfer-submit>송금 요청</button></div>
+      <noscript><p class="transfer-nojs">송금 요청은 브라우저 보안 확인을 위해 JavaScript가 필요합니다.</p></noscript>
+    </form>
+  </dialog>
+{% endif %}
+<link rel="stylesheet" href="{% static 'chat/chat.css' %}">
 <script src="{% static 'chat/chat.js' %}" defer></script>
 {% endblock %}

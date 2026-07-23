@@ -5,38 +5,23 @@ from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
-from django.views.decorators.http import require_GET, require_POST, require_http_methods
+from django.views.decorators.http import require_GET, require_POST
 
 from apps.accounts.services import project_account_identity
-from .forms import DirectRoomForm
 from .models import ChatMessage, ProductConversation, Room
 from .services import (
     ChatAuthorizationError,
     DefaultChatService,
     _require_active_user,
     _require_room_access,
-    get_or_create_direct_room,
-    get_or_create_global_room,
     get_or_create_product_conversation,
 )
 
 
 @login_required
-@require_http_methods(["GET", "POST"])
+@require_GET
 def room_list(request: HttpRequest) -> HttpResponse:
-    global_room = get_or_create_global_room()
-    if request.method == "POST":
-        form = DirectRoomForm(request.POST, actor=request.user)
-        if form.is_valid():
-            target = form.target_user
-            assert target is not None
-            room = get_or_create_direct_room(
-                user_a_id=request.user.pk,
-                user_b_id=target.pk,
-            )
-            return redirect("chat:room-detail", room_id=room.pk)
-    else:
-        form = DirectRoomForm(actor=request.user)
+    global_room = Room.objects.filter(kind=Room.Kind.GLOBAL).first()
 
     direct_rooms = (
         Room.objects.filter(kind=Room.Kind.DIRECT)
@@ -71,7 +56,6 @@ def room_list(request: HttpRequest) -> HttpResponse:
             "global_room": global_room,
             "direct_rooms": room_rows,
             "product_rooms": product_rooms,
-            "form": form,
         },
     )
 
@@ -115,10 +99,49 @@ def room_detail(request: HttpRequest, room_id: int) -> HttpResponse:
         }
         for message in messages
     ]
+    conversation = (
+        ProductConversation.objects.filter(room=room)
+        .select_related("product", "seller", "buyer")
+        .first()
+    )
+    global_room = Room.objects.filter(kind=Room.Kind.GLOBAL).first()
+    direct_rooms = (
+        Room.objects.filter(kind=Room.Kind.DIRECT)
+        .filter(Q(direct_user_low=request.user) | Q(direct_user_high=request.user))
+        .select_related("direct_user_low", "direct_user_high")
+        .order_by("-created_at")
+    )
+    sidebar_direct_rooms = []
+    for direct_room in direct_rooms:
+        other_user = (
+            direct_room.direct_user_high
+            if direct_room.direct_user_low_id == request.user.pk
+            else direct_room.direct_user_low
+        )
+        sidebar_direct_rooms.append(
+            {
+                "room": direct_room,
+                "other_identity": project_account_identity(user=other_user),
+            }
+        )
+    product_rooms = (
+        ProductConversation.objects.filter(
+            Q(seller=request.user) | Q(buyer=request.user)
+        )
+        .select_related("room", "product", "seller", "buyer")
+        .order_by("-created_at")
+    )
     return render(
         request,
         "chat/room_detail.html",
-        {"room": room, "chat_messages": chat_messages},
+        {
+            "room": room,
+            "chat_messages": chat_messages,
+            "conversation": conversation,
+            "global_room": global_room,
+            "direct_rooms": sidebar_direct_rooms,
+            "product_rooms": product_rooms,
+        },
     )
 
 

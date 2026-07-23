@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load humanize static %}
 {% block title %}관심 상품 | 주거니 받거니{% endblock %}
 {% block content %}
 <section aria-labelledby="favorite-heading">
@@ -14,7 +14,7 @@
           {% endwith %}
           <h2>{{ product.title }}</h2>
         </a>
-        <p>{{ product.price }}원 · {{ product.effective_state_label }}</p>
+        <p>{{ product.price|intcomma }}원 · {{ product.effective_state_label }}</p>
       </li>
     {% empty %}
       <li class="empty-state"><p>관심 상품이 없습니다.</p></li>

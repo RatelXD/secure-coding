@@ -3,7 +3,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
+from dataclasses import dataclass
+from io import BytesIO
 from importlib.resources import files
+from pathlib import PurePosixPath
 from uuid import uuid4
 
 from django.conf import settings
@@ -11,9 +15,26 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
+from PIL import Image, UnidentifiedImageError
 
 from apps.accounts.models import User
 from apps.catalog.models import Category, Product, ProductImage, ProductMetric, Region
+
+
+_DEMO_IMAGE_NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*-[1-4]\.png\Z")
+_SHA256 = re.compile(r"[0-9a-f]{64}\Z")
+_MAX_IMAGE_BYTES = 5 * 1024 * 1024
+_MAX_IMAGE_DIMENSION = 4_096
+_DEMO_IMAGE_COUNT = 50
+
+
+@dataclass(frozen=True, slots=True)
+class VerifiedDemoImage:
+    """Manifest-validated PNG bytes and their decoded dimensions."""
+
+    content: bytes
+    width: int
+    height: int
 
 
 class Command(BaseCommand):
@@ -26,11 +47,18 @@ class Command(BaseCommand):
         products = manifest.get("products")
         if not isinstance(products, list) or len(products) != 17:
             raise CommandError("데모 manifest는 정확히 17개 상품이어야 합니다.")
+        if not all(isinstance(item, dict) for item in products):
+            raise CommandError("데모 manifest 상품 형식이 안전하지 않습니다.")
         keys = [item.get("key") for item in products]
         if any(not isinstance(key, str) or not key for key in keys) or len(set(keys)) != 17:
             raise CommandError("데모 상품 key는 17개 모두 고유해야 합니다.")
-        if sum(len(item.get("images", [])) > 1 for item in products) != 4:
-            raise CommandError("대표 4개 상품만 다중 갤러리를 가져야 합니다.")
+        if any(
+            not isinstance(item.get("images"), list) or not 2 <= len(item["images"]) <= 4
+            for item in products
+        ):
+            raise CommandError("각 데모 상품은 2~4개 로컬 이미지를 가져야 합니다.")
+        if sum(len(item["images"]) for item in products) != _DEMO_IMAGE_COUNT:
+            raise CommandError(f"데모 manifest는 정확히 {_DEMO_IMAGE_COUNT}개 이미지를 가져야 합니다.")
 
         assets = _verify_sources(products=products, root=root)
         with transaction.atomic():
@@ -67,7 +95,8 @@ class Command(BaseCommand):
                 expected_keys = []
                 for position, image in enumerate(item["images"]):
                     final_key = f"product-images/demo/{item['key']}/{image['file']}"
-                    _install_asset(final_key=final_key, content=assets[image["file"]], checksum=image["sha256"])
+                    asset = assets[image["file"]]
+                    _install_asset(final_key=final_key, content=asset.content, checksum=image["sha256"])
                     expected_keys.append(final_key)
                     ProductImage.objects.update_or_create(
                         product=product,
@@ -75,9 +104,9 @@ class Command(BaseCommand):
                         defaults={
                             "image": final_key,
                             "sha256": image["sha256"],
-                            "byte_size": len(assets[image["file"]]),
-                            "width": 96,
-                            "height": 96,
+                            "byte_size": len(asset.content),
+                            "width": asset.width,
+                            "height": asset.height,
                             "owned_key": final_key,
                             "promotion_state": "PROMOTED",
                         },
@@ -101,20 +130,69 @@ def _load_manifest():
     return manifest, root
 
 
-def _verify_sources(*, products, root) -> dict[str, bytes]:
-    assets: dict[str, bytes] = {}
+def _verify_sources(*, products, root) -> dict[str, VerifiedDemoImage]:
+    assets: dict[str, VerifiedDemoImage] = {}
     for item in products:
         images = item.get("images")
-        if not isinstance(images, list) or not 1 <= len(images) <= 4:
-            raise CommandError("각 데모 상품은 1~4개 로컬 이미지를 가져야 합니다.")
+        if not isinstance(images, list) or not 2 <= len(images) <= 4:
+            raise CommandError("각 데모 상품은 2~4개 로컬 이미지를 가져야 합니다.")
         for image in images:
+            if not isinstance(image, dict):
+                raise CommandError("데모 이미지 형식이 안전하지 않습니다.")
             name = image.get("file", "")
-            if not name or os.path.basename(name) != name or name in assets:
+            checksum = image.get("sha256")
+            content_type = image.get("content_type")
+            byte_size = image.get("byte_size")
+            width = image.get("width")
+            height = image.get("height")
+            if (
+                not isinstance(name, str)
+                or not _DEMO_IMAGE_NAME.fullmatch(name)
+                or PurePosixPath(name).name != name
+                or name in assets
+            ):
                 raise CommandError("데모 이미지 이름이 안전하지 않거나 중복됩니다.")
-            content = root.joinpath(name).read_bytes()
-            if hashlib.sha256(content).hexdigest() != image.get("sha256"):
+            if not isinstance(checksum, str) or not _SHA256.fullmatch(checksum):
+                raise CommandError(f"데모 이미지 checksum 형식이 안전하지 않습니다: {name}")
+            if content_type != "image/png":
+                raise CommandError(f"데모 이미지 MIME type이 PNG가 아닙니다: {name}")
+            if (
+                not isinstance(byte_size, int)
+                or isinstance(byte_size, bool)
+                or not 0 < byte_size <= _MAX_IMAGE_BYTES
+                or not isinstance(width, int)
+                or isinstance(width, bool)
+                or not 0 < width <= _MAX_IMAGE_DIMENSION
+                or not isinstance(height, int)
+                or isinstance(height, bool)
+                or not 0 < height <= _MAX_IMAGE_DIMENSION
+            ):
+                raise CommandError(f"데모 이미지 크기 metadata가 안전하지 않습니다: {name}")
+            try:
+                content = root.joinpath(name).read_bytes()
+            except (FileNotFoundError, OSError) as exc:
+                raise CommandError(f"데모 이미지 원본을 읽을 수 없습니다: {name}") from exc
+            if len(content) != byte_size:
+                raise CommandError(f"데모 이미지 byte size 불일치: {name}")
+            if hashlib.sha256(content).hexdigest() != checksum:
                 raise CommandError(f"데모 원본 checksum 불일치: {name}")
-            assets[name] = content
+            try:
+                with Image.open(BytesIO(content)) as probe:
+                    actual_width, actual_height = probe.size
+                    if probe.format != "PNG" or probe.n_frames != 1:
+                        raise CommandError(f"데모 이미지 형식이 PNG 단일 프레임이 아닙니다: {name}")
+                    if (actual_width, actual_height) != (width, height):
+                        raise CommandError(f"데모 이미지 dimensions 불일치: {name}")
+                    probe.verify()
+                with Image.open(BytesIO(content)) as decoded:
+                    decoded.load()
+                    if decoded.format != "PNG" or decoded.size != (width, height):
+                        raise CommandError(f"데모 이미지 decode 결과가 metadata와 다릅니다: {name}")
+            except CommandError:
+                raise
+            except (Image.DecompressionBombError, UnidentifiedImageError, OSError, SyntaxError, ValueError) as exc:
+                raise CommandError(f"데모 이미지 decode에 실패했습니다: {name}") from exc
+            assets[name] = VerifiedDemoImage(content=content, width=width, height=height)
     return assets
 
 

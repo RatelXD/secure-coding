@@ -1,0 +1,44 @@
+{% load humanize static %}
+<ul class="account-profile__grid" data-profile-product-grid="{{ grid_owner }}">
+  {% for product in product_page %}
+    <li class="account-profile__product{% if product.lifecycle_status == 'COMPLETED' %} account-profile__product--sold{% elif product.lifecycle_status == 'RESERVED' %} account-profile__product--reserved{% endif %}">
+      <a class="account-profile__product-image" href="{% url 'catalog:detail' product.pk %}" aria-label="{{ product.title }} 상세 보기">
+        {% with image=product.profile_images|first %}
+          {% if image %}
+            <img src="{{ image.image.url }}" alt="{{ product.title }} 대표 이미지" width="{{ image.width }}" height="{{ image.height }}">
+          {% else %}
+            <img src="{% static 'images/product-default.svg' %}" alt="" width="640" height="640">
+          {% endif %}
+        {% endwith %}
+        {% if product.lifecycle_status == "COMPLETED" %}
+          <span class="account-profile__state">판매 완료</span>
+        {% elif product.lifecycle_status == "RESERVED" %}
+          <span class="account-profile__state">예약 중</span>
+        {% endif %}
+      </a>
+      <div class="account-profile__product-body">
+        <h3><a href="{% url 'catalog:detail' product.pk %}">{{ product.title }}</a></h3>
+        <p>{% if product.region %}{{ product.region.label }}{% else %}지역 미설정{% endif %} · {{ product.created_at|date:"Y.m.d" }}</p>
+        <strong>{{ product.price|intcomma }}원</strong>
+      </div>
+    </li>
+  {% empty %}
+    <li class="account-profile__empty">
+      <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#checkroom"></use></svg>
+      <h3>조건에 맞는 공개 상품이 없습니다</h3>
+      <p>다른 판매 상태를 선택해 보세요.</p>
+    </li>
+  {% endfor %}
+</ul>
+
+{% if product_page.paginator.num_pages > 1 %}
+  <nav class="account-profile__pagination" data-profile-pagination aria-label="상품 페이지">
+    {% if product_page.has_previous %}
+      <a href="?status={{ profile_filter }}&amp;page={{ product_page.previous_page_number }}">이전</a>
+    {% endif %}
+    <span><strong>{{ product_page.number }}</strong> / {{ product_page.paginator.num_pages }}</span>
+    {% if product_page.has_next %}
+      <a href="?status={{ profile_filter }}&amp;page={{ product_page.next_page_number }}">다음</a>
+    {% endif %}
+  </nav>
+{% endif %}

@@ -1,38 +1,54 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}채팅{% endblock %}
 {% block content %}
-<section aria-labelledby="chat-title">
-  <h1 id="chat-title">채팅</h1>
-  <p><a href="{% url 'chat:room-detail' global_room.id %}">전체 채팅 입장</a></p>
-  <div class="room-filter">
-    <label for="room-search">대화방 검색</label>
-    <input id="room-search" type="search" data-room-filter autocomplete="off" placeholder="상품명 또는 이웃 이름">
-    <p data-room-filter-status aria-live="polite"></p>
-  </div>
+<section class="chat-page chat-page--inbox" aria-labelledby="chat-title">
+  <aside class="chat-sidebar" aria-label="대화 목록">
+    <div class="chat-sidebar__heading">
+      <div>
+        <p class="chat-kicker">내 대화</p>
+        <h1 id="chat-title">채팅</h1>
+      </div>
+      <span class="chat-sidebar__count" aria-label="상품 대화 {{ product_rooms|length }}개">{{ product_rooms|length }}</span>
+    </div>
+    <div class="chat-search">
+      <label class="visually-hidden" for="room-search">대화방 검색</label>
+      <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#search"></use></svg>
+      <input id="room-search" type="search" data-room-filter autocomplete="off" placeholder="상품명 또는 이웃 이름">
+    </div>
+    <p class="chat-filter-status" data-room-filter-status aria-live="polite"></p>
+    <nav class="chat-room-list" aria-label="대화방">
+      {% if global_room %}
+        <a class="chat-room-row chat-room-row--readonly" data-room-entry data-room-label="전체 채팅" href="{% url 'chat:room-detail' global_room.id %}">
+          <span class="chat-avatar chat-avatar--system"><svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chat"></use></svg></span>
+          <span class="chat-room-row__body"><strong>전체 채팅</strong><span>읽기 전용 보관함</span></span>
+        </a>
+      {% endif %}
+      {% for conversation in product_rooms %}
+        <a class="chat-room-row" data-room-entry data-room-label="{{ conversation.product.title }}" href="{% url 'chat:room-detail' conversation.room_id %}">
+          <span class="chat-avatar">{{ conversation.product.title|first }}</span>
+          <span class="chat-room-row__body"><strong>{{ conversation.product.title }}</strong><span>상품 대화</span></span>
+          <svg class="chat-room-row__chevron" aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+        </a>
+      {% endfor %}
+      {% for item in direct_rooms %}
+        <a class="chat-room-row chat-room-row--readonly" data-room-entry data-room-label="{{ item.other_identity.display_name }}" href="{% url 'chat:room-detail' item.room.id %}">
+          <span class="chat-avatar">{{ item.other_identity.display_name|first }}</span>
+          <span class="chat-room-row__body"><strong>{{ item.other_identity.display_name }}</strong><span>읽기 전용 보관함</span></span>
+          <svg class="chat-room-row__chevron" aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chevron_right"></use></svg>
+        </a>
+      {% endfor %}
+      {% if not global_room and not product_rooms and not direct_rooms %}
+        <p class="chat-room-list__empty">상품 페이지에서 시작한 대화가 여기에 표시됩니다.</p>
+      {% endif %}
+    </nav>
+  </aside>
+  <section class="chat-empty-pane" aria-labelledby="chat-empty-title">
+    <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#chat_bubble"></use></svg>
+    <h2 id="chat-empty-title">대화를 선택하세요</h2>
+    <p>상품 대화에서 메시지와 송금 내역을 안전하게 확인할 수 있어요.</p>
+  </section>
 </section>
-<section aria-labelledby="product-chat-title">
-  <h2 id="product-chat-title">상품 대화</h2>
-  <ul>
-    {% for conversation in product_rooms %}
-      <li data-room-entry data-room-label="{{ conversation.product.title }}"><a href="{% url 'chat:room-detail' conversation.room_id %}">{{ conversation.product.title }}</a></li>
-    {% empty %}
-      <li>아직 상품 대화가 없습니다.</li>
-    {% endfor %}
-  </ul>
-</section>
-<section aria-labelledby="direct-title">
-  <h2 id="direct-title">1대1 채팅</h2>
-  <form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">대화 시작</button>
-  </form>
-  <ul>
-    {% for item in direct_rooms %}
-      <li data-room-entry data-room-label="{{ item.other_identity.display_name }}"><a href="{% url 'chat:room-detail' item.room.id %}">{{ item.other_identity.display_name }}</a></li>
-    {% empty %}
-      <li>아직 1대1 대화가 없습니다.</li>
-    {% endfor %}
-  </ul>
-</section>
+<link rel="stylesheet" href="{% static 'chat/chat.css' %}">
+<script src="{% static 'chat/chat.js' %}" defer></script>
 {% endblock %}

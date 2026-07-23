@@ -2,48 +2,67 @@
 {% load static %}
 {% block title %}{{ profile_identity.display_name }} | 사용자{% endblock %}
 {% block content %}
-<article class="profile-page">
-  <header class="profile-card">
-    <div class="product-seller-card__avatar" aria-hidden="true">{{ profile_identity.display_name|first }}</div>
-    <div>
-      <h1>{{ profile_identity.display_name }}</h1>
-      {% if profile_bio %}<p>{{ profile_bio }}</p>{% else %}<p>등록된 소개글이 없습니다.</p>{% endif %}
+<article class="account-profile account-profile--public">
+  <section class="account-profile__public-overview" aria-label="사용자 공개 프로필">
+    <div class="account-profile__identity">
+      <div class="account-profile__avatar" aria-hidden="true">{{ profile_identity.display_name|first }}</div>
+      <div class="account-profile__identity-copy">
+        <p class="account-profile__kicker">동네 이웃</p>
+        <h1>{{ profile_identity.display_name }}</h1>
+        {% if profile_bio %}
+          <p class="account-profile__bio">{{ profile_bio }}</p>
+        {% elif profile_identity.is_tombstone %}
+          <p class="account-profile__bio">탈퇴한 사용자의 공개 정보는 표시하지 않습니다.</p>
+        {% else %}
+          <p class="account-profile__bio">등록된 소개글이 없습니다.</p>
+        {% endif %}
+      </div>
+      {% if show_report %}
+        <a class="account-profile__report" href="{% url 'moderation:report-user' profile_user.pk %}">
+          <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#report"></use></svg>
+          <span>사용자 신고</span>
+        </a>
+      {% endif %}
     </div>
-  </header>
-  {% if show_report %}
-    <div class="profile-actions">
-      <form method="post" action="{% url 'chat:room-list' %}">
-        {% csrf_token %}
-        <input type="hidden" name="username" value="{{ profile_user.username }}">
-        <button class="button button--primary" type="submit">1대1 대화 시작</button>
-      </form>
-      <a class="report-link" href="{% url 'moderation:report-user' profile_user.pk %}">사용자 신고</a>
-    </div>
-  {% endif %}
 
-  <section aria-labelledby="profile-products-heading">
-    <h2 id="profile-products-heading">판매 상품</h2>
-    <ul class="product-grid">
-      {% for product in products %}
-        <li class="product-card">
-          <a class="product-card__image-link" href="{% url 'catalog:detail' product.pk %}" aria-label="{{ product.title }} 상세 보기">
-            {% with image=product.images.all|first %}
-              {% if image %}
-                <img class="card-image" src="{{ image.image.url }}" alt="{{ product.title }} 대표 이미지">
-              {% else %}
-                <img class="card-image" src="{% static 'images/product-default.svg' %}" alt="">
-              {% endif %}
-            {% endwith %}
-          </a>
-          <div class="product-card__body">
-            <h3><a href="{% url 'catalog:detail' product.pk %}">{{ product.title }}</a></h3>
-            <p class="product-card__price">{{ product.price }}원</p>
+    {% if not profile_identity.is_tombstone %}
+      <section class="account-profile__activity" aria-labelledby="activity-heading">
+        <h2 id="activity-heading">활동 지표</h2>
+        <dl>
+          <div>
+            <dt>완료 거래</dt>
+            <dd>{{ activity_trade_count }}<span>건</span></dd>
           </div>
-        </li>
-      {% empty %}
-        <li class="empty-state"><h3>공개 중인 상품이 없습니다</h3></li>
-      {% endfor %}
-    </ul>
+          <div>
+            <dt>공개 후기</dt>
+            <dd>{{ activity_review_count }}<span>개</span></dd>
+          </div>
+        </dl>
+        <p>
+          <svg aria-hidden="true" focusable="false"><use href="{% static 'icons/stitch-symbols.svg' %}#verified_user"></use></svg>
+          서버에 기록된 완료 거래와 공개 후기만 집계합니다.
+        </p>
+      </section>
+    {% endif %}
   </section>
+
+  {% if product_page %}
+    <section class="account-profile__products" aria-labelledby="public-products-heading">
+      <header class="account-profile__section-heading">
+        <div>
+          <p class="account-profile__kicker">이 이웃이 등록한 공개 상품</p>
+          <h2 id="public-products-heading">판매 상품 <span>{{ product_page.paginator.count }}</span></h2>
+        </div>
+        <nav class="account-profile__filters" aria-label="판매 상품 상태">
+          <a href="?status=all"{% if profile_filter == "all" %} aria-current="page"{% endif %}>전체</a>
+          <a href="?status=available"{% if profile_filter == "available" %} aria-current="page"{% endif %}>판매 중</a>
+          <a href="?status=sold"{% if profile_filter == "sold" %} aria-current="page"{% endif %}>판매 완료</a>
+        </nav>
+      </header>
+
+      {% include "accounts/_profile_product_grid.html" with grid_owner="public" %}
+    </section>
+  {% endif %}
 </article>
+<link rel="stylesheet" href="{% static 'accounts/profile.css' %}">
 {% endblock %}

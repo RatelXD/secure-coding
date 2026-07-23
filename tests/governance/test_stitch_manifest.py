@@ -34,8 +34,14 @@ class StitchManifestGovernanceTests(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode, result.stdout + result.stderr)
         self.assertIn("7 sources", result.stdout)
-        self.assertIn("155 controls", result.stdout)
-        self.assertIn("169 interactions", result.stdout)
+        expected_controls = sum(
+            screen["control_count"] for screen in self.manifest["screens"]
+        )
+        expected_interactions = sum(
+            screen["interaction_count"] for screen in self.manifest["screens"]
+        )
+        self.assertIn(f"{expected_controls} controls", result.stdout)
+        self.assertIn(f"{expected_interactions} interactions", result.stdout)
         self.assertIn("0 unresolved, 0 runtime remote URLs", result.stdout)
 
     def test_all_seven_sources_have_exact_checksums_and_complete_control_maps(self) -> None:
@@ -100,9 +106,35 @@ class StitchManifestGovernanceTests(unittest.TestCase):
                 )
         removed = [row for row in rows if row["resolution"] == "remove"]
         self.assertEqual(
-            {"room menu", "attachment action", "condition select"},
+            {
+                "room menu",
+                "attachment action",
+                "condition select",
+                "public-profile direct chat",
+            },
             {row["group"] for row in removed},
         )
+
+    def test_public_profile_excludes_direct_chat_and_retains_user_report(self) -> None:
+        public_profile = next(
+            screen
+            for screen in self.manifest["screens"]
+            if screen["id"] == "STITCH-07-PUBLIC-PROFILE"
+        )
+        public_profile_groups = {
+            row["group"] for row in public_profile["control_map"]
+        }
+
+        self.assertNotIn("direct chat", public_profile_groups)
+        self.assertFalse(
+            any(
+                "DIRECT Room" in target
+                for row in public_profile["control_map"]
+                for target in row["targets"]
+            )
+        )
+        self.assertIn("user report", public_profile_groups)
+
     def test_non_semantic_affordances_are_completely_mapped_with_keyboard_semantics(self) -> None:
         expected_counts = {
             "STITCH-01-HOME": 0,
@@ -138,6 +170,26 @@ class StitchManifestGovernanceTests(unittest.TestCase):
                 for error in VALIDATOR._validate_contract(duplicate_icon)
             )
         )
+
+    def test_validator_rejects_a_stale_summary_after_control_removal(self) -> None:
+        stale_summary = copy.deepcopy(self.manifest)
+        stale_summary["summary"]["controls"] += 1
+        stale_summary["summary"]["interactions"] += 1
+
+        errors = VALIDATOR._validate_contract(stale_summary)
+
+        self.assertTrue(any("summary controls" in error for error in errors))
+        self.assertTrue(any("summary interactions" in error for error in errors))
+
+    def test_validator_rejects_a_remote_control_target(self) -> None:
+        remote_control = copy.deepcopy(self.manifest)
+        remote_control["screens"][0]["control_map"][0]["targets"].append(
+            "https://stitch.example.invalid/route"
+        )
+
+        errors = VALIDATOR._validate_contract(remote_control)
+
+        self.assertTrue(any("remote control target" in error for error in errors))
 
     def test_g6r_2_assets_match_checksums_provenance_and_icon_allowlist(self) -> None:
         assets = {
