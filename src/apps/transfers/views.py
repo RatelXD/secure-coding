@@ -17,7 +17,7 @@ from .services import (
     transfer_for_product_room,
 )
 
-_AMOUNT = re.compile(r"^(0|[1-9][0-9]{0,7})(\.[0-9]{1,2})?$")
+_AMOUNT = re.compile(r"^[1-9][0-9]{0,7}$")
 
 
 def _error(code: str, status: int) -> JsonResponse:
@@ -57,7 +57,7 @@ def create_transfer(request: HttpRequest) -> JsonResponse:
         if not isinstance(raw_amount, str) or not _AMOUNT.fullmatch(raw_amount):
             raise ValueError
         amount = Decimal(raw_amount)
-        if not Decimal("0.01") <= amount <= Decimal("99999999.99"):
+        if not Decimal("1") <= amount <= Decimal("99999999"):
             raise ValueError
         if not isinstance(raw_key, str):
             raise ValueError
@@ -90,7 +90,7 @@ def create_room_transfer(request: HttpRequest, room_id: int) -> JsonResponse:
         if not isinstance(raw_amount, str) or not _AMOUNT.fullmatch(raw_amount):
             raise ValueError
         amount = Decimal(raw_amount)
-        if not Decimal("0.01") <= amount <= Decimal("99999999.99"):
+        if not Decimal("1") <= amount <= Decimal("99999999"):
             raise ValueError
         if not isinstance(raw_key, str):
             raise ValueError
