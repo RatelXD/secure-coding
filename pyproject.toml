@@ -1,6 +1,6 @@
 [project]
 name = "secure-coding-marketplace"
-version = "0.1.0"
+version = "1.0.0"
 description = "Same-origin Django marketplace architecture skeleton"
 requires-python = ">=3.12,<3.13"
 dependencies = [
