@@ -4,7 +4,7 @@ Django 기반 중고거래 플랫폼의 요구사항 분석부터 보안 설계,
 
 ## 현재 상태
 
-현재 저장소에는 Django 5.2 기반 동일 출처 ASGI 애플리케이션과 PostgreSQL·Redis 로컬 실행 구성이 있습니다. 사용자·상품·검색·채팅·알림·거래·신고·관리·후기·회원 탈퇴와 모의 잔액 이체까지 제품 코드에 반영되어 있습니다. 최신 변경은 `1467092302f789f802114f62d4d3dcfcf1b13be8`이며, PR #43·#44에서 채팅 연결 상태·가로형 로고·정수 원화 표시·재연결 한도를 보정했습니다.
+문서 기준 릴리스 컨텍스트는 **v1.0.0**이며 기준 main은 `48912530c846d200af461217d6b0034b942a8b04`입니다. Django 5.2 기반 동일 출처 ASGI 애플리케이션과 PostgreSQL·Redis 로컬 실행 구성이 있으며, 사용자·상품·검색·채팅·알림·거래·신고·관리·후기·회원 탈퇴와 모의 잔액 이체까지 제품 코드에 반영되어 있습니다. 기존 상세 보고서가 추적하는 역사적 기준은 `1467092302f789f802114f62d4d3dcfcf1b13be8`이고, PR #43·#44에서 채팅 연결 상태·가로형 로고·정수 원화 표시·재연결 한도를 보정했습니다.
 
 | 영역 | 상태 |
 |---|---|
@@ -14,6 +14,18 @@ Django 기반 중고거래 플랫폼의 요구사항 분석부터 보안 설계,
 | 모의 잔액 이체 | PostgreSQL 이중 분개·멱등·대사 권위 구현 |
 | 골격·보안 설정 자동 테스트 | 통합 matrix 실행 및 보정 근거 기록 |
 | 브라우저·접근성 | 두 viewport Playwright/axe 검증 |
+
+### 시스템 아키텍처
+
+```mermaid
+flowchart LR
+    B[비회원·회원 브라우저] -->|HTTPS·WSS| A[Django 5.2 ASGI]
+    A -->|권위 데이터·감사| P[(PostgreSQL)]
+    A -->|실시간 fan-out·presence| R[(Redis)]
+    A -->|재인코딩 이미지| M[(미디어 저장소)]
+```
+
+PostgreSQL을 영속 권위로 사용하고 Redis는 재구축 가능한 실시간 전달 계층으로 한정합니다.
 
 ## 주요 기능 범위
 
@@ -137,6 +149,7 @@ docker compose -p secure-coding-test \
 
 - [한국어 1차 과제 보고서](https://ratelxd.github.io/secure-coding/)
 - [저장소 보고서 색인](docs/report/index.md)
+- [최종 보고서 (v1.0.0)](docs/report/final-report.md)
 - [요구사항 분석](docs/report/01-requirements.md)
 - [시스템 설계](docs/report/02-system-design.md)
 - [구현 내용](docs/report/03-implementation.md)
