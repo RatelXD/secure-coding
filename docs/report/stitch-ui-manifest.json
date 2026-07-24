@@ -1,6 +1,7 @@
 {
   "schema_version": 2,
   "gate": "G6R-2",
+  "current_main_commit": "1467092302f789f802114f62d4d3dcfcf1b13be8",
   "source_root_hint": "../asset/stitch_ui_v1/stitch_",
   "policy": {
     "runtime_remote_urls_allowed": 0,
@@ -41,10 +42,10 @@
       "kind": "logo",
       "remote": "Stitch Google-hosted logo variants",
       "resolution": "local-replacement-required",
-      "target": "src/static/images/brand/logo.svg",
-      "usage": "One project-owned logo for desktop and mobile; do not copy Stitch bytes.",
+      "target": "src/static/images/brand/wordmark.png",
+      "usage": "One project-owned horizontal wordmark for desktop and mobile; do not copy Stitch bytes.",
       "license": "Project-owned artwork",
-      "checksum": "b06ae878b49b7cc4c3256feeb6e696e8f513d3159ecd3d88ddafb4ab6c35e1eb"
+      "checksum": "25a39b8f3181a314b4c13e9db1b332abc992f28189c7b86276cbdd671abb1c0f"
     },
     {
       "kind": "hero",
@@ -117,13 +118,14 @@
     },
     {
       "kind": "logo",
-      "path": "src/static/images/brand/logo.svg",
-      "sha256": "b06ae878b49b7cc4c3256feeb6e696e8f513d3159ecd3d88ddafb4ab6c35e1eb",
-      "usage_conditions": "Use as the single local brand mark; provide the product name in adjacent text or an accessible image name.",
-      "license": "Project-owned original SVG artwork",
+      "path": "src/static/images/brand/wordmark.png",
+      "sha256": "25a39b8f3181a314b4c13e9db1b332abc992f28189c7b86276cbdd671abb1c0f",
+      "usage_conditions": "Use as the single local horizontal brand mark; preserve its wordmark width and accessible product name.",
+      "license": "Project-owned supplied wordmark artwork",
       "provenance": {
         "author": "secure-coding project",
-        "derived_from_external_bytes": false
+        "derived_from_external_bytes": false,
+        "source_note": "Supplied project asset used as the shared header wordmark."
       }
     },
     {

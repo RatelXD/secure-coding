@@ -2,7 +2,7 @@
 
 ## 3.1 작성 기준
 
-이 장은 실제 코드 경로가 확인된 내용과 앞으로 구현할 내용을 구분합니다. 2026-07-16 기준으로 사용자·상품·채팅·신고·가역 제재의 URL, 화면, 서비스와 보안 회귀 테스트를 구현했습니다. 유지보수 수정과 2차 상세 정책 구조 검사를 포함한 전체 자동 테스트 170개와 하위 사례 217개가 통과했고, 컨테이너 재시작과 데이터베이스 백업·복구도 확인했습니다.
+이 장은 실제 코드 경로가 확인된 내용과 아직 재검증이 필요한 항목을 구분합니다. 현재 기준은 main `1467092302f789f802114f62d4d3dcfcf1b13be8`입니다. 사용자·상품·검색·채팅·알림·거래·신고·관리·후기·회원 탈퇴와 모의 이체의 URL, 화면, 서비스, 마이그레이션을 구현했습니다. PR #43·#44에서 채팅 연결 상태와 재연결 한도, 전역 가로형 로고, 정수 원화 표시를 추가로 보정했습니다.
 
 ## 3.2 프로젝트 구조
 
@@ -33,7 +33,7 @@ src/
 | 로컬 환경 | `Dockerfile`, `compose.yaml`, `.env.example` | 선택적 `.env`, 앱·PostgreSQL·Redis 기본 구성 | 실행 확인 |
 | 정적 채팅 자산 | `src/apps/chat/static/chat/chat.js` | DEBUG 환경에서도 채팅 JavaScript를 올바른 MIME 형식으로 제공 | 실행 확인 |
 | 공통 화면 기반 | `src/templates/base.html`, `src/templates/home.html`, `src/static/site.css` | 로컬 디자인 토큰, 반응형 내비게이션, 본문 바로가기, 명확한 키보드 포커스와 홈 안내 화면 | 브라우저 확인 |
-| 로컬 디자인 자산 | `src/static/fonts/`, `src/static/icons/`, `src/static/images/` | 한국어 글리프가 포함된 로컬 폰트와 라이선스, 로컬 SVG 아이콘·로고·안내 그림·기본 상품 이미지 | 무결성 확인 |
+| 로컬 디자인 자산 | `src/static/fonts/`, `src/static/icons/`, `src/static/images/` | 한국어 글리프가 포함된 로컬 폰트와 라이선스, 로컬 SVG 아이콘·가로형 `wordmark.png`·안내 그림·상품별 데모 이미지 | 무결성 확인 |
 
 `check --deploy`, 명시적 HTTPS CSRF 출처, 신뢰 프록시 IP 제한, Docker 이미지 빌드와 `.env` 없는 Compose 상태를 확인했습니다. Compose를 재시작한 뒤에도 앱·데이터베이스·Redis가 복구되었고, `/readyz/`와 `/static/chat/chat.js`는 각각 HTTP 200으로 응답했습니다. 실제 배포의 도메인·프록시 IP·TLS 종단 값은 배포 환경에서 별도로 확인해야 합니다.
 
@@ -67,7 +67,7 @@ src/
 ### 구현 내용
 
 - `src/apps/catalog/models.py`, `forms.py`, `views.py`
-  - 가격·판매 상태·버전을 포함한 상품을 정의하고 소유자만 등록·수정·삭제합니다.
+  - 가격·판매 상태·버전을 포함한 상품을 정의하고 소유자만 등록·수정·삭제합니다. 판매 상태는 거래 수명주기에서 파생되는 읽기 전용 값이며 상품 편집에서 직접 변경하지 않습니다. 이미지는 필수가 아니며 상품당 0~4장을 저장할 수 있습니다.
   - 공개 목록·상세는 DB 시각 기반 제재 가시성을 사용하며 활성 비노출 상품은 404를 반환합니다.
   - 검색은 `q/status/min_price/max_price/sort/page/category/region` allowlist를 먼저 검증한 뒤 공개 범위 안에서만 count와 20개 slice를 조회합니다. 예약은 판매 중 결과에 배지로 표시하고 지역 필터는 `LEGACY_UNSET` 상품을 제외합니다.
   - `Favorite`와 product/day 비연결 digest 방식 `ProductView`를 원본 권위로 저장하고, 공개 지표는 원본 관계에서 언제든 재계산합니다. IP·원 세션 키·최근 접속 시각은 저장하지 않습니다.
@@ -76,7 +76,7 @@ src/
   - 새 이미지로 인코딩해 메타데이터를 제거하고 UUIDv4 저장 이름을 생성합니다.
   - SVG, MIME·서명 불일치, polyglot, 손상·과대·경로 입력을 거부합니다.
 - `src/apps/catalog/data/demo/`, `management/commands/bootstrap_demo_catalog.py`
-  - `agy` 1.1.4 순차 생성 정보와 checksum이 있는 로컬 이미지 21장·상품 17개 manifest를 제공합니다.
+  - `agy` 1.1.4 순차 생성 정보와 checksum이 있는 로컬 이미지 21장·상품 17개 manifest를 제공합니다. 품목별 데모 이미지는 고정 manifest로 연결하므로 실행 때마다 무작위로 바뀌지 않습니다.
   - 개발 환경에서만 PostgreSQL advisory lock과 고정 owner를 사용해 설치하며, 재실행하면 행·파일을 복구하고 checksum 충돌 시 덮어쓰지 않고 중단합니다.
 
 ### 검증 상태
@@ -95,6 +95,9 @@ src/
 - `src/apps/chat/consumers.py`, `routing.py`, `static/chat/chat.js`
   - 인증·현재 사용자 상태·정확 Origin·참여자 권한을 연결과 frame에서 확인합니다.
   - 화면은 신뢰하지 않는 사용자명과 본문을 `textContent`로 출력합니다.
+  - 상품 대화 진입 시 기존 판매자·구매자 방을 재사용하고 `상품 대화 · 연결됨` 상태를 표시합니다. 비정상 종료는 5회 한도와 지수 백오프를 사용하며 10초 안정 연결 뒤에만 카운터를 초기화합니다.
+- `src/apps/chat/templates/chat/room_detail.html`, `src/apps/notifications/services.py`
+  - 상품 대화에서 송금할 수 있고, 정수 원화 금액과 발신자·수신자 알림을 사용합니다. 공개 프로필에서 임의의 새 1:1 방을 만드는 UI는 추가하지 않았습니다.
 
 ### 검증 상태
 
@@ -124,6 +127,7 @@ Origin·참여자, 재전송·충돌, 10/10초 제한, 전달 장애·이력 수
   - 상품 호환 필드를 사용하지 않고 버전별 상태 이력을 보존하며 PostgreSQL trigger가 이력 변경·삭제를 거부합니다.
 - `src/apps/transfers/models.py`, `services.py`, `views.py`
   - 회원별 `100,000.00` 모의 계정을 합계 0인 `SEED_ISSUE` 분개와 함께 한 번만 생성합니다.
+  - 화면·HTTP 송금 입력은 1~99,999,999 정수 원화만 허용하고 응답·알림은 천 단위 구분과 함께 소수 없이 표시합니다. 내부 Decimal 원장과 canonical payload의 둘째 자리는 유지합니다.
   - safety shared advisory lock, 발신자 범위 멱등 lock, 계정 PK 오름차순 잠금 순으로 이체하고 세션 사용자를 발신자로 고정합니다.
   - 성공과 업무상 거부 응답을 영구적으로 재현하고 payload 변경은 거부합니다. journal은 정확히 두 항목과 합계 0을 커밋 시 검사하며 journal/entry 변경·삭제는 DB trigger로 막습니다.
   - exclusive 대사 command는 불일치가 있으면 incident와 함께 신규 이체를 차단하고, 정확한 incident, 불일치 0건, 전용 DB 역할에서만 재개합니다.

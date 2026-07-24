@@ -29,6 +29,8 @@
 - [OWASP File Upload Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html)
 - [OWASP WebSocket Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html)
 
+이번 문서 갱신에는 [epoko77-ai/im-not-ai](https://github.com/epoko77-ai/im-not-ai)의 `humanize-korean` v2.3 기준을 참고했다. 문체만 정리하고 수치·날짜·요구사항/테스트 ID·SHA·명령·경로·상태 토큰·표 구조·PASS/FAIL 및 보안 위험 강도는 보존한다.
+
 보안 자료는 프로젝트의 실제 입력·권한·상태 흐름과 관련된 항목만 사용합니다.
 
 ## C.4 문서 작성 도구

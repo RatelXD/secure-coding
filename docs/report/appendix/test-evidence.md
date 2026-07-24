@@ -24,6 +24,10 @@
 | 2026-07-16 | Pages 배포 | GitHub Pages 배포 확인 | `https://ratelxd.github.io/secure-coding/` 접근 가능 | PASS |
 | 2026-07-16 | 외부 터널 | ngrok | 도구를 사용할 수 없어 실행하지 않음 | 미검증 |
 
+| 2026-07-23 UTC | PR #43 필수 CI | GitHub Actions run `30038923030` | `governance-title`, `unit`, `integration-postgres-redis`, `security`, `migration`, `browser-a11y` 6개 PASS | PASS |
+| 2026-07-23 UTC | PR #44 필수 CI | GitHub Actions run `30039390145` | 위 필수 CI 6개 PASS; 재연결 한도 보정 포함 | PASS |
+| 2026-07-24 | 로컬 WebSocket 수동 캡처 | `127.0.0.1:8000` 재연결 화면 확인 시도 | 로컬 서버 미실행으로 실제 끊김·복구 캡처는 남기지 않음 | 미검증 |
+
 ## B.2 과거 발견·수정 근거
 
 아래 결과는 결함을 발견하고 수정했을 당시의 기록이며, 현재 실패 상태를 뜻하지 않습니다.
@@ -49,6 +53,7 @@
 | 배포·복구 | `.env` 없는 Compose, 준비 상태, 정적 자산, 재시작, PostgreSQL 백업·복원 | PASS |
 | 실제 프록시·TLS | 배포 환경의 종단 프록시와 TLS | 미검증 |
 | ngrok 외부 터널 | 터널을 통한 외부 접속 | 미검증(도구 사용 불가) |
+| Windows 로컬 G6R-2 자산 해시 | `DJANGO_SECRET_KEY=... python -m unittest tests.governance.test_stitch_manifest -v` | 5건 실패; `core.autocrlf=true`로 작업 트리의 텍스트/SVG 줄바꿈이 Git 기준 바이트와 달라 발생. Git 기준 SHA와 manifest는 일치하며 Linux CI 기준 검증 대상 |
 
 ## B.4 상품 권위 구현 검증 근거
 

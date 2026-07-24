@@ -58,20 +58,20 @@
 
 ## 4.5 2차 개발 검증 계약
 
-이 표는 구현 전에 확정한 검증 계약과 당시 기준선 상태를 담고 있습니다. 2026-07-22 통합 실행과 실패 범위 보정의 현재 결과는 4.6에 따로 기록했습니다. 기능 코드나 테스트가 있다는 이유만으로 PASS를 소급해 적지 않았습니다.
+이 표는 구현 전에 확정한 검증 계약을 보존하면서 현재 실행 상태를 함께 표시합니다. 2차 기능의 제품 코드는 현재 main에 반영되어 있지만, 아래 세부 Test-ID를 모두 같은 조건으로 재실행했다는 뜻은 아닙니다. 2026-07-22 통합 실행과 PR #43·#44 CI 결과는 4.6과 4.7에 따로 기록했습니다.
 
 ### 모의 내부 잔액 이체
 
 | 계획 Test-ID | 연결 정책 | 유형 | 실행할 조건 | 기대 결과 | 상태 |
 |---|---|---|---|---|---|
-| `C2-TRF-SEED-001` | `이체-범위-01` | 경계·멱등성 | 신규·기존 회원의 계정 생성을 처음·반복·병렬 실행하고 같은 계정에 `TRANSFER`·`COMPENSATION` 생성 | 회원당 계정 한 개, 초기 100,000.00, 사용자 +100,000.00·`SEED_RESERVE` -100,000.00의 합계 0 journal이 정확히 한 번만 생성되고 SEED 전용 부분 고유 제약은 다른 journal을 허용 | 구현 예정 |
-| `C2-TRF-CLOSE-001` | `이체-계정-01` | HTTP·동시성 | 비인증/CSRF, 잔액 0.01/0.00, 최초/반복 종료, 종료 우선·incoming/outgoing 이체 우선 barrier | 401/403, nonempty 409, 최초·반복 204; 각 순서의 원장·감사 ID/수는 유지되고 종료 감사만 성공 시 1건 | 구현 예정 |
-| `C2-TRF-UNIT-001` | `이체-금액-01`, `이체-잔액-01` | HTTP·경계 | amount JSON 숫자/지수/부호/셋째 자리와 허용 문자열, 금액 0.01..99,999,999.99·수취 잔액 1,000,000,000.00 cap 경계 | 형식 400 `INVALID_REQUEST`, 업무 거부 422 `TRANSFER_NOT_ALLOWED`, 정확한 경계 201; 거부는 잔액·journal 불변 | 구현 예정 |
-| `C2-TRF-AUTH-001` | `이체-대상-01` | 권한 | 비인증 요청, 다른 발신자 위조, 자기·미존재·휴면·닫힌 발신자 또는 수취인 | 서버가 세션 행위자와 DB 현재 시각의 계정 상태를 다시 확인하고 일반화된 오류로 거부 | 구현 예정 |
-| `C2-TRF-IDEM-001` | `이체-멱등-01` | HTTP·멱등성 | recipient/amount/UUID grammar, `1`·`1.0`·`1.00`, payload 차이, 병렬·응답 유실·롤백 뒤 재요청; 성공 201과 부족 잔액 422 저장 뒤 잔액·계정 상태 변경 및 BLOCKED 전환 후 같은 키를 순차·병렬 재요청 | 저장된 201·5필드 body와 `422 TRANSFER_NOT_ALLOWED`·오류 body를 BLOCKED 중에도 각각 그대로 반환하고 이체·journal·잔액·중복 감사 0, 새 키만 503, 다른 payload 409, 롤백 키만 한 번 처리 | 구현 예정 |
-| `C2-TRF-CONC-001` | `이체-동시성-01` | 동시성 | 100,000.00에서 80,000.00씩 병렬 이체, 반대 방향 요청, 같은 키 요청과 계정 종료를 섞어 실행 | 고정 잠금 순서로 음수·중복·교착 누수가 없고 예시에서는 정확히 한 이체만 성공해 발신 잔액 20,000.00 | 구현 예정 |
-| `C2-TRF-FAULT-001` | `이체-원자성-01`, `이체-동시성-01` | 장애·복구 | 빈/1/3항목·합계 불일치 journal 커밋, 저장 지점 예외, `40001`·`40P01` 최초+재시도 3회, 그 밖의 오류 | deferred trigger가 비정상 journal을 거부하고 허용 SQLSTATE만 총 네 번 시도하며 모든 실패는 부분 상태 0건 | 구현 예정 |
-| `C2-TRF-LEDGER-001` | `이체-원자성-01`, `이체-보정-01`, `이체-대사-01` | 불변식·복구 | journal/entry DB trigger, safety shared 새 이체와 exclusive BLOCKED 전환 barrier, 전환 뒤 새 키와 저장된 201·422 키 요청, 잘못된 incident·불일치 잔존·정상 재개 | trigger 거부, 전환 전 새 요청만 완료, 전환 뒤 늦은 커밋 0·새 키 503·저장 결과 동일 재현, 전체 불일치 0+정확 incident에서만 OPEN | 구현 예정 |
+| `C2-TRF-SEED-001` | `이체-범위-01` | 경계·멱등성 | 신규·기존 회원의 계정 생성을 처음·반복·병렬 실행하고 같은 계정에 `TRANSFER`·`COMPENSATION` 생성 | 회원당 계정 한 개, 초기 100,000.00, 사용자 +100,000.00·`SEED_RESERVE` -100,000.00의 합계 0 journal이 정확히 한 번만 생성되고 SEED 전용 부분 고유 제약은 다른 journal을 허용 | 미검증 |
+| `C2-TRF-CLOSE-001` | `이체-계정-01` | HTTP·동시성 | 비인증/CSRF, 잔액 0.01/0.00, 최초/반복 종료, 종료 우선·incoming/outgoing 이체 우선 barrier | 401/403, nonempty 409, 최초·반복 204; 각 순서의 원장·감사 ID/수는 유지되고 종료 감사만 성공 시 1건 | 미검증 |
+| `C2-TRF-UNIT-001` | `이체-금액-01`, `이체-잔액-01` | HTTP·경계 | amount JSON 숫자/지수/부호/소수와 허용 문자열, 금액 1..99,999,999 정수 경계·잔액 cap 경계 | 형식 400 `INVALID_REQUEST`, 업무 거부 422 `TRANSFER_NOT_ALLOWED`, 정확한 경계 201; 거부는 잔액·journal 불변 | 미검증 |
+| `C2-TRF-AUTH-001` | `이체-대상-01` | 권한 | 비인증 요청, 다른 발신자 위조, 자기·미존재·휴면·닫힌 발신자 또는 수취인 | 서버가 세션 행위자와 DB 현재 시각의 계정 상태를 다시 확인하고 일반화된 오류로 거부 | 미검증 |
+| `C2-TRF-IDEM-001` | `이체-멱등-01` | HTTP·멱등성 | recipient/정수 amount/UUID grammar, payload 차이, 병렬·응답 유실·롤백 뒤 재요청; 성공 201과 부족 잔액 422 저장 뒤 잔액·계정 상태 변경 및 BLOCKED 전환 후 같은 키를 순차·병렬 재요청 | 저장된 201·5필드 body와 `422 TRANSFER_NOT_ALLOWED`·오류 body를 BLOCKED 중에도 각각 그대로 반환하고 이체·journal·잔액·중복 감사 0, 새 키만 503, 다른 payload 409, 롤백 키만 한 번 처리 | 미검증 |
+| `C2-TRF-CONC-001` | `이체-동시성-01` | 동시성 | 100,000.00에서 80,000.00씩 병렬 이체, 반대 방향 요청, 같은 키 요청과 계정 종료를 섞어 실행 | 고정 잠금 순서로 음수·중복·교착 누수가 없고 예시에서는 정확히 한 이체만 성공해 발신 잔액 20,000.00 | 미검증 |
+| `C2-TRF-FAULT-001` | `이체-원자성-01`, `이체-동시성-01` | 장애·복구 | 빈/1/3항목·합계 불일치 journal 커밋, 저장 지점 예외, `40001`·`40P01` 최초+재시도 3회, 그 밖의 오류 | deferred trigger가 비정상 journal을 거부하고 허용 SQLSTATE만 총 네 번 시도하며 모든 실패는 부분 상태 0건 | 미검증 |
+| `C2-TRF-LEDGER-001` | `이체-원자성-01`, `이체-보정-01`, `이체-대사-01` | 불변식·복구 | journal/entry DB trigger, safety shared 새 이체와 exclusive BLOCKED 전환 barrier, 전환 뒤 새 키와 저장된 201·422 키 요청, 잘못된 incident·불일치 잔존·정상 재개 | trigger 거부, 전환 전 새 요청만 완료, 전환 뒤 늦은 커밋 0·새 키 503·저장 결과 동일 재현, 전체 불일치 0+정확 incident에서만 OPEN | 미검증 |
 
 동시성·롤백 검증은 SQLite 대체 환경이 아닌 실제 PostgreSQL에서 실행합니다. 성공 뒤에는 계정 두 행, 이체 한 행, 상쇄되는 원장 두 행, 감사 한 건을 함께 조회해 확인합니다. 직접 수정·삭제 경로가 없는지도 확인합니다.
 
@@ -94,16 +94,16 @@
 
 | 계획 Test-ID | 연결 정책 | 유형 | 실행할 조건 | 기대 결과 | 상태 |
 |---|---|---|---|---|---|
-| `C2-ADM-DENY-001` | `관리-최소권한-01` | HTTP·권한 | reports/audit/apply/release/grant/revoke를 비인증·권한 부족·범위 밖·미존재로 요청 | HTML 비인증 302, staff/codename/meta-scope 부족 403, 범위 밖·미존재 404, 상태 변화 없음 | 구현 예정 |
-| `C2-ADM-REQ-001` | `관리-재인증-01` | 경계·음성 | UTC 시각을 고정해 재인증 299·300·301초, GET, CSRF 없음, 사유 trim/NFC 후 9·10·500·501 code point·공백·C0/C1, stale version | 299·300초, 정규화한 10·500자, POST+CSRF, 최신 version을 모두 만족할 때만 처리 | 구현 예정 |
-| `C2-ADM-MATRIX-001` | `관리-최소권한-01` | HTTP·최소 권한 | reports/audit의 정확한 query, apply/release의 `target_type=user\|product`·양의 10진 ID·form, grant의 네 일반 codename allowlist, 추가·미지 필드와 권한/grant 조합 | 정확한 query/form·wire 값과 codename+grant만 HTML 200, 입력·추가 필드 400, 권한 403, 미존재·범위 밖 404, stale 409, 감사 장애 503 | 구현 예정 |
-| `C2-ADM-GRANT-001` | `관리-범위-01`, `관리-재인증-01` | HTTP·권한 수명 | `AdminScopeGrant` grant/revoke form, `moderation.manage_admin_scope`, 299/300/301초, stale version, 자기 변경; `--reason` 경계·전용 역할·유효 관리자 0/1명·감사 실패·서로 다른 후보의 동시 bootstrap barrier | 정상 200; 입력/재인증 400, meta-scope/자기 403, stale/중복 409; bootstrap은 advisory lock 안 0명 재검사 뒤 permission+감사 각 1건만 커밋하고 패자는 결정적 거부, 감사 실패는 둘 다 0 | 구현 예정 |
-| `C2-ADM-PRIV-001` | `관리-범위-01` | 개인정보·무결성 | 비밀번호/hash/session/secret, 채팅 본문, 모의 잔액·원장·감사 수정·삭제 시도 | 금지 필드를 표시하지 않고 불변 데이터와 콘텐츠의 대필 수정·물리 삭제 진입점을 제공하지 않음 | 구현 예정 |
-| `C2-ADM-AUDIT-001` | `관리-감사-01` | 감사 결과 | 성공·권한 거부·version 충돌을 각각 실행 | 업무 결과마다 민감값 없는 DB 감사 정확히 1건과 기대 상태 코드가 남음 | 구현 예정 |
-| `C2-ADM-AUDIT-FAIL-001` | `관리-감사-01` | 감사 장애 | 상태 변경 중 감사 INSERT 실패, 기존 감사 UPDATE·DELETE | INSERT 실패는 HTTP 503·업무 변경 0·DB 감사 0·상관 ID 오류, UPDATE·DELETE는 원본 불변으로 DB 거부 | 구현 예정 |
-| `C2-ADM-APPLY-RACE-001` | `관리-가역성-01`, `관리-중복-01` | 적용 경합 | 같은 대상 제재를 barrier로 병렬 적용 | 활성 제재 1·적용 성공 감사 1, 패자는 기존 결과를 반환하고 기간·기록 수를 늘리지 않음 | 구현 예정 |
-| `C2-ADM-EXPIRY-001` | `관리-가역성-01`, `관리-중복-01` | 만료 경계 | DB 시각을 적용 직후·만료 직전·정확한 만료·직후로 고정하고 각 시각에 release POST | 활성 수 1·1·0·0, 자연 만료 자체의 기록 0; 만료 전 해제는 `SanctionRelease`·성공 감사 각 1건, 만료 시각 이후 해제는 409·충돌 감사 1건·`SanctionRelease` 0건, 원본 보존 | 구현 예정 |
-| `C2-ADM-RELEASE-RACE-001` | `관리-가역성-01`, `관리-중복-01` | 해제 경합 | 활성 제재를 barrier로 병렬 조기 해제하고 반복 요청 | 활성 0, `SanctionRelease` 1, 해제 성공 감사 1이며 패자·반복은 저장 결과만 반환 | 구현 예정 |
+| `C2-ADM-DENY-001` | `관리-최소권한-01` | HTTP·권한 | reports/audit/apply/release/grant/revoke를 비인증·권한 부족·범위 밖·미존재로 요청 | HTML 비인증 302, staff/codename/meta-scope 부족 403, 범위 밖·미존재 404, 상태 변화 없음 | 미검증 |
+| `C2-ADM-REQ-001` | `관리-재인증-01` | 경계·음성 | UTC 시각을 고정해 재인증 299·300·301초, GET, CSRF 없음, 사유 trim/NFC 후 9·10·500·501 code point·공백·C0/C1, stale version | 299·300초, 정규화한 10·500자, POST+CSRF, 최신 version을 모두 만족할 때만 처리 | 미검증 |
+| `C2-ADM-MATRIX-001` | `관리-최소권한-01` | HTTP·최소 권한 | reports/audit의 정확한 query, apply/release의 `target_type=user\|product`·양의 10진 ID·form, grant의 네 일반 codename allowlist, 추가·미지 필드와 권한/grant 조합 | 정확한 query/form·wire 값과 codename+grant만 HTML 200, 입력·추가 필드 400, 권한 403, 미존재·범위 밖 404, stale 409, 감사 장애 503 | 미검증 |
+| `C2-ADM-GRANT-001` | `관리-범위-01`, `관리-재인증-01` | HTTP·권한 수명 | `AdminScopeGrant` grant/revoke form, `moderation.manage_admin_scope`, 299/300/301초, stale version, 자기 변경; `--reason` 경계·전용 역할·유효 관리자 0/1명·감사 실패·서로 다른 후보의 동시 bootstrap barrier | 정상 200; 입력/재인증 400, meta-scope/자기 403, stale/중복 409; bootstrap은 advisory lock 안 0명 재검사 뒤 permission+감사 각 1건만 커밋하고 패자는 결정적 거부, 감사 실패는 둘 다 0 | 미검증 |
+| `C2-ADM-PRIV-001` | `관리-범위-01` | 개인정보·무결성 | 비밀번호/hash/session/secret, 채팅 본문, 모의 잔액·원장·감사 수정·삭제 시도 | 금지 필드를 표시하지 않고 불변 데이터와 콘텐츠의 대필 수정·물리 삭제 진입점을 제공하지 않음 | 미검증 |
+| `C2-ADM-AUDIT-001` | `관리-감사-01` | 감사 결과 | 성공·권한 거부·version 충돌을 각각 실행 | 업무 결과마다 민감값 없는 DB 감사 정확히 1건과 기대 상태 코드가 남음 | 미검증 |
+| `C2-ADM-AUDIT-FAIL-001` | `관리-감사-01` | 감사 장애 | 상태 변경 중 감사 INSERT 실패, 기존 감사 UPDATE·DELETE | INSERT 실패는 HTTP 503·업무 변경 0·DB 감사 0·상관 ID 오류, UPDATE·DELETE는 원본 불변으로 DB 거부 | 미검증 |
+| `C2-ADM-APPLY-RACE-001` | `관리-가역성-01`, `관리-중복-01` | 적용 경합 | 같은 대상 제재를 barrier로 병렬 적용 | 활성 제재 1·적용 성공 감사 1, 패자는 기존 결과를 반환하고 기간·기록 수를 늘리지 않음 | 미검증 |
+| `C2-ADM-EXPIRY-001` | `관리-가역성-01`, `관리-중복-01` | 만료 경계 | DB 시각을 적용 직후·만료 직전·정확한 만료·직후로 고정하고 각 시각에 release POST | 활성 수 1·1·0·0, 자연 만료 자체의 기록 0; 만료 전 해제는 `SanctionRelease`·성공 감사 각 1건, 만료 시각 이후 해제는 409·충돌 감사 1건·`SanctionRelease` 0건, 원본 보존 | 미검증 |
+| `C2-ADM-RELEASE-RACE-001` | `관리-가역성-01`, `관리-중복-01` | 해제 경합 | 활성 제재를 barrier로 병렬 조기 해제하고 반복 요청 | 활성 0, `SanctionRelease` 1, 해제 성공 감사 1이며 패자·반복은 저장 결과만 반환 | 미검증 |
 
 ### 공통 회귀·마이그레이션·근거 기준
 
@@ -112,7 +112,7 @@
 - 2차 구현 뒤 기존 1차 사용자·상품·채팅·신고·가역 제재 전체를 다시 실행해 회귀가 0건인지 확인합니다.
 - 각 결과에는 Test-ID, 연결된 요구사항·정책·위협 ID, 검증 대상 버전, 실행 절차와 환경, 도구 버전, 시작·종료 시각, 기대값·실제값, 실패 뒤 수정·재검증을 남깁니다.
 - 동시성·장애 테스트는 요청별 결과와 최종 DB 불변식 조회를 함께 보존합니다. 공개 보고서에는 비밀값·세션·개인정보·로컬 절대 경로를 제거한 근거만 연결합니다.
-- 구현 전 설계 문서나 테스트 이름만 있는 것은 실행 근거가 아닙니다. 모든 계획 항목을 실행하고 미해결 높은 위험이 없음을 확인한 뒤에만 2차 구현 검증을 `PASS`로 바꿉니다.
+- 구현 전 설계 문서나 테스트 이름만 있는 것은 실행 근거가 아닙니다. 현재는 제품 코드가 구현된 항목을 `구현됨`으로 표시하고, 같은 Test-ID의 상세 실행을 확인한 항목만 `PASS`로 표시합니다.
 
 ## 4.6 현재 실제 실행 결과
 
@@ -131,7 +131,7 @@
 | 서비스 상태와 정적 자산 | Compose 실행 후 `/readyz/`, `/static/chat/chat.js` 요청 | 모두 HTTP 200, 채팅 자산은 `text/javascript` | 앱·PostgreSQL 연결과 DEBUG 정적 자산 제공 |
 | 재시작과 복구 | 앱·DB·Redis 재시작, PostgreSQL 백업·복원 | 재시작 복구 PASS; 복원 뒤 사용자 1명, 상품 1개, 마이그레이션 24개 일치 | 컨테이너와 데이터 복구 |
 
-전체 170개와 하위 사례 217개는 실제 PostgreSQL·Redis 컨테이너에 연결해 실행했습니다. 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·참여자·재전송·휴면 수신 차단, Redis 장애 이력 수렴, 동시 제재·만료, 마이그레이션 일치와 2차 상세 정책 구조를 확인했습니다. `.env` 파일 없이 기본 애플리케이션 Compose와 별도 테스트 Compose 오버레이에서 설정 해석, 이미지 빌드, 마이그레이션, 서비스 healthy 상태, loopback 전용 테스트 의존성, 미디어 지속성, 준비 상태 전체 제한 시간·다중 주소 대체, 재시작 복구와 백업·복원을 확인했습니다. 외부 터널 서비스는 실행하지 않았으므로 이 보고서의 검증 근거에는 포함하지 않았습니다.
+전체 170개와 하위 사례 217개는 실제 PostgreSQL·Redis 컨테이너에 연결해 실행했습니다. 계정·IP 로그인 제한 경합, 인증·IDOR·CSRF·XSS, 이미지 우회, WebSocket Origin·참여자·재전송·휴면 수신 차단, Redis 장애 이력 수렴, 동시 제재·만료, 마이그레이션 일치와 2차 상세 정책 구조를 확인했습니다. `.env` 파일 없이 기본 애플리케이션 Compose와 별도 테스트 Compose 오버레이에서 설정 해석, 이미지 빌드, 마이그레이션, 서비스 healthy 상태, loopback 전용 테스트 의존성, 미디어 지속성, 준비 상태 전체 제한 시간·다중 주소 대체, 재시작 복구와 백업·복원을 확인했습니다. 외부 터널 서비스는 실행하지 않았으므로 이 보고서의 검증 근거에는 포함하지 않았습니다. 이 수치는 당시 실행 결과이며 최신 main의 필수 CI 결과는 다음 절에 별도로 기록합니다.
 
 
 ## 4.7 2026-07-22 통합 최종 검증
@@ -147,3 +147,14 @@
 | G017 verifier | 변경 전 집중 실행 12 PASS, 전체 pytest에서 포함 실행 | required check를 정확한 6개로 고정하고 conversation resolution, same-SHA 단조 release state와 immutable failure를 검증 | 전체 실패 범위와 별개로 verifier test는 PASS 유지 |
 
 최종적으로 제품·보안 테스트 실패는 남지 않았습니다. 최초 full invocation은 다시 실행하지 않았으며, `307 PASS / 4 FAIL`과 보정 뒤 `4 PASS`를 하나의 `311 PASS` 결과로 합쳐 쓰지 않았습니다. 실제 tag 생성, RC·formal promotion, Latest 변경, 공개 release 검증과 generic PDF 산출은 이 검증에서 수행하지 않았고 G019의 exact-main qualification 범위로 남겼습니다.
+
+## 4.8 현재 main의 PR 검증
+
+현재 main에 포함된 후속 변경은 별도 PR에서 필수 CI를 통과했습니다. 이는 로컬에서 실행한 전체 matrix의 수치를 새로 쓰는 근거가 아니라, 해당 PR head에 대한 GitHub Actions 결과입니다.
+
+| PR | 변경 | 실행 | 결과 |
+|---|---|---|---|
+| [#43](https://github.com/RatelXD/secure-coding/pull/43) | 상품 채팅 연결 상태, 전역 가로형 로고, 정수 원화 송금 | run `30038923030` | `governance-title`, `unit`, `integration-postgres-redis`, `security`, `migration`, `browser-a11y` 6개 모두 PASS; merge `d94bade6d904ee16cbdfdad95920b4a5ff66ca63` |
+| [#44](https://github.com/RatelXD/secure-coding/pull/44) | 반복적인 open→abnormal-close 재연결 한도 보정 | run `30039390145` | 위 6개 모두 PASS; merge `1467092302f789f802114f62d4d3dcfcf1b13be8` |
+
+PR #43·#44의 browser-a11y는 홈·상품·가입·계정 화면과 정적 자산을 확인했습니다. 실제 로컬 WebSocket을 끊었다가 복구하는 수동 브라우저 캡처는 로컬 서버가 실행되지 않아 이 기록에 추가하지 않았습니다. 해당 동작은 `chat.js`의 연결 상태·재시도 정책과 CI unit 검증을 근거로 삼고, 실제 배포 프록시·TLS 종단은 여전히 별도 확인 대상입니다.
