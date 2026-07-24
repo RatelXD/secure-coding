@@ -1,4 +1,18 @@
-# v1.0.0 최종 보고서
+# **Tiny Second-hand Shopping Platform 보고서**
+## Contributors
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://github.com/RatelXD">
+        <img src="https://avatars.githubusercontent.com/u/118552216?v=4" width="72" height="72" alt="RatelXD profile image" />
+        <br />
+        <sub><b>@RatelXD</b></sub>
+        <br />
+        WHS_[22반]_전현웅
+      </a>
+    </td>
+  <tr>
+<table>
 
 이 문서는 Tiny Second-hand Shopping Platform의 요구사항, 설계, 구현, 검증, 유지보수와 보안 약점을 한 번에 확인할 수 있도록 요약한 문서입니다. 기준 버전은 **v1.0.0**, 기준 main은 `48912530c846d200af461217d6b0034b942a8b04`입니다. 기존 상세 보고서가 추적하는 역사적 기준 `1467092302f789f802114f62d4d3dcfcf1b13be8`과 그 이후 변경은 구분해 적었습니다. `PASS`는 실제 실행 근거가 있는 경우에만 사용하고, 구현되었지만 세부 재검증이 필요한 항목과 배포 환경에서 아직 확인하지 않은 항목은 따로 표시합니다.
 
