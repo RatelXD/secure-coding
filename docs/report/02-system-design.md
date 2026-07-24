@@ -4,7 +4,7 @@
 
 플랫폼은 브라우저와 Django가 같은 출처를 쓰는 단일 ASGI 애플리케이션으로 설계했습니다. PostgreSQL은 사용자·상품·채팅·신고·거래 기록을 영속적으로 저장하고, Redis는 실시간 채팅 전달을 위한 비영속 fan-out에만 사용합니다.
 
-2026-07-22 기준으로 단일 Django ASGI 구조에 사용자·상품·검색·채팅·알림·거래·모의 이체·관리·후기·회원 탈퇴 기능과 PostgreSQL 마이그레이션을 구현했습니다. PostgreSQL이 영속 권위이며 Redis는 재구축 가능한 전달·presence projection입니다. 자동 테스트, 마이그레이션, 백업→빈 DB 복원, 브라우저·axe 검증 결과는 종합 검증 근거로 따로 구분합니다.
+현재 main `1467092302f789f802114f62d4d3dcfcf1b13be8`에는 사용자·상품·검색·채팅·알림·거래·모의 이체·관리·후기·회원 탈퇴 기능과 PostgreSQL 마이그레이션이 구현되어 있습니다. PostgreSQL이 영속 권위이며 Redis는 재구축 가능한 전달·presence projection입니다. PR #43·#44에서 상품 대화의 연결 상태, 재연결 한도, 전역 가로형 로고, 정수 원화 표시를 보정했습니다. 자동 테스트, 마이그레이션, 백업→빈 DB 복원, 브라우저·axe 검증 결과는 종합 검증 근거로 따로 구분합니다.
 
 ## 2.2 기술 구성
 
@@ -110,6 +110,8 @@ sequenceDiagram
 
 메시지 수락 여부는 PostgreSQL 커밋으로 판단합니다. Redis 장애로 저장 결과를 되돌리거나 같은 메시지가 중복 저장되어서는 안 됩니다.
 
+상품 상세의 대화 진입점은 판매자와 구매자의 기존 상품 방을 재사용합니다. 공개 프로필에서 임의의 새 1:1 방을 만드는 별도 UI는 제공하지 않습니다. 방 상세는 로그인한 참여자만 접근하며 비로그인 사용자는 로그인 경로로 이동합니다. 클라이언트는 연결 전 `상품 대화 · 연결 중`, 연결 성공 뒤 `상품 대화 · 연결됨`을 표시하고, 4400·4403·1000 같은 종료는 재시도하지 않습니다. 그 밖의 비정상 종료는 최대 5회, 최대 30초의 지수 백오프로 재시도하며 10초 안정 연결 뒤에만 횟수를 초기화합니다. 상품 대화의 송금 결과는 발신자와 수신자의 알림에 남고, 대화 이력은 Redis 장애와 무관하게 PostgreSQL에서 다시 읽습니다.
+
 ### 신고와 가역 제재
 
 ```mermaid
@@ -163,7 +165,7 @@ sequenceDiagram
 - 사용자 `MockAccount`는 대응하는 사용자 `LedgerAccount`와 1:1 관계입니다. 사용자에게 노출하지 않는 `SYSTEM_ISSUANCE` 유형의 `SEED_RESERVE` 계정 하나를 두며, 이 계정에는 사용자 잔액 상한·종료·송수신 대상 규칙을 적용하지 않습니다.
 - 신규 계정 생성과 기존 회원 backfill은 계정, 사용자 ledger 계정, 초기 잔액 100,000.00, 사용자 `+100,000.00`·reserve `-100,000.00`의 `SEED_ISSUE` journal을 하나의 트랜잭션에서 만듭니다. `journal_kind=SEED_ISSUE AND target_mock_account IS NOT NULL` 조건의 `(target_mock_account)` 부분 고유 제약으로 발행은 한 번으로 제한하되 이후 `TRANSFER`·`COMPENSATION` journal은 막지 않습니다.
 - PostgreSQL deferred constraint trigger는 journal/entry INSERT를 커밋 시점에 검사하며, UPDATE·DELETE trigger는 `LedgerJournal`과 `LedgerEntry`를 모두 불변으로 만듭니다. 이체·두 잔액·감사도 같은 트랜잭션에서 저장합니다.
-- 잔액은 현금 가치가 없는 `Decimal(12,2)` 모의 단위입니다. 1회 이체는 0.01~99,999,999.99, 결과 사용자 잔액은 0~1,000,000,000.00으로 제한하며 충전·출금·환전은 제공하지 않습니다.
+- 잔액은 현금 가치가 없는 `Decimal(12,2)` 모의 단위입니다. 내부 원장·잔액은 2자리 정밀도를 유지하지만 HTTP와 화면의 1회 송금 입력은 1~99,999,999 정수 원화만 받습니다. 화면은 `100,000원`처럼 소수 없이 표시하며 충전·출금·환전은 제공하지 않습니다.
 - 트랜잭션은 `(sender, idempotency_key)`의 안정적인 64-bit digest로 `pg_advisory_xact_lock`을 먼저 얻습니다. digest는 프로세스별 hash가 아닌 고정 암호학적 digest 변환을 쓰므로 모든 인스턴스가 같은 키를 잠급니다. 충돌은 안전을 위해 서로 다른 요청을 직렬화할 뿐입니다.
 - safety shared lock과 멱등성 advisory lock을 차례로 얻은 뒤 `(sender, idempotency_key)` 고유 행을 조회합니다. canonical payload는 버전 1, 변형하지 않은 수신자 아이디 원문, 금액의 고정 둘째 자리 문자열을 키 순서가 고정된 UTF-8 JSON으로 직렬화합니다. `1`·`1.0`·`1.00`은 같으며 수신자 원문 또는 금액이 다르면 409입니다. 최초 성공과 업무상 거부의 HTTP 상태·body를 저장하고, 같은 payload는 현재 잔액·계정 상태나 `TransferSafetyState=BLOCKED` 여부와 무관하게 저장 결과를 그대로 재현합니다. `OPEN` 검사는 저장 결과가 없는 새 키에만 적용하며, 새 요청에서만 수신자를 정확 일치로 조회해 계정을 잠급니다.
 - 잠금 순서는 safety shared advisory lock → 멱등성 advisory lock → 계정 PK 오름차순입니다. 대사·재개는 같은 safety 키의 exclusive advisory lock을 사용해 기존 이체·종료가 끝난 뒤 검사하고 새 요청을 막습니다. `40001`·`40P01`만 최초 시도 뒤 재시도할 때마다 새 트랜잭션을 열어 최대 3회 처리합니다.
@@ -211,7 +213,7 @@ sequenceDiagram
 
 #### 이체 JSON API
 
-`POST /transfers/`는 `application/json`만 받고 `recipient`, `amount`, `idempotency_key` 세 필드만 허용하며 누락·추가 필드는 `400 INVALID_REQUEST`입니다. `recipient`는 trim하지 않은 1..150 code point 문자열, `amount`는 JSON 문자열이며 `^(0|[1-9][0-9]{0,7})(\.[0-9]{1,2})?$`, `idempotency_key`는 소문자 canonical UUID 문자열입니다. 성공 body는 정확히 `{"transfer_id":"UUID","status":"completed","recipient":"원문","amount":"0.00","sender_balance":"0.00"}` 다섯 필드입니다. 같은 키·payload 재현은 최초 status와 body를 그대로 반환하므로 신규와 성공 재현 모두 `201`이고, 저장된 업무 거부 재현은 최초 오류 status와 body를 그대로 반환합니다.
+`POST /transfers/`는 `application/json`만 받고 `recipient`, `amount`, `idempotency_key` 세 필드만 허용하며 누락·추가 필드는 `400 INVALID_REQUEST`입니다. `recipient`는 trim하지 않은 1..150 code point 문자열, `amount`는 1~99,999,999 범위의 정수 JSON 문자열이며 `idempotency_key`는 소문자 canonical UUID 문자열입니다. 성공 body의 `amount`와 `sender_balance`도 `100000`처럼 소수 없는 문자열로 반환합니다. 내부 canonical payload와 원장은 `Decimal` 둘째 자리로 보존하므로 재실행·대사 의미는 바뀌지 않습니다. 레거시 Decimal parser의 저장 정밀도 정규식은 `` `^(0|[1-9][0-9]{0,7})(\.[0-9]{1,2})?$` ``로 문서 계약에 보존하지만, 현재 HTTP·UI 경계에서는 정수 원화만 허용합니다. 내부 원장 호환 응답 형상은 `{"transfer_id":"UUID","status":"completed","recipient":"원문","amount":"0.00","sender_balance":"0.00"}`로 보존하며, 화면 표시 단계에서 소수점을 제거합니다. 같은 키·payload 재현은 최초 status와 body를 그대로 반환하므로 신규와 성공 재현 모두 `201`이고, 저장된 업무 거부 재현은 최초 오류 status와 body를 그대로 반환합니다.
 
 | 결과 | HTTP | JSON `error_code` |
 |---|---:|---|

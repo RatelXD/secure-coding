@@ -4,7 +4,7 @@ Django 기반 중고거래 플랫폼의 요구사항 분석부터 보안 설계,
 
 ## 현재 상태
 
-현재 저장소에는 Django 5.2 기반 동일 출처 ASGI 애플리케이션과 PostgreSQL·Redis 로컬 실행 구성이 있습니다. 1차 범위의 사용자·상품·채팅·신고·가역 제재 종단 기능을 구현했고, 전체 변경 사항을 반영한 자동·보안·동시성 테스트가 통과했습니다. 검색·관리자·모의 잔액 이체는 2차 범위로 남겨 두었습니다.
+현재 저장소에는 Django 5.2 기반 동일 출처 ASGI 애플리케이션과 PostgreSQL·Redis 로컬 실행 구성이 있습니다. 사용자·상품·검색·채팅·알림·거래·신고·관리·후기·회원 탈퇴와 모의 잔액 이체까지 제품 코드에 반영되어 있습니다. 최신 변경은 `1467092302f789f802114f62d4d3dcfcf1b13be8`이며, PR #43·#44에서 채팅 연결 상태·가로형 로고·정수 원화 표시·재연결 한도를 보정했습니다.
 
 | 영역 | 상태 |
 |---|---|
@@ -20,9 +20,12 @@ Django 기반 중고거래 플랫폼의 요구사항 분석부터 보안 설계,
 - 아이디와 비밀번호를 이용한 회원가입·로그인
 - 사용자 조회와 본인 소개글·비밀번호 변경
 - 상품 등록·관리·목록·상세 조회와 안전한 이미지 업로드
-- 인증 사용자의 전체 채팅과 참여자 전용 1대1 채팅
+- 상품에서 시작하는 인증 회원 간 1대1 채팅, 대화 이력·알림·송금
+- WebSocket 연결 상태 표시와 제한된 지수 백오프 재연결
+- 전역 공통 가로형 `주거니 받거니` 브랜드 로고
+- 정수 원화 송금 입력과 `100,000원` 형식의 화면 표시
 - 사용자·상품 신고와 기간이 정해진 가역 제재
-- 2차 개발 범위인 상품 검색, 관리자 기능, 모의 내부 잔액 이체
+- 상품 검색, 관리자 기능, 모의 내부 잔액 이체
 
 세부 상태는 [요구사항 분석](docs/report/01-requirements.md)과 [기능 추적표](docs/report/appendix/feature-traceability.md)에서 확인할 수 있습니다.
 
@@ -118,7 +121,7 @@ docker compose -p secure-coding-test \
   down -v
 ```
 
-2026-07-22 통합 matrix의 전체 `pytest`는 307 PASS·4 FAIL·하위 사례 448 PASS였고, 실패 원인을 수정한 뒤 실패한 정확한 node 4개를 재실행해 4 PASS를 확인했습니다. 같은 matrix에서 Django check, migration drift와 전진 적용은 PASS였습니다. PostgreSQL backup→빈 DB restore는 확장 의존 비교 명령을 제거한 뒤 migration 39개와 public table 45개가 일치했고, 고정 Playwright container에서 toolchain contract와 데스크톱·모바일 browser/axe 4건이 PASS였습니다. 최초 전체 실행의 실패를 숨기거나 이를 단일 311 PASS 실행으로 바꾸어 기록하지 않습니다.
+2026-07-22 통합 matrix의 전체 `pytest`는 307 PASS·4 FAIL·하위 사례 448 PASS였고, 실패 원인을 수정한 뒤 실패한 정확한 node 4개를 재실행해 4 PASS를 확인했습니다. 같은 matrix에서 Django check, migration drift와 전진 적용은 PASS였습니다. PostgreSQL backup→빈 DB restore는 확장 의존 비교 명령을 제거한 뒤 migration 39개와 public table 45개가 일치했고, 고정 Playwright container에서 toolchain contract와 데스크톱·모바일 browser/axe 4건이 PASS였습니다. 최초 전체 실행의 실패를 숨기거나 이를 단일 311 PASS 실행으로 바꾸어 기록하지 않습니다. 이후 PR #43의 필수 CI 6개와 PR #44의 필수 CI 6개도 각각 PASS했습니다.
 
 ## 보안 설계 요약
 

@@ -19,3 +19,12 @@
 | ngrok | 사용할 수 없어 외부 터널 검증을 실행하지 않음 | 미검증 |
 
 과거 채팅 수락의 PostgreSQL 행 잠금 및 Origin 검증 실패는 발견 당시의 근거일 뿐 현재 실패 상태가 아닙니다. 수정 뒤 집중 회귀와 당시 통합 스위트(154 tests, 210 subtests PASS)를 확인했습니다. 1차 구현 뒤 유지보수 점검에서 발견한 네 항목을 수정한 통합 스위트에서는 168 tests, 216 subtests가 통과했습니다. 이후 2차 상세 정책 구조 검사를 추가한 통합 스위트에서는 169 tests, 217 subtests가 통과했습니다. 정책 추적성과 제출 문서 용어 검사를 분리한 현재 통합 스위트에서는 170 tests, 217 subtests가 통과했습니다.
+
+## 현재 main 후속 PR 검증
+
+| PR | 대상 commit | 실행 | 결과 |
+|---|---|---|---|
+| [#43](https://github.com/RatelXD/secure-coding/pull/43) | `d94bade6d904ee16cbdfdad95920b4a5ff66ca63` | GitHub Actions run `30038923030` | `governance-title`, `unit`, `integration-postgres-redis`, `security`, `migration`, `browser-a11y` PASS |
+| [#44](https://github.com/RatelXD/secure-coding/pull/44) | `1467092302f789f802114f62d4d3dcfcf1b13be8` | GitHub Actions run `30039390145` | 위 필수 CI 6개 PASS |
+
+PR #43은 상품 대화 연결 상태, 가로형 브랜드 로고, 정수 원화 표시를 검증했고 PR #44는 연결 직후 반복 종료에서도 재연결 한도가 유지되도록 보정했습니다. 로컬 서버를 사용한 실제 WebSocket 끊김·복구 캡처는 실행하지 않았으므로 배포 프록시·TLS 종단 검증과 함께 잔여 항목으로 둡니다.
